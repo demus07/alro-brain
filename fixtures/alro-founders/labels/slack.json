@@ -1,0 +1,415 @@
+{
+  "items": [
+    {
+      "commitment_id": "C01",
+      "role": "fulfilled",
+      "file": "slack/eng/2026-09-04.json",
+      "channel": "eng",
+      "speaker": "Ananya Desai",
+      "ts": "1788504044.000643",
+      "at": "2026-09-04T12:10:44+05:30",
+      "quote": "Schema PR is up"
+    },
+    {
+      "commitment_id": "C03",
+      "role": "fulfilled",
+      "file": "slack/eng/2026-09-07.json",
+      "channel": "eng",
+      "speaker": "Ananya Desai",
+      "ts": "1788757208.000754",
+      "at": "2026-09-07T10:30:08+05:30",
+      "quote": "Submitted the CASA application this morning"
+    },
+    {
+      "commitment_id": "C05",
+      "role": "made",
+      "file": "slack/eng/2026-09-03.json",
+      "channel": "eng",
+      "speaker": "Ananya Desai",
+      "ts": "1788414640.000421",
+      "at": "2026-09-03T11:20:40+05:30",
+      "quote": "I'll set up Neon + Vercel preview envs tomorrow"
+    },
+    {
+      "commitment_id": "C05",
+      "role": "fulfilled",
+      "file": "slack/eng/2026-09-04.json",
+      "channel": "eng",
+      "speaker": "Ananya Desai",
+      "ts": "1788527756.000717",
+      "at": "2026-09-04T18:45:56+05:30",
+      "quote": "Preview envs are live."
+    },
+    {
+      "commitment_id": "C06",
+      "role": "mentioned",
+      "file": "slack/eng/2026-09-08.json",
+      "channel": "eng",
+      "speaker": "Ananya Desai",
+      "ts": "1788865900.000731",
+      "at": "2026-09-08T16:41:40+05:30",
+      "quote": "Your pricing comparison from Saturday covers what comes after."
+    },
+    {
+      "commitment_id": "C07",
+      "role": "mentioned",
+      "file": "slack/eng/2026-09-15.json",
+      "channel": "eng",
+      "speaker": "Ananya Desai",
+      "ts": "1789479031.000335",
+      "at": "2026-09-15T19:00:31+05:30",
+      "quote": "RLS tests before any real data (by Sat)"
+    },
+    {
+      "commitment_id": "C07",
+      "role": "fulfilled",
+      "file": "slack/eng/2026-09-18.json",
+      "channel": "eng",
+      "speaker": "Ananya Desai",
+      "ts": "1789729813.000594",
+      "at": "2026-09-18T16:40:13+05:30",
+      "quote": "RLS tests are in."
+    },
+    {
+      "commitment_id": "C08",
+      "role": "mentioned",
+      "file": "slack/eng/2026-09-15.json",
+      "channel": "eng",
+      "speaker": "Rohan Kulkarni",
+      "ts": "1789479527.000372",
+      "at": "2026-09-15T19:08:47+05:30",
+      "quote": "privacy policy + DPA draft is on me, end of month"
+    },
+    {
+      "commitment_id": "C09",
+      "role": "mentioned",
+      "file": "slack/eng/2026-09-15.json",
+      "channel": "eng",
+      "speaker": "Ananya Desai",
+      "ts": "1789479031.000335",
+      "at": "2026-09-15T19:00:31+05:30",
+      "quote": "Slack export importer by the 26th"
+    },
+    {
+      "commitment_id": "C09",
+      "role": "mentioned",
+      "file": "slack/eng/2026-09-26.json",
+      "channel": "eng",
+      "speaker": "Ananya Desai",
+      "ts": "1790427640.000138",
+      "at": "2026-09-26T18:30:40+05:30",
+      "quote": "Importer isn't there yet."
+    },
+    {
+      "commitment_id": "C09",
+      "role": "fulfilled",
+      "file": "slack/eng/2026-09-29.json",
+      "channel": "eng",
+      "speaker": "Ananya Desai",
+      "ts": "1790667918.000249",
+      "at": "2026-09-29T13:15:18+05:30",
+      "quote": "Slack export importer works end to end"
+    },
+    {
+      "commitment_id": "C10",
+      "role": "made",
+      "file": "slack/product/2026-09-17.json",
+      "channel": "product",
+      "speaker": "Rohan Kulkarni",
+      "ts": "1789645803.000977",
+      "at": "2026-09-17T17:20:03+05:30",
+      "quote": "I'll share the call notes here in #product tomorrow after the call"
+    },
+    {
+      "commitment_id": "C10",
+      "role": "fulfilled",
+      "file": "slack/product/2026-09-18.json",
+      "channel": "product",
+      "speaker": "Rohan Kulkarni",
+      "ts": "1789722015.000151",
+      "at": "2026-09-18T14:30:15+05:30",
+      "quote": "*Kirana Kart call notes* (Sep 18, Neha + their ops lead)"
+    },
+    {
+      "commitment_id": "C11",
+      "role": "fulfilled",
+      "file": "slack/eng/2026-09-22.json",
+      "channel": "eng",
+      "speaker": "Ananya Desai",
+      "ts": "1790070052.000853",
+      "at": "2026-09-22T15:10:52+05:30",
+      "quote": "WhatsApp parser is done."
+    },
+    {
+      "commitment_id": "C13",
+      "role": "mentioned",
+      "file": "slack/eng/2026-09-30.json",
+      "channel": "eng",
+      "speaker": "Ananya Desai",
+      "ts": "1790746947.000434",
+      "at": "2026-09-30T11:12:27+05:30",
+      "quote": "Ask me on the 13th."
+    },
+    {
+      "commitment_id": "C13",
+      "role": "mentioned",
+      "file": "slack/eng/2026-10-12.json",
+      "channel": "eng",
+      "speaker": "Ananya Desai",
+      "ts": "1791779294.000915",
+      "at": "2026-10-12T09:58:14+05:30",
+      "quote": "The cost-per-message numbers for tomorrow are almost done."
+    },
+    {
+      "commitment_id": "C13",
+      "role": "mentioned",
+      "file": "slack/eng/2026-10-13.json",
+      "channel": "eng",
+      "speaker": "Ananya Desai",
+      "ts": "1791894647.000952",
+      "at": "2026-10-13T18:00:47+05:30",
+      "quote": "Extraction is ~2.1 cents/message with Sonnet on everything"
+    },
+    {
+      "commitment_id": "C16",
+      "role": "fulfilled",
+      "file": "slack/eng/2026-10-09.json",
+      "channel": "eng",
+      "speaker": "Ananya Desai",
+      "ts": "1791547205.000767",
+      "at": "2026-10-09T17:30:05+05:30",
+      "quote": "Eval harness is running on the gold set."
+    },
+    {
+      "commitment_id": "C17",
+      "role": "made",
+      "file": "slack/eng/2026-10-07.json",
+      "channel": "eng",
+      "speaker": "Rohan Kulkarni",
+      "ts": "1791350110.000693",
+      "at": "2026-10-07T10:45:10+05:30",
+      "quote": "I'll label 50 examples by the weekend"
+    },
+    {
+      "commitment_id": "C17",
+      "role": "mentioned",
+      "file": "slack/eng/2026-10-12.json",
+      "channel": "eng",
+      "speaker": "Rohan Kulkarni",
+      "ts": "1791778831.000878",
+      "at": "2026-10-12T09:50:31+05:30",
+      "quote": "got 30 done, the weekend got eaten by KK onboarding"
+    },
+    {
+      "commitment_id": "C17",
+      "role": "fulfilled",
+      "file": "slack/eng/2026-10-15.json",
+      "channel": "eng",
+      "speaker": "Rohan Kulkarni",
+      "ts": "1792080056.000200",
+      "at": "2026-10-15T21:30:56+05:30",
+      "quote": "Remaining 20 labelled"
+    },
+    {
+      "commitment_id": "C18",
+      "role": "mentioned",
+      "file": "slack/eng/2026-10-13.json",
+      "channel": "eng",
+      "speaker": "Ananya Desai",
+      "ts": "1791894647.000952",
+      "at": "2026-10-13T18:00:47+05:30",
+      "quote": "Target: under 1 cent/message by next Tuesday"
+    },
+    {
+      "commitment_id": "C18",
+      "role": "fulfilled",
+      "file": "slack/eng/2026-10-20.json",
+      "channel": "eng",
+      "speaker": "Ananya Desai",
+      "ts": "1792496434.000422",
+      "at": "2026-10-20T17:10:34+05:30",
+      "quote": "Screening shipped to prod. Cost is down to 0.7 cents/message"
+    },
+    {
+      "commitment_id": "C21",
+      "role": "mentioned",
+      "file": "slack/product/2026-10-21.json",
+      "channel": "product",
+      "speaker": "Rohan Kulkarni",
+      "ts": "1792564252.000817",
+      "at": "2026-10-21T12:00:52+05:30",
+      "quote": "Brightdesk demo is Wed 28th, 3pm IST."
+    },
+    {
+      "commitment_id": "C22",
+      "role": "partial",
+      "file": "slack/D0ALRODM1/2026-10-26.json",
+      "channel": "D0ALRODM1",
+      "speaker": "Ananya Desai",
+      "ts": "1793024109.000546",
+      "at": "2026-10-26T19:45:09+05:30",
+      "quote": "Everything except Gmail — CASA is still pending, so no Gmail data in the demo yet."
+    },
+    {
+      "commitment_id": "C25",
+      "role": "made",
+      "file": "slack/D0ALRODM1/2026-10-23.json",
+      "channel": "D0ALRODM1",
+      "speaker": "Ananya Desai",
+      "ts": "1792729842.000398",
+      "at": "2026-10-23T10:00:42+05:30",
+      "quote": "I'll rotate the Slack signing secret before the demo"
+    },
+    {
+      "commitment_id": "C27",
+      "role": "mentioned",
+      "file": "slack/eng/2026-09-15.json",
+      "channel": "eng",
+      "speaker": "Ananya Desai",
+      "ts": "1789479031.000335",
+      "at": "2026-09-15T19:00:31+05:30",
+      "quote": "Teams connector, mid-Oct"
+    },
+    {
+      "commitment_id": "C27",
+      "role": "mentioned",
+      "file": "slack/eng/2026-09-29.json",
+      "channel": "eng",
+      "speaker": "Rohan Kulkarni",
+      "ts": "1790668365.000286",
+      "at": "2026-09-29T13:22:45+05:30",
+      "quote": "Teams is out of Phase 1"
+    },
+    {
+      "commitment_id": "C27",
+      "role": "mentioned",
+      "file": "slack/product/2026-09-29.json",
+      "channel": "product",
+      "speaker": "Rohan Kulkarni",
+      "ts": "1790690420.000373",
+      "at": "2026-09-29T19:30:20+05:30",
+      "quote": "Teams is out of Phase 1"
+    },
+    {
+      "commitment_id": "C28",
+      "role": "made",
+      "file": "slack/product/2026-10-01.json",
+      "channel": "product",
+      "speaker": "Ananya Desai",
+      "ts": "1790831052.000484",
+      "at": "2026-10-01T10:34:12+05:30",
+      "quote": "On it, will fix today."
+    },
+    {
+      "commitment_id": "C28",
+      "role": "fulfilled",
+      "file": "slack/product/2026-10-01.json",
+      "channel": "product",
+      "speaker": "Ananya Desai",
+      "ts": "1790853638.000521",
+      "at": "2026-10-01T16:50:38+05:30",
+      "quote": "Fixed and deployed."
+    }
+  ],
+  "distractors": [
+    {
+      "file": "slack/general/2026-09-08.json",
+      "channel": "general",
+      "speaker": "Ananya Desai",
+      "ts": "1788846030.000433",
+      "at": "2026-09-08T11:10:30+05:30",
+      "quote": "can you send me the Neon invoice?",
+      "why": "request_not_accepted"
+    },
+    {
+      "file": "slack/general/2026-09-12.json",
+      "channel": "general",
+      "speaker": "Rohan Kulkarni",
+      "ts": "1789216551.000581",
+      "at": "2026-09-12T18:05:51+05:30",
+      "quote": "we should grab coffee with the Finlo folks sometime",
+      "why": "vague"
+    },
+    {
+      "file": "slack/general/2026-09-19.json",
+      "channel": "general",
+      "speaker": "Rohan Kulkarni",
+      "ts": "1789829133.000655",
+      "at": "2026-09-19T20:15:33+05:30",
+      "quote": "someday I'll redo the logo",
+      "why": "vague"
+    },
+    {
+      "file": "slack/general/2026-10-08.json",
+      "channel": "general",
+      "speaker": "Rohan Kulkarni",
+      "ts": "1791462168.000877",
+      "at": "2026-10-08T17:52:48+05:30",
+      "quote": "if we raise, I'll hire a designer",
+      "why": "conditional"
+    },
+    {
+      "file": "slack/general/2026-10-16.json",
+      "channel": "general",
+      "speaker": "Rohan Kulkarni",
+      "ts": "1792123205.000914",
+      "at": "2026-10-16T09:30:05+05:30",
+      "quote": "Meghna from Tidewater said she'd circle back after their partner meeting next week",
+      "why": "third_party"
+    },
+    {
+      "file": "slack/general/2026-10-23.json",
+      "channel": "general",
+      "speaker": "Rohan Kulkarni",
+      "ts": "1792769444.000125",
+      "at": "2026-10-23T21:00:44+05:30",
+      "quote": "I sent the Vercel invoice to our CA yesterday",
+      "why": "past_tense"
+    },
+    {
+      "file": "slack/eng/2026-09-07.json",
+      "channel": "eng",
+      "speaker": "Ananya Desai",
+      "ts": "1788758729.000865",
+      "at": "2026-09-07T10:55:29+05:30",
+      "quote": "if CASA drags, maybe we ship Outlook first",
+      "why": "conditional"
+    },
+    {
+      "file": "slack/eng/2026-10-05.json",
+      "channel": "eng",
+      "speaker": "Rohan Kulkarni",
+      "ts": "1791178968.000619",
+      "at": "2026-10-05T11:12:48+05:30",
+      "quote": "I'll never touch Jira again lol",
+      "why": "joke"
+    },
+    {
+      "file": "slack/product/2026-09-18.json",
+      "channel": "product",
+      "speaker": "Rohan Kulkarni",
+      "ts": "1789722015.000151",
+      "at": "2026-09-18T14:30:15+05:30",
+      "quote": "Neha said Kirana Kart will share sample data by Friday next week",
+      "why": "third_party"
+    },
+    {
+      "file": "slack/product/2026-09-23.json",
+      "channel": "product",
+      "speaker": "Ananya Desai",
+      "ts": "1790137858.000336",
+      "at": "2026-09-23T10:00:58+05:30",
+      "quote": "we need to look at Outlook at some point",
+      "why": "no_owner"
+    },
+    {
+      "file": "slack/D0ALRODM1/2026-10-26.json",
+      "channel": "D0ALRODM1",
+      "speaker": "Rohan Kulkarni",
+      "ts": "1793024590.000620",
+      "at": "2026-10-26T19:53:10+05:30",
+      "quote": "I will literally sleep for a week after the demo",
+      "why": "joke"
+    }
+  ]
+}

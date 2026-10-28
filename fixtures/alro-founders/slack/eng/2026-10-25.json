@@ -1,0 +1,74 @@
+[
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Running the Brightdesk import into the demo env. 18k messages → ~1.1k candidate commitments after screening. Some of them are hilarious.",
+    "ts": "1792909822.000644",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1792909822.000644",
+    "reply_count": 2,
+    "reply_users_count": 2,
+    "latest_reply": "1792910447.000718",
+    "reply_users": [
+      "U01ROHAN",
+      "U02ANANYA"
+    ],
+    "replies": [
+      {
+        "user": "U01ROHAN",
+        "ts": "1792910169.000681"
+      },
+      {
+        "user": "U02ANANYA",
+        "ts": "1792910447.000718"
+      }
+    ],
+    "is_locked": false,
+    "subscribed": false
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "hilarious how",
+    "ts": "1792910169.000681",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1792909822.000644",
+    "parent_user_id": "U02ANANYA"
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Someone promised to \"fix the printer forever\". Confidence 0.93.",
+    "ts": "1792910447.000718",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1792909822.000644",
+    "parent_user_id": "U02ANANYA",
+    "reactions": [
+      {
+        "name": "joy",
+        "users": [
+          "U01ROHAN"
+        ],
+        "count": 1
+      }
+    ]
+  }
+]

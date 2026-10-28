@@ -1,0 +1,335 @@
+WEBVTT
+
+NOTE
+Title: Design partner feedback + fundraise
+Date: 2026-09-29T10:00:00+05:30
+Platform: Google Meet
+Attendees: Rohan Kulkarni <rohan@alro.ai>, Ananya Desai <ananya@alro.ai>
+
+1
+00:00:05.000 --> 00:00:08.682
+<v Rohan Kulkarni>Morning! Okay, I have a lot to tell you.</v>
+
+2
+00:00:09.314 --> 00:00:12.738
+<v Ananya Desai>Morning. You sound like you've had three coffees.</v>
+
+3
+00:00:13.474 --> 00:00:20.097
+<v Rohan Kulkarni>Two. The third one is in my hand. Okay, where do I start. Design partners or fundraise?</v>
+
+4
+00:00:20.328 --> 00:00:25.040
+<v Ananya Desai>Design partners. And before that, quick eng status, it'll take one minute.</v>
+
+5
+00:00:25.811 --> 00:00:27.536
+<v Rohan Kulkarni>Go.</v>
+
+6
+00:00:27.842 --> 00:00:39.200
+<v Ananya Desai>RLS tests are in, merged on the eighteenth. Every table has a policy test with two users. Found one real bug, actually, the facts view was leaking through a join.</v>
+
+7
+00:00:39.807 --> 00:00:41.758
+<v Rohan Kulkarni>Wait, really?</v>
+
+8
+00:00:42.819 --> 00:00:46.331
+<v Ananya Desai>Really. That's why we write tests. Fixed now.</v>
+
+9
+00:00:46.571 --> 00:00:48.266
+<v Rohan Kulkarni>Okay, scary, but good.</v>
+
+10
+00:00:49.112 --> 00:00:57.020
+<v Ananya Desai>The Slack importer slipped. It was due Saturday. Threads and edits work, I'm fighting the thread-broadcast replies, it should land today.</v>
+
+11
+00:00:57.496 --> 00:01:01.579
+<v Rohan Kulkarni>Today is fine. Nobody's blocked on it till the pilot.</v>
+
+12
+00:01:01.780 --> 00:01:12.076
+<v Ananya Desai>And the WhatsApp parser went in last week, the one with the Android and iOS date formats. Those are evil, by the way. Twelve-hour, twenty-four-hour, dots, slashes.</v>
+
+13
+00:01:12.314 --> 00:01:25.497
+<v Rohan Kulkarni>Ha. Okay. My turn. Kirana Kart. The call on the eighteenth went really well. Neha's team loved the commitments thing. Their ops leads make like fifty promises a day on Slack and nobody tracks them.</v>
+
+14
+00:01:26.772 --> 00:01:29.658
+<v Ananya Desai>Did they say yes to a pilot?</v>
+
+15
+00:01:30.179 --> 00:01:36.290
+<v Rohan Kulkarni>Not formally. She wants to show it to her VP. But it's warm, very warm.</v>
+
+16
+00:01:37.518 --> 00:01:39.145
+<v Ananya Desai>Okay. And Finlo?</v>
+
+17
+00:01:39.858 --> 00:01:51.538
+<v Rohan Kulkarni>Finlo is... cold. The call on the twenty-first was fine, but Vikram's main question was whether we support WhatsApp personal chats. Like, their relationship managers talk to customers on personal WhatsApp.</v>
+
+18
+00:01:52.655 --> 00:01:54.834
+<v Ananya Desai>Personal WhatsApp, not WhatsApp Business.</v>
+
+19
+00:01:55.958 --> 00:02:03.473
+<v Rohan Kulkarni>Personal. And I said I'd check with you, and then I didn't reply, and now it's been a week.</v>
+
+20
+00:02:03.832 --> 00:02:14.000
+<v Ananya Desai>The honest answer is: only via exported chats. There's no API for personal WhatsApp. They export the chat, upload the zip, we parse it. No live sync.</v>
+
+21
+00:02:15.091 --> 00:02:17.108
+<v Rohan Kulkarni>Is that a no?</v>
+
+22
+00:02:17.525 --> 00:02:26.202
+<v Ananya Desai>It's a "yes, but manual". Which for compliance people is maybe even a feature. Nothing leaves the phone unless someone exports it.</v>
+
+23
+00:02:26.646 --> 00:02:33.583
+<v Rohan Kulkarni>Oh, I like that framing. Okay, I'll reply to Vikram tomorrow and explain the export-only thing. Wednesday, done.</v>
+
+24
+00:02:34.548 --> 00:02:39.167
+<v Ananya Desai>Please. A week of silence is how you lose a design partner.</v>
+
+25
+00:02:39.980 --> 00:02:46.594
+<v Rohan Kulkarni>I know. Also, we should grab coffee with them sometime, in person, to warm it back up.</v>
+
+26
+00:02:46.911 --> 00:02:48.522
+<v Ananya Desai>Reply first. Coffee later.</v>
+
+27
+00:02:49.238 --> 00:03:01.442
+<v Rohan Kulkarni>Yes ma'am. Okay and Brightdesk. Sara finally did the call last Thursday. She's interested, but, so, the thing is, their support team is on Slack. Only the corporate side is on Teams.</v>
+
+28
+00:03:02.251 --> 00:03:04.605
+<v Ananya Desai>Wait. So Brightdesk doesn't need Teams?</v>
+
+29
+00:03:05.323 --> 00:03:11.468
+<v Rohan Kulkarni>Not for the pilot. She said Teams would be nice later, for the leadership team.</v>
+
+30
+00:03:12.518 --> 00:03:19.446
+<v Ananya Desai>Okay, then I want to talk about Teams. Because I started looking at it properly, and it's bad.</v>
+
+31
+00:03:20.480 --> 00:03:22.178
+<v Rohan Kulkarni>How bad?</v>
+
+32
+00:03:23.062 --> 00:03:38.782
+<v Ananya Desai>The protected API approval for channel messages is a form you send to Microsoft and wait. Plus every customer's admin has to consent. Plus the export for history is basically eDiscovery. It's like CASA all over again but with a different company.</v>
+
+33
+00:03:38.984 --> 00:03:40.838
+<v Rohan Kulkarni>Hmm.</v>
+
+34
+00:03:41.592 --> 00:03:47.642
+<v Ananya Desai>And with Brightdesk on Slack, nobody in our three design partners actually needs it right now.</v>
+
+35
+00:03:49.041 --> 00:03:51.677
+<v Rohan Kulkarni>So you want to drop it.</v>
+
+36
+00:03:52.159 --> 00:04:01.030
+<v Ananya Desai>I want to drop it from Phase 1. Not forever. I'd rather have Slack, Gmail and WhatsApp really solid than four half-working connectors.</v>
+
+37
+00:04:02.194 --> 00:04:05.867
+<v Rohan Kulkarni>Ugh. I told Sara it was in Phase 1.</v>
+
+38
+00:04:06.917 --> 00:04:08.502
+<v Ananya Desai>Without a date, right?</v>
+
+39
+00:04:09.663 --> 00:04:18.567
+<v Rohan Kulkarni>Without a date. Okay. Okay, fine. You're right. Teams is out of Phase 1. So the mid-October thing is off, don't build it.</v>
+
+40
+00:04:19.194 --> 00:04:20.981
+<v Ananya Desai>Thank you. Honestly, relieved.</v>
+
+41
+00:04:22.230 --> 00:04:28.356
+<v Rohan Kulkarni>We need to look at Teams again at some point though, for the bigger customers.</v>
+
+42
+00:04:28.920 --> 00:04:30.915
+<v Ananya Desai>Sure. Phase 2 list.</v>
+
+43
+00:04:31.512 --> 00:04:37.805
+<v Rohan Kulkarni>Okay, pricing. This came up on every call. Forty-nine felt high to everyone. Neha literally laughed.</v>
+
+44
+00:04:38.075 --> 00:04:39.839
+<v Ananya Desai>I did say that.</v>
+
+45
+00:04:40.629 --> 00:04:48.533
+<v Rohan Kulkarni>You did say that. So I think we drop to thirty-nine dollars per user per month. It's under the psychological forty.</v>
+
+46
+00:04:49.823 --> 00:04:57.340
+<v Ananya Desai>Thirty-nine. Do we know our cost yet? Because I'd like to know we're not losing money on every message.</v>
+
+47
+00:04:58.625 --> 00:05:03.422
+<v Rohan Kulkarni>That's my question for you. What does it cost us per message?</v>
+
+48
+00:05:03.846 --> 00:05:10.802
+<v Ananya Desai>I don't know yet. I need the importer and a real sample. Kirana Kart's sample data would help.</v>
+
+49
+00:05:11.086 --> 00:05:16.624
+<v Rohan Kulkarni>Neha said they'll share the anonymised export by next Friday, after their security review.</v>
+
+50
+00:05:17.391 --> 00:05:29.847
+<v Ananya Desai>Hmm, we'll see. Okay. I'll work out the cost per message for extraction and bring it to our next meeting, the thirteenth. Screening plus extraction, tokens in and out, actual numbers, not vibes.</v>
+
+51
+00:05:30.981 --> 00:05:33.272
+<v Rohan Kulkarni>Perfect. So for now, thirty-nine?</v>
+
+52
+00:05:34.650 --> 00:05:37.545
+<v Ananya Desai>Thirty-nine for now. Subject to my numbers.</v>
+
+53
+00:05:38.476 --> 00:05:41.984
+<v Rohan Kulkarni>Thirty-nine dollars per user per month. Done. Locked. Again.</v>
+
+54
+00:05:42.651 --> 00:05:44.507
+<v Ananya Desai>Okay. Fundraise.</v>
+
+55
+00:05:45.080 --> 00:05:54.833
+<v Rohan Kulkarni>Yes! So. Meghna from Tidewater Ventures replied. She wants to see a deck. I emailed her last week with the one-pager and she replied Saturday.</v>
+
+56
+00:05:55.653 --> 00:05:58.433
+<v Ananya Desai>That's great. Do we have a deck?</v>
+
+57
+00:05:58.754 --> 00:06:03.329
+<v Rohan Kulkarni>We have... a Google Slides file called "deck v0 DO NOT SEND".</v>
+
+58
+00:06:04.260 --> 00:06:05.887
+<v Ananya Desai>Very confidence-inspiring.</v>
+
+59
+00:06:06.483 --> 00:06:16.656
+<v Rohan Kulkarni>Okay, so I'll send you the first real draft of the pitch deck by Sunday, the fourth. Problem, product, the commitments demo screenshots, design partners, ask.</v>
+
+60
+00:06:16.899 --> 00:06:18.717
+<v Ananya Desai>Sunday the fourth. Okay.</v>
+
+61
+00:06:19.729 --> 00:06:24.755
+<v Rohan Kulkarni>How much are we raising? I was thinking one and a half million.</v>
+
+62
+00:06:26.114 --> 00:06:30.362
+<v Ananya Desai>Hmm, wait, can you hear that? Someone's drilling next door.</v>
+
+63
+00:06:31.330 --> 00:06:34.115
+<v Rohan Kulkarni>Yeah, I can hear it. It's fine.</v>
+
+64
+00:06:34.674 --> 00:06:37.862
+<v Ananya Desai>Sorry. One and a half for what runway?</v>
+
+65
+00:06:38.350 --> 00:06:44.043
+<v Rohan Kulkarni>Eighteen months, four engineers, us, and if we raise, I'll hire a designer first thing.</v>
+
+66
+00:06:45.270 --> 00:06:47.231
+<v Ananya Desai>Engineers first. Designer second.</v>
+
+67
+00:06:47.468 --> 00:06:51.006
+<v Rohan Kulkarni>We can fight about it after we raise.</v>
+
+68
+00:06:51.840 --> 00:06:53.784
+<v Ananya Desai>Ha, deal.</v>
+
+69
+00:06:54.364 --> 00:06:59.312
+<v Rohan Kulkarni>Oh, one thing. The privacy policy and DPA, that's due tomorrow, right?</v>
+
+70
+00:06:59.673 --> 00:07:01.257
+<v Ananya Desai>The thirtieth, yes.</v>
+
+71
+00:07:02.098 --> 00:07:06.622
+<v Rohan Kulkarni>It's like half done. The DPA template is the boring part.</v>
+
+72
+00:07:07.298 --> 00:07:11.142
+<v Ananya Desai>Neha's legal will ask for it before the pilot.</v>
+
+73
+00:07:11.729 --> 00:07:13.780
+<v Rohan Kulkarni>I know, I know.</v>
+
+74
+00:07:14.505 --> 00:07:19.471
+<v Ananya Desai>Also, Kirana Kart pilot. If they say yes, what do we need?</v>
+
+75
+00:07:20.536 --> 00:07:28.135
+<v Rohan Kulkarni>If they say yes, we need the Slack importer, RLS, and a basic UI for commitments. Which, you've mostly got?</v>
+
+76
+00:07:28.387 --> 00:07:30.541
+<v Ananya Desai>Mostly. The UI is ugly.</v>
+
+77
+00:07:31.687 --> 00:07:34.978
+<v Rohan Kulkarni>Ugly is fine for a pilot. Okay, recap?</v>
+
+78
+00:07:36.003 --> 00:07:46.965
+<v Ananya Desai>You: reply to Vikram tomorrow about WhatsApp, deck draft by Sunday the fourth. Me: cost per message by the thirteenth. Teams is out of Phase 1. Price is thirty-nine.</v>
+
+79
+00:07:48.260 --> 00:07:52.611
+<v Rohan Kulkarni>And I promise I'll never say forty-nine dollars in public again.</v>
+
+80
+00:07:53.058 --> 00:07:55.787
+<v Ananya Desai>I'll believe that when I see it.</v>
+
+81
+00:07:56.239 --> 00:07:59.369
+<v Rohan Kulkarni>Ha. Okay, see you on the thirteenth. Bye!</v>
+
+82
+00:07:59.769 --> 00:08:01.269
+<v Ananya Desai>Bye.</v>

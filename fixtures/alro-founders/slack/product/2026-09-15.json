@@ -1,0 +1,15 @@
+[
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "From today's call, Phase 1 connectors = Slack, Gmail, WhatsApp export, Microsoft Teams. CRMs are Phase 2.",
+    "ts": "1789477826.000940",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    }
+  }
+]

@@ -1,0 +1,173 @@
+02/09/2026, 11:00 - Messages and calls are end-to-end encrypted. Only people in this chat can read, listen to, or share them. Learn more.
+02/09/2026, 11:00 - Rohan Kulkarni created group "ALRO Build 🚀"
+02/09/2026, 11:00 - Rohan Kulkarni added Ananya Desai
+02/09/2026, 11:01 - Rohan Kulkarni changed this group's icon
+02/09/2026, 11:01 - Rohan Kulkarni: welcome to the war room 🚀🚀
+02/09/2026, 11:03 - Ananya Desai: a group with 2 people. very scalable
+02/09/2026, 11:03 - Rohan Kulkarni: we'll grow into it
+02/09/2026, 11:05 - Rohan Kulkarni changed the group description
+02/09/2026, 11:20 - Ananya Desai: repo: https://github.com/alro-ai/brain
+02/09/2026, 11:20 - Ananya Desai: added you as admin. please don't push to main
+02/09/2026, 11:21 - Rohan Kulkarni: would never 😇
+02/09/2026, 17:45 - Ananya Desai: <Media omitted>
+02/09/2026, 17:45 - Ananya Desai: first draft of the ERD. entities, facts, commitments, sources
+02/09/2026, 17:50 - Rohan Kulkarni: looks like a spider web 🕸️ but a smart one
+02/09/2026, 17:52 - Ananya Desai: every fact has valid_from / valid_to. that's the "temporal" part
+02/09/2026, 17:53 - Rohan Kulkarni: so we know price was $49 on Sep 1 even if it changes later?
+02/09/2026, 17:53 - Ananya Desai: exactly
+03/09/2026, 10:15 - Rohan Kulkarni: I'll never touch Jira again lol. Linear + this group is enough
+03/09/2026, 10:20 - Ananya Desai: we don't even have Linear
+03/09/2026, 10:20 - Rohan Kulkarni: exactly. freedom
+03/09/2026, 22:30 - Ananya Desai: Neon branching per PR is set up kinda. Vercel preview hooks next
+03/09/2026, 22:31 - Rohan Kulkarni: 🔥
+04/09/2026, 15:10 - Ananya Desai: https://github.com/alro-ai/brain/pull/3
+04/09/2026, 15:10 - Ananya Desai: schema PR. CI green hai, review kar lena if you want
+04/09/2026, 15:40 - Rohan Kulkarni: looked. understood 30%. approved 100% 👍
+04/09/2026, 19:02 - Ananya Desai: preview envs working. every PR gets its own Neon branch + Vercel URL
+04/09/2026, 19:02 - Ananya Desai: https://brain-git-feat-preview-alro.vercel.app
+04/09/2026, 19:05 - Rohan Kulkarni: this is so cool. feels like a real company
+05/09/2026, 11:30 - Rohan Kulkarni: random q: why Postgres and not a "graph database"?
+05/09/2026, 11:42 - Ananya Desai: because a graph is just two tables (nodes, edges) and Postgres doesn't page me at 3am
+05/09/2026, 11:42 - Ananya Desai: plus pgvector, plus RLS, plus Drizzle. one database
+05/09/2026, 11:43 - Rohan Kulkarni: sold
+07/09/2026, 18:20 - Ananya Desai: <Media omitted>
+07/09/2026, 18:20 - Ananya Desai: Google's CASA form. look at this scrollbar
+07/09/2026, 18:21 - Rohan Kulkarni: 😭
+07/09/2026, 18:25 - Ananya Desai: if CASA drags, maybe we ship Outlook first
+07/09/2026, 18:26 - Rohan Kulkarni: hmm. dekhte hain
+08/09/2026, 12:00 - Rohan Kulkarni: https://nango.dev/pricing
+08/09/2026, 12:00 - Rohan Kulkarni: (summary maine 1:1 mein bheja tha)
+08/09/2026, 12:05 - Ananya Desai: yup. Nango it is
+10/09/2026, 21:40 - Ananya Desai: Slack OAuth via Nango works locally 🎉
+10/09/2026, 21:41 - Rohan Kulkarni: <Media omitted>
+10/09/2026, 21:41 - Rohan Kulkarni: celebration gif
+10/09/2026, 21:42 - Ananya Desai: it's a jpeg of a gif
+10/09/2026, 21:42 - Rohan Kulkarni: shh
+12/09/2026, 16:00 - Rohan Kulkarni: can we have a dark mode for the dashboard? Neha asked lol
+12/09/2026, 16:05 - Ananya Desai: we don't have a dashboard
+12/09/2026, 16:05 - Rohan Kulkarni: details
+14/09/2026, 09:20 - Ananya Desai: someone should write docs for the connector setup at some point
+14/09/2026, 09:30 - Rohan Kulkarni: 👍
+15/09/2026, 16:30 - Ananya Desai: post-meeting summary: RLS tests before ANY real data. non negotiable
+15/09/2026, 16:31 - Rohan Kulkarni: agreed 💯
+15/09/2026, 16:35 - Rohan Kulkarni: Teams connector bhi phase 1 mein hai, don't forget
+15/09/2026, 16:36 - Ananya Desai: how could I. it haunts me
+16/09/2026, 23:10 - Ananya Desai: RLS policy test #1 passing. a user from team A can't see team B's Slack messages
+16/09/2026, 23:11 - Rohan Kulkarni: as it should be 🛡️
+17/09/2026, 11:15 - Rohan Kulkarni: Kabir pinged on LinkedIn, frontend contractor. good portfolio
+17/09/2026, 11:30 - Ananya Desai: link?
+17/09/2026, 11:31 - Rohan Kulkarni: https://kabir.dev
+17/09/2026, 11:45 - Ananya Desai: nice. clean code in his GitHub too
+18/09/2026, 20:10 - Ananya Desai: RLS test suite done, posted in #eng
+18/09/2026, 20:11 - Rohan Kulkarni: 🙌
+18/09/2026, 20:15 - Rohan Kulkarni: Kirana Kart call ke notes #product mein daal diye
+19/09/2026, 13:30 - Rohan Kulkarni: Kirana Kart lives on WhatsApp. like, LIVES. we need WhatsApp import asap
+19/09/2026, 13:42 - Ananya Desai: export-based or API?
+19/09/2026, 13:44 - Rohan Kulkarni: export for now. API is a whole Meta business verification thing
+19/09/2026, 13:45 - Ananya Desai: ok. export files are messy but doable
+20/09/2026, 11:05 - Rohan Kulkarni: <Media omitted>
+20/09/2026, 11:05 - Rohan Kulkarni: Neha ne sample export ka format bheja, Android wala
+20/09/2026, 11:20 - Ananya Desai: dd/mm/yyyy with 24h. and iOS will be totally different of course
+20/09/2026, 11:21 - Ananya Desai: kal tak WhatsApp export parser ready kar deti hoon, Android + iOS dono formats
+20/09/2026, 11:22 - Rohan Kulkarni: 🔥🔥 legend
+20/09/2026, 11:23 - Ananya Desai: multi-line messages are going to be fun
+20/09/2026, 21:50 - Ananya Desai: iOS uses a left-to-right mark before "image omitted". invisible character. I hate everything
+20/09/2026, 21:52 - Rohan Kulkarni: 😂 the U+200E life
+21/09/2026, 18:40 - Rohan Kulkarni: Finlo call done. details 1:1 mein bheje
+21/09/2026, 18:45 - Ananya Desai: 👍
+21/09/2026, 23:30 - Ananya Desai: parser is fighting me. edge cases with "<This message was edited>" suffix
+21/09/2026, 23:31 - Rohan Kulkarni: no stress
+22/09/2026, 10:00 - Rohan Kulkarni: Vikram said Finlo will decide on the pilot by month end
+22/09/2026, 10:05 - Ananya Desai: let's see
+23/09/2026, 15:20 - Ananya Desai: <Media omitted>
+23/09/2026, 15:20 - Ananya Desai: test: 4,212 messages from your chat export, 0 parse errors
+23/09/2026, 15:21 - Rohan Kulkarni: wait you parsed MY chats?? 😳
+23/09/2026, 15:22 - Ananya Desai: the one you sent me. 60% of it is "ok bro"
+23/09/2026, 15:22 - Rohan Kulkarni: that's called efficient communication
+24/09/2026, 12:00 - Rohan Kulkarni: kabhi ek proper design system banayenge, abhi har page alag dikhta hai
+24/09/2026, 12:10 - Ananya Desai: shadcn is our design system
+25/09/2026, 22:00 - Ananya Desai: Slack importer: threads + reactions done. files next
+25/09/2026, 22:01 - Rohan Kulkarni: 💪
+26/09/2026, 20:15 - Ananya Desai: ok importer won't land today. Slack's export format has 3 different date fields for the same thing
+26/09/2026, 20:20 - Rohan Kulkarni: no worries, quality > speed
+26/09/2026, 20:21 - Ananya Desai: you've never said that before
+26/09/2026, 20:21 - Rohan Kulkarni: first time for everything
+29/09/2026, 12:30 - Ananya Desai: https://github.com/alro-ai/brain/pull/27
+29/09/2026, 12:30 - Ananya Desai: Slack importer 🎉
+29/09/2026, 12:35 - Rohan Kulkarni: 🎉🎉🎉
+29/09/2026, 15:00 - Ananya Desai: post meeting: Teams officially out of Phase 1. I'm deleting the branch
+29/09/2026, 15:01 - Rohan Kulkarni: pour one out 🫗
+29/09/2026, 15:05 - Ananya Desai: <Media omitted>
+29/09/2026, 15:05 - Ananya Desai: git branch -D feat/teams. most satisfying command of the year
+30/09/2026, 11:40 - Rohan Kulkarni: we need to look at Outlook at some point. Finlo, Brightdesk dono Microsoft shops hain
+30/09/2026, 11:45 - Ananya Desai: noted. not now
+01/10/2026, 10:00 - Rohan Kulkarni: <Media omitted>
+01/10/2026, 10:00 - Rohan Kulkarni: mobile nav bug screenshot (iPhone SE)
+01/10/2026, 10:30 - Ananya Desai: fixed. who uses an iPhone SE in 2026
+01/10/2026, 10:31 - Rohan Kulkarni: my dad
+01/10/2026, 10:31 - Ananya Desai: fair. respect to uncle
+03/10/2026, 17:00 - Ananya Desai: pushed the gold set labeling UI last night. https://brain-git-feat-gold-alro.vercel.app/label
+03/10/2026, 17:10 - Rohan Kulkarni: ooh keyboard shortcuts 😍
+03/10/2026, 17:11 - Ananya Desai: j/k to move, 1-6 for label. go wild
+05/10/2026, 14:20 - Rohan Kulkarni: can you review my landing page PR tonight? small copy changes
+05/10/2026, 20:40 - Ananya Desai: <Media omitted>
+05/10/2026, 20:40 - Ananya Desai: extraction prompt v3. it finally understands "kal tak kar deti hoon" 😂
+05/10/2026, 20:42 - Rohan Kulkarni: Hinglish support is a feature 🇮🇳
+07/10/2026, 12:00 - Rohan Kulkarni: Sonnet vs Haiku cost difference kitna hai roughly?
+07/10/2026, 12:20 - Ananya Desai: big. will have proper numbers for the meeting
+07/10/2026, 12:21 - Rohan Kulkarni: 👍
+08/10/2026, 18:00 - Rohan Kulkarni: KIRANA KART PILOT SIGNED 🎉🚀🚀
+08/10/2026, 18:01 - Ananya Desai: 🎉🎉🎉
+08/10/2026, 18:01 - Ananya Desai: ok now RLS really matters
+08/10/2026, 18:02 - Rohan Kulkarni: it always mattered
+08/10/2026, 18:02 - Ananya Desai: now it matters with lawyers
+09/10/2026, 19:30 - Ananya Desai: eval harness running on the gold set. precision 0.81, recall 0.64. #eng has details
+09/10/2026, 19:31 - Rohan Kulkarni: is that good??
+09/10/2026, 19:35 - Ananya Desai: precision ok. recall bad. it misses Hinglish promises
+09/10/2026, 19:36 - Rohan Kulkarni: tera "kal tak kar deti hoon" problem 😂
+10/10/2026, 13:00 - Rohan Kulkarni: <Media omitted>
+10/10/2026, 13:00 - Rohan Kulkarni: labeling with chai. 30 done
+11/10/2026, 22:10 - Ananya Desai: This message was deleted
+11/10/2026, 22:11 - Ananya Desai: wrong group. ignore
+12/10/2026, 21:30 - Ananya Desai: cost numbers ready for kal. not pretty
+12/10/2026, 21:31 - Rohan Kulkarni: 😬
+13/10/2026, 15:30 - Rohan Kulkarni: meeting recap for the group: Haiku screens, Sonnet extracts. target < 1 cent/message
+13/10/2026, 15:32 - Ananya Desai: ✅
+14/10/2026, 11:00 - Ananya Desai: https://github.com/alro-ai/brain/pull/41
+14/10/2026, 11:00 - Ananya Desai: screening step WIP. Haiku drops ~70% of messages already
+14/10/2026, 11:05 - Rohan Kulkarni: 70%!! what are they all
+14/10/2026, 11:06 - Ananya Desai: "ok", "👍", "haan", "😂", stickers. your entire vocabulary basically
+14/10/2026, 11:06 - Rohan Kulkarni: 😤
+15/10/2026, 19:00 - Rohan Kulkarni: gold set: remaining 20 done, 50/50 ✅
+15/10/2026, 19:05 - Ananya Desai: 🙌 finally
+16/10/2026, 16:45 - Ananya Desai: Vercel AI Gateway fallbacks set up. if one provider is down we fail over
+16/10/2026, 16:46 - Rohan Kulkarni: enterprise grade 😎
+16/10/2026, 16:46 - Ananya Desai: startup grade with a nice name
+17/10/2026, 22:00 - Rohan Kulkarni: <Media omitted>
+17/10/2026, 22:00 - Rohan Kulkarni: Brightdesk ka support volume. 40k tickets/month
+17/10/2026, 22:05 - Ananya Desai: at 0.7c that's fine. at 2.1c we'd cry
+19/10/2026, 10:20 - Ananya Desai: if we get Brightdesk, we'll need a proper queue for ingestion. Vercel Queues maybe
+19/10/2026, 10:25 - Rohan Kulkarni: one step at a time
+20/10/2026, 18:00 - Ananya Desai: 0.7 cents/message with screening. posted in #eng 😎
+20/10/2026, 18:01 - Rohan Kulkarni: 🐐🐐🐐
+20/10/2026, 18:01 - Rohan Kulkarni: CTO of the year
+21/10/2026, 12:15 - Rohan Kulkarni: Brightdesk demo booked for Wed 28th, 3pm. invite sent to you + Sara ✅
+21/10/2026, 12:20 - Ananya Desai: 👍 got the invite
+21/10/2026, 12:21 - Ananya Desai: that's 2 days earlier than you said. who are you
+21/10/2026, 12:21 - Rohan Kulkarni: new me 😎
+22/10/2026, 15:40 - Rohan Kulkarni: meeting recap: $29/user under 50 seats, ₹1,999 India. FINAL
+22/10/2026, 15:41 - Ananya Desai: pricing page update kar diya already
+22/10/2026, 15:41 - Rohan Kulkarni: speed 🏎️
+23/10/2026, 11:30 - Rohan Kulkarni: <Media omitted>
+23/10/2026, 11:30 - Rohan Kulkarni: Sara ne bheja — their Slack workspace stats. 312 channels 😵
+23/10/2026, 11:40 - Ananya Desai: 312 channels and 280 are #random-something I bet
+24/10/2026, 20:15 - Ananya Desai: Brightdesk sample data loading into demo env. Slack done, HubSpot halfway
+24/10/2026, 20:16 - Rohan Kulkarni: 🙏🙏
+24/10/2026, 20:30 - Rohan Kulkarni: if the demo goes well, I'll buy you a mechanical keyboard
+24/10/2026, 20:31 - Ananya Desai: I already have three
+24/10/2026, 20:31 - Rohan Kulkarni: a fourth then
+25/10/2026, 13:00 - Ananya Desai: <Media omitted>
+25/10/2026, 13:00 - Ananya Desai: demo answer with citations. "What did we promise Kirana Kart last week?" → 3 commitments, each with source link
+25/10/2026, 13:02 - Rohan Kulkarni: GOOSEBUMPS 🥹🥹
+25/10/2026, 13:02 - Rohan Kulkarni: ok this is the demo. this one screen
+25/10/2026, 13:05 - Ananya Desai: told you citations sell <This message was edited>

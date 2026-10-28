@@ -1,0 +1,58 @@
+[
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Nango is wired up for Slack + Gmail in dev. Incremental sync every 15 min. Webhooks come after the importer.",
+    "ts": "1788864635.000902",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    }
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "is nango free for us right now?",
+    "ts": "1788865512.000694",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1788865512.000694",
+    "reply_count": 1,
+    "reply_users_count": 1,
+    "latest_reply": "1788865900.000731",
+    "reply_users": [
+      "U02ANANYA"
+    ],
+    "replies": [
+      {
+        "user": "U02ANANYA",
+        "ts": "1788865900.000731"
+      }
+    ],
+    "is_locked": false,
+    "subscribed": false
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Free tier until 10 connections. Your pricing comparison from Saturday covers what comes after.",
+    "ts": "1788865900.000731",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1788865512.000694",
+    "parent_user_id": "U01ROHAN"
+  }
+]

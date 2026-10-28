@@ -1,0 +1,61 @@
+[
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": ":tada: *Kirana Kart signed the pilot* today. 3-month paid pilot, 40 seats, WhatsApp + Slack first. Neha pushed it through their finance team.",
+    "ts": "1791461409.000669",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1791461409.000669",
+    "reply_count": 1,
+    "reply_users_count": 1,
+    "latest_reply": "1791461875.000706",
+    "reply_users": [
+      "U02ANANYA"
+    ],
+    "replies": [
+      {
+        "user": "U02ANANYA",
+        "ts": "1791461875.000706"
+      }
+    ],
+    "is_locked": false,
+    "subscribed": false,
+    "reactions": [
+      {
+        "name": "tada",
+        "users": [
+          "U02ANANYA"
+        ],
+        "count": 1
+      },
+      {
+        "name": "rocket",
+        "users": [
+          "U02ANANYA"
+        ],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "First customer whose promises we'll track. No pressure.",
+    "ts": "1791461875.000706",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1791461409.000669",
+    "parent_user_id": "U01ROHAN"
+  }
+]

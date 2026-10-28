@@ -1,0 +1,67 @@
+[
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "Final pricing from today: *$29/user/month* for teams under 50, *₹1,999/user/month* in India. Above 50 seats we talk. Done arguing. For real this time.",
+    "ts": "1792679414.000854",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1792679414.000854",
+    "reply_count": 1,
+    "reply_users_count": 1,
+    "latest_reply": "1792679801.000891",
+    "reply_users": [
+      "U02ANANYA"
+    ],
+    "replies": [
+      {
+        "user": "U02ANANYA",
+        "ts": "1792679801.000891"
+      }
+    ],
+    "is_locked": false,
+    "subscribed": false,
+    "reactions": [
+      {
+        "name": "pushpin",
+        "users": [
+          "U02ANANYA"
+        ],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Third price in eight weeks. The temporal graph is thriving.",
+    "ts": "1792679801.000891",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1792679414.000854",
+    "parent_user_id": "U01ROHAN"
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "for the record, Kirana Kart stays on their pilot price, no change for them",
+    "ts": "1792680303.000349",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    }
+  }
+]

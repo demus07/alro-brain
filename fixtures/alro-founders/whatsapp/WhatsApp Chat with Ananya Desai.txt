@@ -1,0 +1,197 @@
+01/09/2026, 09:12 - Messages and calls are end-to-end encrypted. Only people in this chat can read, listen to, or share them. Learn more.
+01/09/2026, 09:12 - Rohan Kulkarni: Good morning CTO saab ☀️
+01/09/2026, 09:13 - Rohan Kulkarni: aaj meeting 11 baje, WeWork BKC
+01/09/2026, 09:31 - Ananya Desai: morning. 11 works. traffic pe depend karta hai tho
+01/09/2026, 09:31 - Ananya Desai: *though
+01/09/2026, 10:58 - Ananya Desai: reached. 3rd floor?
+01/09/2026, 10:59 - Rohan Kulkarni: haan glass wala room, left side
+01/09/2026, 14:22 - Rohan Kulkarni: solid meeting yaar 🔥🔥
+01/09/2026, 14:23 - Rohan Kulkarni: $49 feels right ngl
+01/09/2026, 14:40 - Ananya Desai: $49 is fine for now. we'll see what people actually pay
+01/09/2026, 22:47 - Rohan Kulkarni: someday I'll redo the logo, abhi wala bilkul clipart lagta hai 😂
+01/09/2026, 22:52 - Ananya Desai: logo is the least of our problems
+01/09/2026, 22:52 - Ananya Desai: schema pe kaam start kar diya btw
+01/09/2026, 22:53 - Rohan Kulkarni: 🫡
+02/09/2026, 08:05 - Rohan Kulkarni: <Media omitted>
+02/09/2026, 08:05 - Rohan Kulkarni: chai + whiteboard. company brain v0 😎
+02/09/2026, 08:40 - Ananya Desai: that arrow from "WhatsApp" to "magic" is doing a lot of work
+02/09/2026, 08:41 - Rohan Kulkarni: 😂😂 thats the moat
+02/09/2026, 10:44 - Ananya Desai: ek alag build group bana na, yahan sab mix ho jayega
+02/09/2026, 10:45 - Rohan Kulkarni: good idea
+02/09/2026, 11:01 - Rohan Kulkarni: bana diya 👆
+02/09/2026, 23:58 - Ananya Desai: why is pgvector extension not enabling on the free branch 😤
+02/09/2026, 23:59 - Rohan Kulkarni: no idea what that means but 💪
+03/09/2026, 00:20 - Ananya Desai: fixed. wrong role. goodnight
+03/09/2026, 08:15 - Rohan Kulkarni: you sleep at all?
+03/09/2026, 09:02 - Ananya Desai: define sleep
+03/09/2026, 13:10 - Rohan Kulkarni: Neha se baat hui (Kirana Kart). interested hai, bas timing dekh rahe hain
+03/09/2026, 13:22 - Ananya Desai: nice. quick commerce support chats are perfect data for us
+05/09/2026, 18:31 - Ananya Desai: Nango vs building connectors ourselves — tune pricing dekhi thi na?
+05/09/2026, 18:38 - Rohan Kulkarni: haan half dekha hai
+05/09/2026, 18:40 - Rohan Kulkarni: aaj raat full Nango pricing comparison bhejta hoon, Nango vs Merge vs DIY, pakka 🤞
+05/09/2026, 18:41 - Ananya Desai: ok. specifically per-connection pricing. that's what kills us at scale
+05/09/2026, 18:41 - Rohan Kulkarni: 👍
+05/09/2026, 21:02 - Ananya Desai: <Media omitted>
+05/09/2026, 21:02 - Ananya Desai: dal makhani >>> Postgres
+05/09/2026, 21:05 - Rohan Kulkarni: thoda bhej de 🥲
+05/09/2026, 23:10 - Rohan Kulkarni: ok here's the Nango pricing summary:
+- Nango Cloud: free tier for dev, Starter ~$50/mo incl 20 connections, ~$1/connection/mo after that
+- Merge: starts ~$650/mo for 10 linked accounts 💀
+- DIY: "free" but 2-3 weeks per connector + token refresh hell
+- Nango self-host is open source, so we can move later if bills blow up
+verdict: Nango for now
+05/09/2026, 23:14 - Ananya Desai: perfect, thanks. agree on Nango
+05/09/2026, 23:15 - Ananya Desai: also 23:10 is "tonight" only technically 😏
+05/09/2026, 23:15 - Rohan Kulkarni: technically correct is the best kind of correct
+06/09/2026, 10:12 - Rohan Kulkarni: Ganpati ke liye ghar ja raha hoon dopahar ko, Pune
+06/09/2026, 10:30 - Ananya Desai: ganpati bappa morya 🙏 modak le aana
+07/09/2026, 22:05 - Rohan Kulkarni: we should grab coffee with the Finlo folks sometime, Vikram seems super chill on calls
+07/09/2026, 22:10 - Ananya Desai: sure
+07/09/2026, 22:11 - Ananya Desai: Google wala OAuth form is 40 questions long btw. 40.
+07/09/2026, 22:11 - Rohan Kulkarni: 💀
+08/09/2026, 09:40 - Rohan Kulkarni: aaj 3 baje Kirana Kart ke saath intro call (pre-call, not the real one)
+08/09/2026, 15:52 - Rohan Kulkarni: went well. Neha wants to see something live first
+08/09/2026, 15:58 - Ananya Desai: everyone wants to see something live first 🙃
+08/09/2026, 23:31 - Ananya Desai: <Media omitted>
+08/09/2026, 23:33 - Rohan Kulkarni: suna. haan agree, embeddings per message is overkill for now
+09/09/2026, 19:45 - Ananya Desai: landing page copy ka kya scene? aaj tha na
+09/09/2026, 19:52 - Rohan Kulkarni: yaar sorry 😓 aaj partner follow-ups ke chakkar mein nahi hua
+09/09/2026, 19:53 - Rohan Kulkarni: Monday tak copy bhej deta hoon, 14th pakka. one-pager bhi saath mein
+09/09/2026, 19:58 - Ananya Desai: theek hai. Monday. no more extensions 😑
+09/09/2026, 19:58 - Rohan Kulkarni: 🙏🙏
+10/09/2026, 13:15 - Ananya Desai: can you send me the Kirana Kart NDA pdf? legal wala
+10/09/2026, 13:40 - Rohan Kulkarni: btw Meghna from Tidewater ne LinkedIn pe post like kiya 👀
+10/09/2026, 13:41 - Ananya Desai: wow. a like.
+10/09/2026, 13:41 - Rohan Kulkarni: it's a signal ok
+11/09/2026, 12:20 - Ananya Desai: design partner calls kahan tak pahunche?
+11/09/2026, 12:34 - Rohan Kulkarni: only two booked abhi tak — Kirana Kart 18th, Finlo 21st
+11/09/2026, 12:34 - Rohan Kulkarni: Brightdesk ki Sara ghost kar rahi hai 👻
+11/09/2026, 12:40 - Ananya Desai: deadline kal hai fyi
+11/09/2026, 12:41 - Rohan Kulkarni: i knowww. LinkedIn pe bhi ping kar diya kal raat
+11/09/2026, 12:42 - Rohan Kulkarni: aur email bhi
+13/09/2026, 22:40 - Rohan Kulkarni: copy ka draft 70% done. hero line pe atka hoon
+13/09/2026, 22:41 - Ananya Desai: "Your company's memory. With receipts." — free, no charge
+14/09/2026, 21:20 - Ananya Desai: read the copy. hero line is good (obviously), section 3 needs cuts
+14/09/2026, 21:22 - Rohan Kulkarni: 😤 section 3 is my baby
+14/09/2026, 21:22 - Ananya Desai: your baby is 400 words
+15/09/2026, 08:50 - Rohan Kulkarni: meeting 2 today, same room. coffee on me ☕
+15/09/2026, 08:51 - Ananya Desai: noted. witnesses present.
+15/09/2026, 15:10 - Ananya Desai: Teams connector in Phase 1 is ambitious but fine
+15/09/2026, 15:11 - Rohan Kulkarni: enterprise log Teams pe hi hain yaar
+15/09/2026, 15:12 - Ananya Desai: I know. I just don't love Microsoft Graph
+16/09/2026, 17:05 - Rohan Kulkarni: all three booked finally 🎉🎉 Sara ne reply kiya, Brightdesk call bhi lock ho gaya
+16/09/2026, 17:09 - Ananya Desai: finally. 4 din late but ok 👏
+16/09/2026, 17:10 - Rohan Kulkarni: late is the new on time
+16/09/2026, 17:10 - Ananya Desai: no it isn't
+17/09/2026, 23:05 - Ananya Desai: RLS policies are breaking my brain
+17/09/2026, 23:06 - Rohan Kulkarni: need anything? chai? moral support?
+17/09/2026, 23:06 - Ananya Desai: silence
+17/09/2026, 23:06 - Rohan Kulkarni: 🤐
+18/09/2026, 13:02 - Rohan Kulkarni: Kirana Kart call went 🔥🔥🔥
+18/09/2026, 13:03 - Rohan Kulkarni: they have 3 WhatsApp groups per dark store. chaos. perfect for us
+18/09/2026, 13:20 - Ananya Desai: love chaos. notes daal dena #product mein jaise baat hui thi
+18/09/2026, 13:21 - Rohan Kulkarni: 👍
+19/09/2026, 10:30 - Rohan Kulkarni: Neha bol rahi thi unki team next Friday tak sample support chats ka export share kar degi
+19/09/2026, 10:44 - Ananya Desai: nice. if it actually arrives
+19/09/2026, 10:44 - Ananya Desai: parser ki testing ke liye perfect hoga
+20/09/2026, 14:15 - Rohan Kulkarni: <Media omitted>
+20/09/2026, 14:15 - Rohan Kulkarni: Marine Drive. brain reset 🌊
+20/09/2026, 14:30 - Ananya Desai: jealous. I'm debugging iOS timestamp formats
+21/09/2026, 16:40 - Rohan Kulkarni: Finlo call done
+21/09/2026, 16:41 - Rohan Kulkarni: Vikram wants support for personal WhatsApp chats of his RMs. big question for us
+21/09/2026, 16:55 - Ananya Desai: personal chats = consent nightmare. need to think
+21/09/2026, 16:56 - Ananya Desai: technically export-based import works. legally, ask a lawyer
+21/09/2026, 16:58 - Rohan Kulkarni: hmm ok
+23/09/2026, 00:41 - Rohan Kulkarni: <Media omitted>
+23/09/2026, 00:42 - Rohan Kulkarni: <Media omitted>
+23/09/2026, 08:30 - Ananya Desai: two 4-minute voice notes at 12:40am. please. text.
+23/09/2026, 08:31 - Rohan Kulkarni: 😂 tl;dr pricing should be per seat not per message
+23/09/2026, 08:35 - Ananya Desai: agree. per message pricing scares buyers
+24/09/2026, 18:20 - Ananya Desai: Kabir ka portfolio dekha? frontend wala
+24/09/2026, 18:31 - Rohan Kulkarni: haan solid hai. Next.js + motion stuff
+24/09/2026, 18:32 - Rohan Kulkarni: if we raise, I'll hire a designer bhi, Kabir ke saath
+24/09/2026, 18:40 - Ananya Desai: big if
+25/09/2026, 22:10 - Rohan Kulkarni: <Media omitted>
+25/09/2026, 22:10 - Rohan Kulkarni: Meghna ne coffee pe bulaya next month 👀👀
+25/09/2026, 22:14 - Ananya Desai: ok THAT is a signal
+27/09/2026, 20:50 - Rohan Kulkarni: we need to look at Outlook at some point. half of Finlo's team is on Outlook
+27/09/2026, 20:58 - Ananya Desai: yeah
+28/09/2026, 23:15 - Ananya Desai: Slack importer almost there. threads are weird. tomorrow inshallah
+28/09/2026, 23:16 - Rohan Kulkarni: 💪💪
+29/09/2026, 14:05 - Rohan Kulkarni: $39 now. my heart 💔
+29/09/2026, 14:07 - Ananya Desai: $39 is still more than most tools they use
+29/09/2026, 14:08 - Rohan Kulkarni: also RIP Teams connector 🪦
+29/09/2026, 14:09 - Ananya Desai: I will not be attending the funeral. very happy actually
+29/09/2026, 21:40 - Rohan Kulkarni: <Media omitted>
+29/09/2026, 21:40 - Rohan Kulkarni: celebration vada pav for the Slack importer 🎉
+29/09/2026, 21:45 - Ananya Desai: 🥹
+30/09/2026, 10:10 - Rohan Kulkarni: Finlo ne aaj kuch nahi bola, quiet hain
+30/09/2026, 10:30 - Ananya Desai: hmm
+01/10/2026, 09:40 - Rohan Kulkarni: landing page mobile pe nav toot raha hai fyi
+01/10/2026, 09:45 - Ananya Desai: saw your Slack. on it
+03/10/2026, 19:05 - Ananya Desai: <Media omitted>
+03/10/2026, 19:12 - Rohan Kulkarni: haan haan sahi bola, eval ke bina hum andhe hain
+04/10/2026, 22:30 - Rohan Kulkarni: deck ka draft dekha? mail mein hai
+04/10/2026, 22:58 - Ananya Desai: skimmed. slide 6 has 11 bullet points. eleven.
+04/10/2026, 22:59 - Rohan Kulkarni: they're all important 😤
+06/10/2026, 20:20 - Ananya Desai: eval harness ka plan mail kiya hai, padh lena
+06/10/2026, 20:31 - Rohan Kulkarni: 👍 dekhta hoon
+08/10/2026, 17:45 - Rohan Kulkarni: KIRANA KART SIGNED THE PILOT 🎉🎉🎉🚀
+08/10/2026, 17:46 - Rohan Kulkarni: Neha ne abhi confirm kiya
+08/10/2026, 17:50 - Ananya Desai: LET'S GO 🎉🎉
+08/10/2026, 17:50 - Ananya Desai: first real customer data. I'm scared and happy
+08/10/2026, 17:52 - Rohan Kulkarni: party tonight?
+08/10/2026, 17:55 - Ananya Desai: party = eval harness. but yes, biryani
+09/10/2026, 21:15 - Ananya Desai: btw Finlo ko reply kiya? Vikram ka WhatsApp personal chats wala question. tune meeting mein bola tha next day bhej dega
+09/10/2026, 21:31 - Rohan Kulkarni: haan haan, karta hoon
+09/10/2026, 21:32 - Ananya Desai: "karta hoon" is not "kar diya" 🙂
+09/10/2026, 21:32 - Rohan Kulkarni: 😅
+10/10/2026, 15:00 - Rohan Kulkarni: 30 gold labels done. rest 20 boring hain yaar
+10/10/2026, 15:05 - Ananya Desai: labelling is the job
+12/10/2026, 23:55 - Ananya Desai: cost per message numbers are ugly. 2-ish cents. kal meeting mein dikhaati hoon
+12/10/2026, 23:56 - Rohan Kulkarni: ugly as in?
+12/10/2026, 23:58 - Ananya Desai: ugly as in at 1M messages/month we're burning $20k
+12/10/2026, 23:58 - Rohan Kulkarni: 😳
+13/10/2026, 14:30 - Rohan Kulkarni: Haiku for screening, Sonnet for extraction. I like it
+13/10/2026, 14:31 - Ananya Desai: cheap bouncer at the door, expensive one inside
+13/10/2026, 14:31 - Rohan Kulkarni: 😂😂 put that in the deck
+14/10/2026, 10:10 - Rohan Kulkarni: Meghna wala coffee fixed, 20th
+14/10/2026, 10:15 - Ananya Desai: 🤞
+15/10/2026, 18:20 - Rohan Kulkarni: deck pe comments daale hain, slides 4-9. Meghna wali meeting se pehle lock karna hai
+15/10/2026, 18:45 - Ananya Desai: aaj raat dekh leti hoon tere deck comments, screening PR ke baad
+15/10/2026, 18:46 - Rohan Kulkarni: 🙏
+15/10/2026, 23:40 - Ananya Desai: deck comments review kar liye. most resolved, 3 notes on the cost slide — 2.1c number is already outdated, write "<1c target"
+17/10/2026, 19:41 - Rohan Kulkarni: Brightdesk demo ke baare mein mail kiya hai, padh lena
+17/10/2026, 20:02 - Ananya Desai: read. week of 26th works
+18/10/2026, 22:15 - Rohan Kulkarni: I will literally sleep for a week after the demo
+18/10/2026, 22:16 - Ananya Desai: you said that about the Kirana Kart call
+18/10/2026, 22:16 - Rohan Kulkarni: and I meant it then too
+19/10/2026, 12:40 - Ananya Desai: screening step almost ready. numbers looking much better
+19/10/2026, 12:41 - Rohan Kulkarni: 🤞🤞
+20/10/2026, 18:10 - Ananya Desai: 0.7 cents/message 😎
+20/10/2026, 18:11 - Rohan Kulkarni: WHAT
+20/10/2026, 18:11 - Rohan Kulkarni: from 2.1?? 🐐🐐
+20/10/2026, 18:12 - Ananya Desai: most messages are "ok" and "👍". bouncer throws them out
+20/10/2026, 20:30 - Rohan Kulkarni: Meghna coffee was good. she wants to see Brightdesk demo outcome before anything
+20/10/2026, 20:35 - Ananya Desai: fair. no pressure then 🙂
+22/10/2026, 14:20 - Rohan Kulkarni: $29. final final. no more changes 🫠
+22/10/2026, 14:22 - Ananya Desai: and ₹1,999 for India. good
+22/10/2026, 14:23 - Rohan Kulkarni: pricing slide v4 lol
+23/10/2026, 21:10 - Ananya Desai: if CASA drags past the demo, maybe we just show Gmail as "coming soon"
+23/10/2026, 21:15 - Rohan Kulkarni: yeah. Sara won't care too much, they're Slack-heavy
+24/10/2026, 16:02 - Ananya Desai: Kabir ka kya hua? he messaged me asking about start date
+24/10/2026, 16:10 - Rohan Kulkarni: offer letter Monday tak bhej dunga Kabir ko, template ready hai bas numbers daalne hain
+24/10/2026, 16:11 - Ananya Desai: ok. he's good, don't lose him
+24/10/2026, 16:12 - Rohan Kulkarni: 👍
+24/10/2026, 22:30 - Rohan Kulkarni: demo script bhej diya mail pe. tear it apart
+24/10/2026, 22:58 - Ananya Desai: will read in the morning <This message was edited>
+25/10/2026, 11:05 - Ananya Desai: script is good. step 4 me Gmail hata de for now
+25/10/2026, 11:10 - Rohan Kulkarni: done, hata diya
+25/10/2026, 19:30 - Rohan Kulkarni: I'll never write a demo script at 10pm again lol
+25/10/2026, 19:31 - Ananya Desai: you will. next week.
+25/10/2026, 19:31 - Rohan Kulkarni: 😂 probably
+26/10/2026, 10:15 - Rohan Kulkarni: 2 din. nervous ho raha hoon 😬
+26/10/2026, 10:30 - Ananya Desai: demo env mostly ready. details DM pe daale
+26/10/2026, 10:31 - Rohan Kulkarni: 🙌
+26/10/2026, 22:50 - Rohan Kulkarni: <Media omitted>
+26/10/2026, 22:52 - Ananya Desai: yes we'll be fine. go sleep

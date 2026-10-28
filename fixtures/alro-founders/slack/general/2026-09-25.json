@@ -1,0 +1,24 @@
+[
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "Happy Friday. Week so far: RLS tests in, Kirana Kart call done, Finlo call done, Brightdesk booked. Not bad for two people and a cat.",
+    "ts": "1790310627.000729",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "reactions": [
+      {
+        "name": "cat",
+        "users": [
+          "U02ANANYA"
+        ],
+        "count": 1
+      }
+    ]
+  }
+]

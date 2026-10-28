@@ -1,0 +1,29 @@
+{
+  "items": [
+    {"commitment_id": "C04", "role": "fulfilled", "file": "emails/01-landing-page-copy.eml", "speaker": "Rohan Kulkarni", "at": "2026-09-14T18:32:05+05:30", "quote": "Here's the landing page copy I owed you."},
+    {"commitment_id": "C04", "role": "mentioned", "file": "emails/01-landing-page-copy.eml", "speaker": "Rohan Kulkarni", "at": "2026-09-14T18:32:05+05:30", "quote": "I know it was due Wednesday and I pushed it to today on WhatsApp"},
+    {"commitment_id": "C12", "role": "fulfilled", "file": "emails/02-pitch-deck-draft.eml", "speaker": "Rohan Kulkarni", "at": "2026-10-04T21:48:17+05:30", "quote": "here's the first draft of the pitch deck: https://docs.google.com/presentation/d/1aLr0DeCkV1-xQ7pZr9mKfT3bHnW2sYqE/edit?usp=sharing"},
+    {"commitment_id": "C16", "role": "made", "file": "emails/03-eval-plan-gold-set.eml", "speaker": "Ananya Desai", "at": "2026-10-06T11:29:40+05:30", "quote": "I'll have the eval harness running on the gold set by Friday (Oct 9), with a first baseline number."},
+    {"commitment_id": "C21", "role": "made", "file": "emails/04-brightdesk-update.eml", "speaker": "Rohan Kulkarni", "at": "2026-10-17T19:33:11+05:30", "quote": "I'll book the Brightdesk demo for the week of Oct 26 and send you the invite by next Friday."},
+    {"commitment_id": "C19", "role": "mentioned", "file": "emails/04-brightdesk-update.eml", "speaker": "Rohan Kulkarni", "at": "2026-10-17T19:33:11+05:30", "quote": "On the angel/investor target list: not done yet."},
+    {"commitment_id": "C23", "role": "fulfilled", "file": "emails/05-re-brightdesk-demo-script.eml", "speaker": "Rohan Kulkarni", "at": "2026-10-24T22:20:54+05:30", "quote": "Here's the demo script for Wednesday, as promised on Thursday's call."}
+  ],
+  "distractors": [
+    {"file": "emails/01-landing-page-copy.eml", "speaker": "Rohan Kulkarni", "quote": "Someday I'll redo the logo too", "why": "vague"},
+    {"file": "emails/01-landing-page-copy.eml", "speaker": "Rohan Kulkarni", "quote": "If the copy lands well with design partners I'll probably write a longer one-pager for investors", "why": "conditional"},
+    {"file": "emails/01-landing-page-copy.eml", "speaker": "Rohan Kulkarni", "quote": "Can you drop this into the Next.js page whenever you get a gap?", "why": "request_not_accepted"},
+    {"file": "emails/02-pitch-deck-draft.eml", "speaker": "Rohan Kulkarni", "quote": "I sent the Neon invoice to the accountant yesterday", "why": "past_tense"},
+    {"file": "emails/02-pitch-deck-draft.eml", "speaker": "Rohan Kulkarni", "quote": "We need to look at Outlook at some point", "why": "no_owner"},
+    {"file": "emails/02-pitch-deck-draft.eml", "speaker": "Rohan Kulkarni", "quote": "If we raise, I'll hire a designer", "why": "conditional"},
+    {"file": "emails/03-eval-plan-gold-set.eml", "speaker": "Ananya Desai", "quote": "could you label 50 examples?", "why": "request_not_accepted"},
+    {"file": "emails/03-eval-plan-gold-set.eml", "speaker": "Ananya Desai", "quote": "Brightdesk mentioned they might send anonymised tickets for testing.", "why": "third_party"},
+    {"file": "emails/03-eval-plan-gold-set.eml", "speaker": "Ananya Desai", "quote": "I will never again trust a model that says \"100% confident\".", "why": "joke"},
+    {"file": "emails/04-brightdesk-update.eml", "speaker": "Rohan Kulkarni", "quote": "Sara said Brightdesk will share a sample export of their help-desk tickets before the demo.", "why": "third_party"},
+    {"file": "emails/04-brightdesk-update.eml", "speaker": "Rohan Kulkarni", "quote": "We should grab coffee with the Finlo folks sometime", "why": "vague"},
+    {"file": "emails/04-brightdesk-update.eml", "speaker": "Rohan Kulkarni", "quote": "I paid the Vercel bill on Thursday", "why": "past_tense"},
+    {"file": "emails/04-brightdesk-update.eml", "speaker": "Rohan Kulkarni", "quote": "I will literally sleep for a week after this demo.", "why": "joke"},
+    {"file": "emails/05-re-brightdesk-demo-script.eml", "speaker": "Rohan Kulkarni", "quote": "If they push on price, I'll say we can talk annual discounts", "why": "conditional"},
+    {"file": "emails/05-re-brightdesk-demo-script.eml", "speaker": "Rohan Kulkarni", "quote": "If Brightdesk signs, maybe we finally take a weekend off.", "why": "conditional"},
+    {"file": "emails/05-re-brightdesk-demo-script.eml", "speaker": "Rohan Kulkarni", "quote": "so shout if Monday looks tight", "why": "request_not_accepted"}
+  ]
+}

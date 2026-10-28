@@ -1,0 +1,470 @@
+{
+  "items": [
+    {
+      "commitment_id": "C01",
+      "role": "made",
+      "file": "meetings/01-kickoff-phase1-architecture.vtt",
+      "speaker": "Ananya Desai",
+      "at": "2026-09-01T10:03:27+05:30",
+      "quote": "I'll have a draft of the Postgres schema up as a PR by Friday."
+    },
+    {
+      "commitment_id": "C03",
+      "role": "made",
+      "file": "meetings/01-kickoff-phase1-architecture.vtt",
+      "speaker": "Ananya Desai",
+      "at": "2026-09-01T10:04:11+05:30",
+      "quote": "I'll kick off the OAuth verification and the CASA paperwork this week, latest by Sunday."
+    },
+    {
+      "commitment_id": "C02",
+      "role": "made",
+      "file": "meetings/01-kickoff-phase1-architecture.vtt",
+      "speaker": "Rohan Kulkarni",
+      "at": "2026-09-01T10:05:02+05:30",
+      "quote": "I'll book calls with all three of them by Saturday the twelfth."
+    },
+    {
+      "commitment_id": "C04",
+      "role": "made",
+      "file": "meetings/01-kickoff-phase1-architecture.vtt",
+      "speaker": "Rohan Kulkarni",
+      "at": "2026-09-01T10:05:59+05:30",
+      "quote": "I'll write the landing-page copy and the one-pager and send it to you by Wednesday the ninth."
+    },
+    {
+      "commitment_id": "C01",
+      "role": "mentioned",
+      "file": "meetings/02-data-model-privacy-review.vtt",
+      "speaker": "Ananya Desai",
+      "at": "2026-09-15T10:00:25+05:30",
+      "quote": "The schema PR went in on the fourth"
+    },
+    {
+      "commitment_id": "C03",
+      "role": "mentioned",
+      "file": "meetings/02-data-model-privacy-review.vtt",
+      "speaker": "Ananya Desai",
+      "at": "2026-09-15T10:00:39+05:30",
+      "quote": "And the CASA application is submitted. I sent it on the seventh."
+    },
+    {
+      "commitment_id": "C04",
+      "role": "mentioned",
+      "file": "meetings/02-data-model-privacy-review.vtt",
+      "speaker": "Rohan Kulkarni",
+      "at": "2026-09-15T10:00:57+05:30",
+      "quote": "I sent you the landing copy last night, finally."
+    },
+    {
+      "commitment_id": "C07",
+      "role": "made",
+      "file": "meetings/02-data-model-privacy-review.vtt",
+      "speaker": "Ananya Desai",
+      "at": "2026-09-15T10:03:10+05:30",
+      "quote": "I'll write the row-level-security tests before we load any real data, by Saturday the nineteenth."
+    },
+    {
+      "commitment_id": "C08",
+      "role": "made",
+      "file": "meetings/02-data-model-privacy-review.vtt",
+      "speaker": "Rohan Kulkarni",
+      "at": "2026-09-15T10:04:05+05:30",
+      "quote": "I'll draft the privacy policy and a DPA template"
+    },
+    {
+      "commitment_id": "C05",
+      "role": "mentioned",
+      "file": "meetings/02-data-model-privacy-review.vtt",
+      "speaker": "Ananya Desai",
+      "at": "2026-09-15T10:04:41+05:30",
+      "quote": "Neon and the Vercel previews are set up"
+    },
+    {
+      "commitment_id": "C09",
+      "role": "made",
+      "file": "meetings/02-data-model-privacy-review.vtt",
+      "speaker": "Ananya Desai",
+      "at": "2026-09-15T10:05:19+05:30",
+      "quote": "I'll have the Slack export importer working end to end by Saturday the twenty-sixth."
+    },
+    {
+      "commitment_id": "C27",
+      "role": "made",
+      "file": "meetings/02-data-model-privacy-review.vtt",
+      "speaker": "Ananya Desai",
+      "at": "2026-09-15T10:06:17+05:30",
+      "quote": "I'll build the Teams connector, aiming for mid-October, say Thursday the fifteenth."
+    },
+    {
+      "commitment_id": "C02",
+      "role": "mentioned",
+      "file": "meetings/02-data-model-privacy-review.vtt",
+      "speaker": "Rohan Kulkarni",
+      "at": "2026-09-15T10:06:56+05:30",
+      "quote": "Brightdesk is... still pending."
+    },
+    {
+      "commitment_id": "C06",
+      "role": "mentioned",
+      "file": "meetings/02-data-model-privacy-review.vtt",
+      "speaker": "Rohan Kulkarni",
+      "at": "2026-09-15T10:07:27+05:30",
+      "quote": "Yeah, I sent that on the fifth."
+    },
+    {
+      "commitment_id": "C09",
+      "role": "mentioned",
+      "file": "meetings/03-design-partner-feedback-fundraise.vtt",
+      "speaker": "Ananya Desai",
+      "at": "2026-09-29T10:00:49+05:30",
+      "quote": "The Slack importer slipped."
+    },
+    {
+      "commitment_id": "C14",
+      "role": "made",
+      "file": "meetings/03-design-partner-feedback-fundraise.vtt",
+      "speaker": "Rohan Kulkarni",
+      "at": "2026-09-29T10:02:26+05:30",
+      "quote": "I'll reply to Vikram tomorrow and explain the export-only thing."
+    },
+    {
+      "commitment_id": "C27",
+      "role": "cancelled",
+      "file": "meetings/03-design-partner-feedback-fundraise.vtt",
+      "speaker": "Rohan Kulkarni",
+      "at": "2026-09-29T10:04:09+05:30",
+      "quote": "Teams is out of Phase 1. So the mid-October thing is off, don't build it."
+    },
+    {
+      "commitment_id": "C13",
+      "role": "made",
+      "file": "meetings/03-design-partner-feedback-fundraise.vtt",
+      "speaker": "Ananya Desai",
+      "at": "2026-09-29T10:05:17+05:30",
+      "quote": "I'll work out the cost per message for extraction and bring it to our next meeting, the thirteenth."
+    },
+    {
+      "commitment_id": "C12",
+      "role": "made",
+      "file": "meetings/03-design-partner-feedback-fundraise.vtt",
+      "speaker": "Rohan Kulkarni",
+      "at": "2026-09-29T10:06:06+05:30",
+      "quote": "I'll send you the first real draft of the pitch deck by Sunday, the fourth."
+    },
+    {
+      "commitment_id": "C08",
+      "role": "mentioned",
+      "file": "meetings/03-design-partner-feedback-fundraise.vtt",
+      "speaker": "Rohan Kulkarni",
+      "at": "2026-09-29T10:07:02+05:30",
+      "quote": "It's like half done."
+    },
+    {
+      "commitment_id": "C16",
+      "role": "mentioned",
+      "file": "meetings/04-extraction-eval-review.vtt",
+      "speaker": "Ananya Desai",
+      "at": "2026-10-13T10:00:43+05:30",
+      "quote": "the eval harness has been running on the gold set since Friday."
+    },
+    {
+      "commitment_id": "C17",
+      "role": "partial",
+      "file": "meetings/04-extraction-eval-review.vtt",
+      "speaker": "Rohan Kulkarni",
+      "at": "2026-10-13T10:01:10+05:30",
+      "quote": "So thirty out of fifty."
+    },
+    {
+      "commitment_id": "C17",
+      "role": "rescheduled",
+      "file": "meetings/04-extraction-eval-review.vtt",
+      "speaker": "Rohan Kulkarni",
+      "at": "2026-10-13T10:01:28+05:30",
+      "quote": "the remaining twenty, I'll have them labelled by Wednesday."
+    },
+    {
+      "commitment_id": "C13",
+      "role": "fulfilled",
+      "file": "meetings/04-extraction-eval-review.vtt",
+      "speaker": "Ananya Desai",
+      "at": "2026-10-13T10:02:42+05:30",
+      "quote": "it comes to roughly two point one cents per message."
+    },
+    {
+      "commitment_id": "C18",
+      "role": "made",
+      "file": "meetings/04-extraction-eval-review.vtt",
+      "speaker": "Ananya Desai",
+      "at": "2026-10-13T10:04:26+05:30",
+      "quote": "I'll add the Haiku screening step and get extraction under one cent a message by next Tuesday, the twentieth."
+    },
+    {
+      "commitment_id": "C14",
+      "role": "mentioned",
+      "file": "meetings/04-extraction-eval-review.vtt",
+      "speaker": "Rohan Kulkarni",
+      "at": "2026-10-13T10:05:37+05:30",
+      "quote": "Ugh. It's on my list. It's, like, mentally drafted."
+    },
+    {
+      "commitment_id": "C08",
+      "role": "rescheduled",
+      "file": "meetings/04-extraction-eval-review.vtt",
+      "speaker": "Rohan Kulkarni",
+      "at": "2026-10-13T10:06:10+05:30",
+      "quote": "I'll have the privacy policy and the DPA template drafted by Saturday the thirty-first."
+    },
+    {
+      "commitment_id": "C12",
+      "role": "mentioned",
+      "file": "meetings/04-extraction-eval-review.vtt",
+      "speaker": "Ananya Desai",
+      "at": "2026-10-13T10:06:38+05:30",
+      "quote": "the one you sent me on the fourth"
+    },
+    {
+      "commitment_id": "C19",
+      "role": "made",
+      "file": "meetings/04-extraction-eval-review.vtt",
+      "speaker": "Rohan Kulkarni",
+      "at": "2026-10-13T10:07:08+05:30",
+      "quote": "I'll put the angel and investor target list together and send it to you by Friday, the sixteenth."
+    },
+    {
+      "commitment_id": "C21",
+      "role": "mentioned",
+      "file": "meetings/05-brightdesk-demo-prep.vtt",
+      "speaker": "Rohan Kulkarni",
+      "at": "2026-10-22T18:00:22+05:30",
+      "quote": "the demo is booked for Wednesday the twenty-eighth, eleven a.m. I sent Sara the invite yesterday."
+    },
+    {
+      "commitment_id": "C18",
+      "role": "mentioned",
+      "file": "meetings/05-brightdesk-demo-prep.vtt",
+      "speaker": "Ananya Desai",
+      "at": "2026-10-22T18:01:07+05:30",
+      "quote": "we're at zero point seven cents per message."
+    },
+    {
+      "commitment_id": "C17",
+      "role": "mentioned",
+      "file": "meetings/05-brightdesk-demo-prep.vtt",
+      "speaker": "Ananya Desai",
+      "at": "2026-10-22T18:01:38+05:30",
+      "quote": "your last twenty came in on the fifteenth."
+    },
+    {
+      "commitment_id": "C22",
+      "role": "made",
+      "file": "meetings/05-brightdesk-demo-prep.vtt",
+      "speaker": "Ananya Desai",
+      "at": "2026-10-22T18:04:15+05:30",
+      "quote": "I'll have the demo environment seeded with Brightdesk's sample data by Monday the twenty-sixth."
+    },
+    {
+      "commitment_id": "C24",
+      "role": "made",
+      "file": "meetings/05-brightdesk-demo-prep.vtt",
+      "speaker": "Rohan Kulkarni",
+      "at": "2026-10-22T18:04:42+05:30",
+      "quote": "I'll follow up with them on the CASA status first thing Friday."
+    },
+    {
+      "commitment_id": "C23",
+      "role": "made",
+      "file": "meetings/05-brightdesk-demo-prep.vtt",
+      "speaker": "Rohan Kulkarni",
+      "at": "2026-10-22T18:05:36+05:30",
+      "quote": "I'll write the demo script and send it to you by Saturday. The twenty-fourth."
+    },
+    {
+      "commitment_id": "C19",
+      "role": "mentioned",
+      "file": "meetings/05-brightdesk-demo-prep.vtt",
+      "speaker": "Rohan Kulkarni",
+      "at": "2026-10-22T18:06:45+05:30",
+      "quote": "It's like eighty percent done. It's in a sheet."
+    },
+    {
+      "commitment_id": "C14",
+      "role": "mentioned",
+      "file": "meetings/05-brightdesk-demo-prep.vtt",
+      "speaker": "Ananya Desai",
+      "at": "2026-10-22T18:07:26+05:30",
+      "quote": "Did you ever answer his WhatsApp question, though?"
+    }
+  ],
+  "distractors": [
+    {
+      "file": "meetings/01-kickoff-phase1-architecture.vtt",
+      "speaker": "Rohan Kulkarni",
+      "quote": "And if CASA drags, maybe we ship Outlook first?",
+      "why": "conditional"
+    },
+    {
+      "file": "meetings/01-kickoff-phase1-architecture.vtt",
+      "speaker": "Rohan Kulkarni",
+      "quote": "we should grab coffee with the Finlo folks sometime",
+      "why": "vague"
+    },
+    {
+      "file": "meetings/01-kickoff-phase1-architecture.vtt",
+      "speaker": "Rohan Kulkarni",
+      "quote": "someday I'll redo the logo",
+      "why": "vague"
+    },
+    {
+      "file": "meetings/01-kickoff-phase1-architecture.vtt",
+      "speaker": "Rohan Kulkarni",
+      "quote": "let me look at that at some point",
+      "why": "vague"
+    },
+    {
+      "file": "meetings/01-kickoff-phase1-architecture.vtt",
+      "speaker": "Ananya Desai",
+      "quote": "we need to look at Outlook at some point",
+      "why": "no_owner"
+    },
+    {
+      "file": "meetings/01-kickoff-phase1-architecture.vtt",
+      "speaker": "Ananya Desai",
+      "quote": "I'll never touch Jira again if I can help it",
+      "why": "joke"
+    },
+    {
+      "file": "meetings/02-data-model-privacy-review.vtt",
+      "speaker": "Rohan Kulkarni",
+      "quote": "She said Kirana Kart will send a sample Slack export by Friday",
+      "why": "third_party"
+    },
+    {
+      "file": "meetings/02-data-model-privacy-review.vtt",
+      "speaker": "Rohan Kulkarni",
+      "quote": "If we raise, I'll get an actual lawyer to look at it.",
+      "why": "conditional"
+    },
+    {
+      "file": "meetings/02-data-model-privacy-review.vtt",
+      "speaker": "Rohan Kulkarni",
+      "quote": "Sara said she'd confirm a slot by tomorrow.",
+      "why": "third_party"
+    },
+    {
+      "file": "meetings/02-data-model-privacy-review.vtt",
+      "speaker": "Rohan Kulkarni",
+      "quote": "I paid the domain renewal yesterday",
+      "why": "past_tense"
+    },
+    {
+      "file": "meetings/02-data-model-privacy-review.vtt",
+      "speaker": "Rohan Kulkarni",
+      "quote": "Can you also send me the Neon invoice?",
+      "why": "request_not_accepted"
+    },
+    {
+      "file": "meetings/02-data-model-privacy-review.vtt",
+      "speaker": "Rohan Kulkarni",
+      "quote": "I will literally sleep for a week",
+      "why": "joke"
+    },
+    {
+      "file": "meetings/03-design-partner-feedback-fundraise.vtt",
+      "speaker": "Rohan Kulkarni",
+      "quote": "we should grab coffee with them sometime",
+      "why": "vague"
+    },
+    {
+      "file": "meetings/03-design-partner-feedback-fundraise.vtt",
+      "speaker": "Rohan Kulkarni",
+      "quote": "We need to look at Teams again at some point though",
+      "why": "no_owner"
+    },
+    {
+      "file": "meetings/03-design-partner-feedback-fundraise.vtt",
+      "speaker": "Rohan Kulkarni",
+      "quote": "Neha said they'll share the anonymised export by next Friday",
+      "why": "third_party"
+    },
+    {
+      "file": "meetings/03-design-partner-feedback-fundraise.vtt",
+      "speaker": "Rohan Kulkarni",
+      "quote": "I emailed her last week with the one-pager",
+      "why": "past_tense"
+    },
+    {
+      "file": "meetings/03-design-partner-feedback-fundraise.vtt",
+      "speaker": "Rohan Kulkarni",
+      "quote": "if we raise, I'll hire a designer first thing",
+      "why": "conditional"
+    },
+    {
+      "file": "meetings/03-design-partner-feedback-fundraise.vtt",
+      "speaker": "Rohan Kulkarni",
+      "quote": "I promise I'll never say forty-nine dollars in public again",
+      "why": "joke"
+    },
+    {
+      "file": "meetings/04-extraction-eval-review.vtt",
+      "speaker": "Rohan Kulkarni",
+      "quote": "can you send me the Anthropic invoice from last month?",
+      "why": "request_not_accepted"
+    },
+    {
+      "file": "meetings/04-extraction-eval-review.vtt",
+      "speaker": "Rohan Kulkarni",
+      "quote": "She said she'll get back to us after their Monday partner meeting.",
+      "why": "third_party"
+    },
+    {
+      "file": "meetings/04-extraction-eval-review.vtt",
+      "speaker": "Rohan Kulkarni",
+      "quote": "if Meghna says yes, I'll take you out for the fanciest dinner in Pune",
+      "why": "conditional"
+    },
+    {
+      "file": "meetings/04-extraction-eval-review.vtt",
+      "speaker": "Ananya Desai",
+      "quote": "I sent the scan results on Thursday.",
+      "why": "past_tense"
+    },
+    {
+      "file": "meetings/04-extraction-eval-review.vtt",
+      "speaker": "Rohan Kulkarni",
+      "quote": "Someday we should write a blog post about the whole CASA saga.",
+      "why": "vague"
+    },
+    {
+      "file": "meetings/05-brightdesk-demo-prep.vtt",
+      "speaker": "Rohan Kulkarni",
+      "quote": "Sara said she'll bring their sample tickets and Slack channels to the call",
+      "why": "third_party"
+    },
+    {
+      "file": "meetings/05-brightdesk-demo-prep.vtt",
+      "speaker": "Ananya Desai",
+      "quote": "if CASA drags past the demo, we just show the imported emails",
+      "why": "conditional"
+    },
+    {
+      "file": "meetings/05-brightdesk-demo-prep.vtt",
+      "speaker": "Rohan Kulkarni",
+      "quote": "If we close Tidewater, he comes on full-time, otherwise contract.",
+      "why": "conditional"
+    },
+    {
+      "file": "meetings/05-brightdesk-demo-prep.vtt",
+      "speaker": "Rohan Kulkarni",
+      "quote": "We should do a proper launch video someday",
+      "why": "vague"
+    },
+    {
+      "file": "meetings/05-brightdesk-demo-prep.vtt",
+      "speaker": "Rohan Kulkarni",
+      "quote": "After the demo I will literally sleep for a week.",
+      "why": "joke"
+    }
+  ]
+}

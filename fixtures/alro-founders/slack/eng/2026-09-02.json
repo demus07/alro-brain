@@ -1,0 +1,125 @@
+[
+  {
+    "type": "message",
+    "subtype": "channel_join",
+    "user": "U01ROHAN",
+    "text": "<@U01ROHAN> has joined the channel",
+    "ts": "1788321700.000137",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    }
+  },
+  {
+    "type": "message",
+    "subtype": "channel_join",
+    "user": "U02ANANYA",
+    "text": "<@U02ANANYA> has joined the channel",
+    "ts": "1788322310.000248",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    }
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Repo is up: `alro/brain`. Next.js + Drizzle, pnpm workspace. Nothing in it yet except a README with an aspirational architecture diagram.",
+    "ts": "1788324631.000199",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    }
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": ":fire: what's the plan for the DB?",
+    "ts": "1788324842.000236",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1788324842.000236",
+    "reply_count": 3,
+    "reply_users_count": 2,
+    "latest_reply": "1788326496.000347",
+    "reply_users": [
+      "U02ANANYA",
+      "U01ROHAN"
+    ],
+    "replies": [
+      {
+        "user": "U02ANANYA",
+        "ts": "1788325847.000273"
+      },
+      {
+        "user": "U01ROHAN",
+        "ts": "1788326119.000310"
+      },
+      {
+        "user": "U02ANANYA",
+        "ts": "1788326496.000347"
+      }
+    ],
+    "is_locked": false,
+    "subscribed": false
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Neon Postgres + pgvector. Core tables: `sources`, `messages`, `entities`, `facts` (with `valid_from` / `valid_to` so we get the temporal stuff for free-ish), `commitments`. Schema draft is what I'm working on this week.",
+    "ts": "1788325847.000273",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1788324842.000236",
+    "parent_user_id": "U01ROHAN"
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "do we need separate tables for people vs companies?",
+    "ts": "1788326119.000310",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1788324842.000236",
+    "parent_user_id": "U01ROHAN"
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "No, one `entities` table with a `kind` column. Fewer joins, fewer regrets.",
+    "ts": "1788326496.000347",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1788324842.000236",
+    "parent_user_id": "U01ROHAN"
+  }
+]

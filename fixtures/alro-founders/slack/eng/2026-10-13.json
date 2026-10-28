@@ -1,0 +1,15 @@
+[
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Eng notes from today's meeting:\n• Extraction is ~2.1 cents/message with Sonnet on everything\n• Decision: Haiku screens every message, Sonnet only extracts from the ones that pass\n• Target: under 1 cent/message by next Tuesday",
+    "ts": "1791894647.000952",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    }
+  }
+]

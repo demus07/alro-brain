@@ -1,0 +1,54 @@
+[
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "pgvector index: went with HNSW (`m = 16, ef_construction = 64`). Build on 50k test rows takes ~40s on the smallest Neon compute, queries are ~8ms.",
+    "ts": "1789195806.000768",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1789195806.000768",
+    "reply_count": 1,
+    "reply_users_count": 1,
+    "latest_reply": "1789196504.000805",
+    "reply_users": [
+      "U01ROHAN"
+    ],
+    "replies": [
+      {
+        "user": "U01ROHAN",
+        "ts": "1789196504.000805"
+      }
+    ],
+    "is_locked": false,
+    "subscribed": false
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "I understood the word fast and I'm happy",
+    "ts": "1789196504.000805",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1789195806.000768",
+    "parent_user_id": "U02ANANYA",
+    "reactions": [
+      {
+        "name": "joy",
+        "users": [
+          "U02ANANYA"
+        ],
+        "count": 1
+      }
+    ]
+  }
+]

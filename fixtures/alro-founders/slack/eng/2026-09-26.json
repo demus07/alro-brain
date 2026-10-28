@@ -1,0 +1,65 @@
+[
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Importer isn't there yet. Threads + edited messages + channel_join noise ate my week. It's not landing today.",
+    "ts": "1790427640.000138",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1790427640.000138",
+    "reply_count": 2,
+    "reply_users_count": 2,
+    "latest_reply": "1790428229.000212",
+    "reply_users": [
+      "U01ROHAN",
+      "U02ANANYA"
+    ],
+    "replies": [
+      {
+        "user": "U01ROHAN",
+        "ts": "1790427972.000175"
+      },
+      {
+        "user": "U02ANANYA",
+        "ts": "1790428229.000212"
+      }
+    ],
+    "is_locked": false,
+    "subscribed": false
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "no stress. what's blocking?",
+    "ts": "1790427972.000175",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1790427640.000138",
+    "parent_user_id": "U02ANANYA"
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Mostly me underestimating Slack.",
+    "ts": "1790428229.000212",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1790427640.000138",
+    "parent_user_id": "U02ANANYA"
+  }
+]

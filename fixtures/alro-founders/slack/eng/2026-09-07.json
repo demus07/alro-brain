@@ -1,0 +1,93 @@
+[
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Submitted the CASA application this morning, for the Gmail restricted scopes. Google says review takes \"several weeks\". Their weeks, not ours.",
+    "ts": "1788757208.000754",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1788757208.000754",
+    "reply_count": 3,
+    "reply_users_count": 2,
+    "latest_reply": "1788758729.000865",
+    "reply_users": [
+      "U01ROHAN",
+      "U02ANANYA"
+    ],
+    "replies": [
+      {
+        "user": "U01ROHAN",
+        "ts": "1788757851.000791"
+      },
+      {
+        "user": "U02ANANYA",
+        "ts": "1788758053.000828"
+      },
+      {
+        "user": "U02ANANYA",
+        "ts": "1788758729.000865"
+      }
+    ],
+    "is_locked": false,
+    "subscribed": false,
+    "reactions": [
+      {
+        "name": "crossed_fingers",
+        "users": [
+          "U01ROHAN"
+        ],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "how many weeks is several",
+    "ts": "1788757851.000791",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1788757208.000754",
+    "parent_user_id": "U02ANANYA"
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Historically: yes.",
+    "ts": "1788758053.000828",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1788757208.000754",
+    "parent_user_id": "U02ANANYA"
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "if CASA drags, maybe we ship Outlook first. Microsoft's review is supposedly less painful.",
+    "ts": "1788758729.000865",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1788757208.000754",
+    "parent_user_id": "U02ANANYA"
+  }
+]

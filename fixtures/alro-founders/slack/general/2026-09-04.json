@@ -1,0 +1,31 @@
+[
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "GST registration came through today :tada: we are a real, taxable company",
+    "ts": "1788529815.000396",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "reactions": [
+      {
+        "name": "tada",
+        "users": [
+          "U02ANANYA"
+        ],
+        "count": 1
+      },
+      {
+        "name": "money_with_wings",
+        "users": [
+          "U02ANANYA"
+        ],
+        "count": 1
+      }
+    ]
+  }
+]

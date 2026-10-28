@@ -1,0 +1,65 @@
+[
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Screening prompt draft. Binary question: does this message contain a promise, a request, or a status update on a promise? Haiku, max 5 output tokens.\n```\nconst screen = await generateText({\n  model: 'anthropic/claude-haiku-4.5',\n  system: SCREEN_PROMPT,\n  prompt: msg.text,\n  maxOutputTokens: 5,\n});\nif (!screen.text.trim().startsWith('yes')) return null;\n```",
+    "ts": "1791959409.000989",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1791959409.000989",
+    "reply_count": 2,
+    "reply_users_count": 2,
+    "latest_reply": "1791960200.000163",
+    "reply_users": [
+      "U01ROHAN",
+      "U02ANANYA"
+    ],
+    "replies": [
+      {
+        "user": "U01ROHAN",
+        "ts": "1791959984.000126"
+      },
+      {
+        "user": "U02ANANYA",
+        "ts": "1791960200.000163"
+      }
+    ],
+    "is_locked": false,
+    "subscribed": false
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "what happens to the messages it rejects",
+    "ts": "1791959984.000126",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1791959409.000989",
+    "parent_user_id": "U02ANANYA"
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Still indexed for search, just never extracted. Nothing is thrown away.",
+    "ts": "1791960200.000163",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1791959409.000989",
+    "parent_user_id": "U02ANANYA"
+  }
+]

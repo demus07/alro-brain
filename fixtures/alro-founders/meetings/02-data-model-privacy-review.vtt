@@ -1,0 +1,339 @@
+WEBVTT
+
+NOTE
+Title: Data model & privacy review
+Date: 2026-09-15T10:00:00+05:30
+Platform: Google Meet
+Attendees: Rohan Kulkarni <rohan@alro.ai>, Ananya Desai <ananya@alro.ai>
+
+1
+00:00:05.000 --> 00:00:07.212
+<v Ananya Desai>Hi. Can you hear me?</v>
+
+2
+00:00:07.918 --> 00:00:13.313
+<v Rohan Kulkarni>Yes! Sorry, I was two minutes late, the Wi-Fi at this cafe is terrible.</v>
+
+3
+00:00:13.670 --> 00:00:18.086
+<v Ananya Desai>You're at a cafe for a privacy review. Very on brand.</v>
+
+4
+00:00:19.037 --> 00:00:24.263
+<v Rohan Kulkarni>Ha. I'm in the corner, nobody's listening. Okay. Data model and privacy. Go.</v>
+
+5
+00:00:25.311 --> 00:00:33.777
+<v Ananya Desai>Quick status first. The schema PR went in on the fourth, you reviewed it, I merged it with your comments on Thursday.</v>
+
+6
+00:00:34.035 --> 00:00:38.692
+<v Rohan Kulkarni>Yes, the commitments table looks great. I liked the status history thing.</v>
+
+7
+00:00:39.838 --> 00:00:47.927
+<v Ananya Desai>And the CASA application is submitted. I sent it on the seventh. Now we wait for the assessor to get back.</v>
+
+8
+00:00:48.805 --> 00:00:50.725
+<v Rohan Kulkarni>Any timeline from Google?</v>
+
+9
+00:00:51.833 --> 00:00:56.459
+<v Ananya Desai>Nope. Google gives you a ticket number and a feeling of helplessness.</v>
+
+10
+00:00:57.218 --> 00:01:04.311
+<v Rohan Kulkarni>Ha. Okay, and I sent you the landing copy last night, finally. Sorry it slipped from the ninth.</v>
+
+11
+00:01:05.633 --> 00:01:14.392
+<v Ananya Desai>Yeah, I saw it. It's good actually. I left a couple of comments on the privacy section, it promises a bit too much.</v>
+
+12
+00:01:15.672 --> 00:01:17.597
+<v Rohan Kulkarni>Like what?</v>
+
+13
+00:01:18.426 --> 00:01:24.371
+<v Ananya Desai>You wrote "we never store your messages". We literally store your messages. That's the product.</v>
+
+14
+00:01:25.694 --> 00:01:29.347
+<v Rohan Kulkarni>Okay, okay. Fair. "We never train on your messages."</v>
+
+15
+00:01:29.894 --> 00:01:35.949
+<v Ananya Desai>Better. And "we never sell them". Okay. Can I go through the data model changes?</v>
+
+16
+00:01:36.270 --> 00:01:38.129
+<v Rohan Kulkarni>Go.</v>
+
+17
+00:01:39.103 --> 00:01:58.288
+<v Ananya Desai>So the big addition since the PR is the ACL model. Every source object, a Slack channel, a Gmail thread, a WhatsApp chat, gets an access list. When we sync, we pull the members. And every message, entity mention, fact and commitment links back to the source objects it came from.</v>
+
+18
+00:01:59.615 --> 00:02:06.686
+<v Rohan Kulkarni>So if a fact comes from a private channel, only the people in that channel see the fact?</v>
+
+19
+00:02:07.072 --> 00:02:17.010
+<v Ananya Desai>Right. And if a fact is supported by two sources, one public and one private, you see it with only the public citation. That part's tricky.</v>
+
+20
+00:02:18.355 --> 00:02:19.898
+<v Rohan Kulkarni>Tricky how?</v>
+
+21
+00:02:21.070 --> 00:02:40.334
+<v Ananya Desai>Because the fact itself might only make sense with the private message. Like the price was mentioned in public but the discount was in a DM. For now I'm doing the strict version. If you can't see every supporting row, the derived row is filtered by the ones you can see.</v>
+
+22
+00:02:41.491 --> 00:02:52.051
+<v Rohan Kulkarni>Okay. I trust you. This is the part that worries me the most for the design partners, honestly. Vikram asked me straight up who can see what.</v>
+
+23
+00:02:52.352 --> 00:03:06.740
+<v Ananya Desai>Which is why I want tests before we put a single real message in. The policies in Postgres are easy to get subtly wrong. Like a join that bypasses the policy because it runs as the owner role.</v>
+
+24
+00:03:07.519 --> 00:03:09.347
+<v Rohan Kulkarni>Wait, does that happen?</v>
+
+25
+00:03:10.552 --> 00:03:24.387
+<v Ananya Desai>If you use a security definer function carelessly, yes. So, I'll write the row-level-security tests before we load any real data, by Saturday the nineteenth. Two fake users, private and public channels, and assertions on every table.</v>
+
+26
+00:03:24.803 --> 00:03:32.316
+<v Rohan Kulkarni>The nineteenth. And Kirana Kart's call is on the eighteenth, so we won't have their data before that anyway.</v>
+
+27
+00:03:33.500 --> 00:03:38.889
+<v Ananya Desai>Right. Which brings me to: what happens if they want to send data?</v>
+
+28
+00:03:39.199 --> 00:03:47.861
+<v Rohan Kulkarni>Neha already asked. She said Kirana Kart will send a sample Slack export by Friday, once their legal is okay with it.</v>
+
+29
+00:03:48.073 --> 00:03:57.828
+<v Ananya Desai>Their legal will want a DPA. And we don't have a privacy policy. Like, at all. The CASA application literally links to a placeholder page.</v>
+
+30
+00:03:58.305 --> 00:04:02.197
+<v Rohan Kulkarni>Yeah. Okay, that's on me. Legal is my side.</v>
+
+31
+00:04:03.158 --> 00:04:04.894
+<v Ananya Desai>It is.</v>
+
+32
+00:04:05.282 --> 00:04:16.568
+<v Rohan Kulkarni>Okay. I'll draft the privacy policy and a DPA template, you know, the data processing agreement, and get it to you by Wednesday the thirtieth. End of the month.</v>
+
+33
+00:04:17.240 --> 00:04:22.998
+<v Ananya Desai>End of month is fine. Use a real template, don't write it from scratch.</v>
+
+34
+00:04:23.230 --> 00:04:31.693
+<v Rohan Kulkarni>Yes, yes, starting from one of the standard SaaS ones. If we raise, I'll get an actual lawyer to look at it.</v>
+
+35
+00:04:31.941 --> 00:04:36.623
+<v Ananya Desai>We should get a lawyer even if we don't raise. But okay.</v>
+
+36
+00:04:37.971 --> 00:04:40.831
+<v Rohan Kulkarni>Fine. Ugh. Okay, ingestion. Where are we?</v>
+
+37
+00:04:41.087 --> 00:04:48.411
+<v Ananya Desai>Neon and the Vercel previews are set up, every PR gets its own branch database now. That's working nicely.</v>
+
+38
+00:04:49.463 --> 00:04:52.145
+<v Rohan Kulkarni>That's the branching thing. Love that.</v>
+
+39
+00:04:53.328 --> 00:05:04.597
+<v Ananya Desai>Yeah, honestly the best feature of Neon. Next is the Slack importer. Two modes: the export zip, for history, and then the live events API through Nango for anything new.</v>
+
+40
+00:05:05.412 --> 00:05:07.123
+<v Rohan Kulkarni>Which one first?</v>
+
+41
+00:05:07.831 --> 00:05:16.378
+<v Ananya Desai>Export first. Because design partners will want their history on day one. Otherwise the brain is empty and the demo is sad.</v>
+
+42
+00:05:16.698 --> 00:05:18.713
+<v Rohan Kulkarni>Sad demo, bad. When?</v>
+
+43
+00:05:19.904 --> 00:05:28.446
+<v Ananya Desai>I'll have the Slack export importer working end to end by Saturday the twenty-sixth. Threads, edits, files as metadata, and user mapping.</v>
+
+44
+00:05:29.009 --> 00:05:33.199
+<v Rohan Kulkarni>Twenty-sixth. Okay, so before the next one of these, sort of.</v>
+
+45
+00:05:34.090 --> 00:05:38.371
+<v Ananya Desai>The next one of these is the twenty-ninth, so yes.</v>
+
+46
+00:05:39.729 --> 00:05:50.990
+<v Rohan Kulkarni>Okay, now Microsoft Teams. I really think we need it in Phase 1. Brightdesk is fully on Teams, and half the Indian enterprises Finlo sells to are on Teams.</v>
+
+47
+00:05:52.350 --> 00:06:00.950
+<v Ananya Desai>It's not small. The Graph API for chat messages needs admin consent, and there are the protected API approvals for channel messages.</v>
+
+48
+00:06:01.513 --> 00:06:03.473
+<v Rohan Kulkarni>But is it doable?</v>
+
+49
+00:06:04.557 --> 00:06:12.399
+<v Ananya Desai>Doable. Nango has a Microsoft integration, so auth is not the hard part. It's the export and the permissions mapping.</v>
+
+50
+00:06:13.561 --> 00:06:16.675
+<v Rohan Kulkarni>So can we keep it in scope?</v>
+
+51
+00:06:17.982 --> 00:06:28.283
+<v Ananya Desai>Okay. Teams stays in Phase 1. I'll build the Teams connector, aiming for mid-October, say Thursday the fifteenth. But it comes after the Slack importer, not before.</v>
+
+52
+00:06:29.568 --> 00:06:34.155
+<v Rohan Kulkarni>Yes! Okay. Teams in Phase 1. Sara is going to be thrilled.</v>
+
+53
+00:06:35.217 --> 00:06:37.488
+<v Ananya Desai>Don't give Sara a date.</v>
+
+54
+00:06:38.064 --> 00:06:41.025
+<v Rohan Kulkarni>No dates. Just "it's in Phase 1".</v>
+
+55
+00:06:41.680 --> 00:06:43.566
+<v Ananya Desai>Okay.</v>
+
+56
+00:06:44.508 --> 00:06:53.087
+<v Rohan Kulkarni>Speaking of Sara. Design partner calls. So, update. Kirana Kart is on the eighteenth, Finlo is on the twenty-first, those are booked.</v>
+
+57
+00:06:54.275 --> 00:06:55.888
+<v Ananya Desai>And Brightdesk?</v>
+
+58
+00:06:56.182 --> 00:07:01.171
+<v Rohan Kulkarni>Brightdesk is... still pending. Sara said she'd confirm a slot by tomorrow.</v>
+
+59
+00:07:02.369 --> 00:07:05.178
+<v Ananya Desai>So that was due on the twelfth.</v>
+
+60
+00:07:05.581 --> 00:07:10.160
+<v Rohan Kulkarni>I know, I know. Two out of three. It's basically done.</v>
+
+61
+00:07:10.574 --> 00:07:13.835
+<v Ananya Desai>Two out of three is sixty-six percent done.</v>
+
+62
+00:07:14.349 --> 00:07:17.497
+<v Rohan Kulkarni>Sixty-seven, if you round up. Which I do.</v>
+
+63
+00:07:18.419 --> 00:07:27.051
+<v Ananya Desai>Ha. Okay. Hey, did you see the Nango pricing summary I asked about? You pasted something on WhatsApp at like eleven p.m.</v>
+
+64
+00:07:27.774 --> 00:07:35.245
+<v Rohan Kulkarni>Yeah, I sent that on the fifth. Starter plan is fine for us till we have maybe ten customers.</v>
+
+65
+00:07:35.798 --> 00:07:42.301
+<v Rohan Kulkarni>Oh, and I paid the domain renewal yesterday, so alro dot ai is safe for another year.</v>
+
+66
+00:07:43.131 --> 00:07:48.837
+<v Ananya Desai>Okay good. One more thing on privacy. Retention. How long do we keep raw messages?</v>
+
+67
+00:07:50.178 --> 00:07:51.879
+<v Rohan Kulkarni>Forever? It's a brain.</v>
+
+68
+00:07:53.083 --> 00:08:04.122
+<v Ananya Desai>Customers will want a setting. And deletions in the source have to propagate. If someone deletes a Slack message, we delete it too, and anything derived only from it.</v>
+
+69
+00:08:05.001 --> 00:08:07.827
+<v Rohan Kulkarni>That sounds like a lot of work.</v>
+
+70
+00:08:08.319 --> 00:08:14.562
+<v Ananya Desai>It's cascade deletes plus recomputing facts. Not terrible. But it has to be in the DPA.</v>
+
+71
+00:08:15.319 --> 00:08:20.605
+<v Rohan Kulkarni>Okay, so deletion propagation and a retention setting go into the DPA draft too.</v>
+
+72
+00:08:21.622 --> 00:08:23.278
+<v Ananya Desai>Good.</v>
+
+73
+00:08:24.286 --> 00:08:30.701
+<v Rohan Kulkarni>Can you also send me the Neon invoice? I want to start a proper expense sheet.</v>
+
+74
+00:08:32.023 --> 00:08:38.288
+<v Ananya Desai>Hmm, wait, sorry, my laptop is dying. Let me plug in. Okay. What was I saying?</v>
+
+75
+00:08:38.894 --> 00:08:40.458
+<v Rohan Kulkarni>Retention.</v>
+
+76
+00:08:41.353 --> 00:08:48.334
+<v Ananya Desai>Right. Default is keep everything, with a per-source setting for thirty, ninety, three-sixty-five days. Fine for Phase 1.</v>
+
+77
+00:08:49.090 --> 00:08:52.357
+<v Rohan Kulkarni>Okay. I feel like we covered a lot.</v>
+
+78
+00:08:52.763 --> 00:09:00.489
+<v Ananya Desai>Quick recap. Me: row-level-security tests by the nineteenth, Slack export importer by the twenty-sixth, Teams connector mid-October, around the fifteenth.</v>
+
+79
+00:09:00.840 --> 00:09:05.873
+<v Rohan Kulkarni>Me: privacy policy and DPA by the thirtieth, and get Brightdesk confirmed.</v>
+
+80
+00:09:06.095 --> 00:09:08.577
+<v Ananya Desai>And Teams is in Phase 1.</v>
+
+81
+00:09:09.148 --> 00:09:15.999
+<v Rohan Kulkarni>Teams is in Phase 1. Also, after the Kirana Kart call I will literally sleep for a week.</v>
+
+82
+00:09:16.881 --> 00:09:21.166
+<v Ananya Desai>You'll have a day, maybe. Okay, see you on the twenty-ninth.</v>
+
+83
+00:09:21.370 --> 00:09:22.943
+<v Rohan Kulkarni>See you. Bye!</v>

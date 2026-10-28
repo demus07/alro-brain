@@ -1,0 +1,40 @@
+Message-ID: <20261006112940.ad.eval-plan@alro.ai>
+Date: Tue, 06 Oct 2026 11:29:40 +0530
+From: Ananya Desai <ananya@alro.ai>
+To: Rohan Kulkarni <rohan@alro.ai>
+Subject: Eval plan for the gold set
+MIME-Version: 1.0
+Content-Type: text/plain; charset="UTF-8"
+
+Rohan,
+
+Before we tune anything else in extraction, we need a way to know whether a change made it better or worse. Right now it's vibes. Here's the plan.
+
+What we measure
+- Precision: of the commitments ALRO extracts, how many are real.
+- Recall: of the real commitments in the gold set, how many ALRO finds.
+- Owner/due-date accuracy, scored separately, because getting the promise right but the owner wrong is still wrong.
+
+The gold set
+- ~200 messages across Slack, Gmail and WhatsApp, taken from our own (very chatty) history plus synthetic ones.
+- Each one labelled: is it a commitment, who owns it, who it's to, due date, and status if we can see it.
+- Plenty of negatives: vague plans, conditionals, jokes, "can you..." requests nobody agreed to. Those are where the model currently embarrasses itself.
+
+The harness
+- Script runs the screening + extraction pipeline over the gold set, writes results to a table, prints precision/recall and a diff of what changed since the last run.
+- Runs locally and in CI on every PR that touches the prompts.
+
+I'll have the eval harness running on the gold set by Friday (Oct 9), with a first baseline number.
+
+The part I need from you: could you label 50 examples? You were in most of those design partner conversations, so you'll know which "I'll look into it"s were real. The sheet with the messages and label columns is already in the shared drive.
+
+Two side notes:
+- Brightdesk mentioned they might send anonymised tickets for testing. If that happens, great, but I'm not planning around it.
+- I will never again trust a model that says "100% confident". Looking at you, extraction v0.
+
+Ananya
+
+--
+Ananya Desai
+Co-founder & CTO, ALRO
+ananya@alro.ai | +91 98450 44556

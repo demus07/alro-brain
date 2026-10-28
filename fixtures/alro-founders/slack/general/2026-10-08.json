@@ -1,0 +1,81 @@
+[
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": ":tada: :tada: First signed pilot! Kirana Kart is in. Details in <#C0PRODUCT1|product>",
+    "ts": "1791461739.000803",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1791461739.000803",
+    "reply_count": 2,
+    "reply_users_count": 2,
+    "latest_reply": "1791462168.000877",
+    "reply_users": [
+      "U02ANANYA",
+      "U01ROHAN"
+    ],
+    "replies": [
+      {
+        "user": "U02ANANYA",
+        "ts": "1791462012.000840"
+      },
+      {
+        "user": "U01ROHAN",
+        "ts": "1791462168.000877"
+      }
+    ],
+    "is_locked": false,
+    "subscribed": false,
+    "reactions": [
+      {
+        "name": "tada",
+        "users": [
+          "U02ANANYA"
+        ],
+        "count": 1
+      },
+      {
+        "name": "partying_face",
+        "users": [
+          "U02ANANYA"
+        ],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Huge. Drinks on the company card. Which, reminder, is nearly empty.",
+    "ts": "1791462012.000840",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1791461739.000803",
+    "parent_user_id": "U01ROHAN"
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "if we raise, I'll hire a designer and we can stop pretending Figma is my strong suit",
+    "ts": "1791462168.000877",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1791461739.000803",
+    "parent_user_id": "U01ROHAN"
+  }
+]

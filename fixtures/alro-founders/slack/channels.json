@@ -1,0 +1,68 @@
+[
+  {
+    "id": "C0GENERAL1",
+    "name": "general",
+    "created": 1788321600,
+    "creator": "U01ROHAN",
+    "is_archived": false,
+    "is_general": true,
+    "members": [
+      "U01ROHAN",
+      "U02ANANYA"
+    ],
+    "topic": {
+      "value": "ALRO HQ",
+      "creator": "U01ROHAN",
+      "last_set": 1788321600
+    },
+    "purpose": {
+      "value": "Company-wide announcements and everything else",
+      "creator": "U01ROHAN",
+      "last_set": 1788321600
+    }
+  },
+  {
+    "id": "C0ENG00001",
+    "name": "eng",
+    "created": 1788321600,
+    "creator": "U01ROHAN",
+    "is_archived": false,
+    "is_general": false,
+    "members": [
+      "U01ROHAN",
+      "U02ANANYA"
+    ],
+    "topic": {
+      "value": "Build log: schema, connectors, extraction, evals",
+      "creator": "U01ROHAN",
+      "last_set": 1788321600
+    },
+    "purpose": {
+      "value": "Engineering",
+      "creator": "U01ROHAN",
+      "last_set": 1788321600
+    }
+  },
+  {
+    "id": "C0PRODUCT1",
+    "name": "product",
+    "created": 1788321600,
+    "creator": "U01ROHAN",
+    "is_archived": false,
+    "is_general": false,
+    "members": [
+      "U01ROHAN",
+      "U02ANANYA"
+    ],
+    "topic": {
+      "value": "Design partners, pricing, landing page",
+      "creator": "U01ROHAN",
+      "last_set": 1788321600
+    },
+    "purpose": {
+      "value": "Product and customers",
+      "creator": "U01ROHAN",
+      "last_set": 1788321600
+    }
+  }
+]

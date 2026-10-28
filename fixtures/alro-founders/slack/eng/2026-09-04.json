@@ -1,0 +1,76 @@
+[
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Schema PR is up: #3 `feat(db): initial schema`. 9 tables, migrations via drizzle-kit. <@U01ROHAN> at least read the `commitments` table, that one is the product.",
+    "ts": "1788504044.000643",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1788504044.000643",
+    "reply_count": 1,
+    "reply_users_count": 1,
+    "latest_reply": "1788512411.000680",
+    "reply_users": [
+      "U01ROHAN"
+    ],
+    "replies": [
+      {
+        "user": "U01ROHAN",
+        "ts": "1788512411.000680"
+      }
+    ],
+    "is_locked": false,
+    "subscribed": false,
+    "reactions": [
+      {
+        "name": "eyes",
+        "users": [
+          "U01ROHAN"
+        ],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "Read it. Approved, left two nits on naming, ignore if you want",
+    "ts": "1788512411.000680",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1788504044.000643",
+    "parent_user_id": "U02ANANYA"
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Preview envs are live. Every PR now gets a Vercel preview + its own Neon branch seeded from `main`. PR #3's preview is already up if you want to click around (there is nothing to click).",
+    "ts": "1788527756.000717",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "reactions": [
+      {
+        "name": "tada",
+        "users": [
+          "U01ROHAN"
+        ],
+        "count": 1
+      }
+    ]
+  }
+]

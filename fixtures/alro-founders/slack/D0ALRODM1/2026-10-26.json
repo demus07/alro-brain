@@ -1,0 +1,63 @@
+[
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Demo env status: seeded with Brightdesk Slack + WhatsApp + their HubSpot export, entity graph built, commitments look right. Everything except Gmail — CASA is still pending, so no Gmail data in the demo yet.",
+    "ts": "1793024109.000546",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    }
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "that's fine, Gmail can live on a slide for now",
+    "ts": "1793024557.000583",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    }
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "I will literally sleep for a week after the demo",
+    "ts": "1793024590.000620",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    }
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "You said that after the KK pilot too.",
+    "ts": "1793024748.000657",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "reactions": [
+      {
+        "name": "joy",
+        "users": [
+          "U01ROHAN"
+        ],
+        "count": 1
+      }
+    ]
+  }
+]

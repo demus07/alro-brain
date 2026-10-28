@@ -1,0 +1,82 @@
+[
+  {
+    "type": "message",
+    "subtype": "channel_join",
+    "user": "U01ROHAN",
+    "text": "<@U01ROHAN> has joined the channel",
+    "ts": "1788321725.000174",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    }
+  },
+  {
+    "type": "message",
+    "subtype": "channel_join",
+    "user": "U02ANANYA",
+    "text": "<@U02ANANYA> has joined the channel",
+    "ts": "1788322333.000285",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    }
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "Pricing as of yesterday's call: *$49/user/month*, no free tier, 14-day trial. Writing it down here so we stop re-arguing it.",
+    "ts": "1788327052.000755",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1788327052.000755",
+    "reply_count": 1,
+    "reply_users_count": 1,
+    "latest_reply": "1788327270.000792",
+    "reply_users": [
+      "U02ANANYA"
+    ],
+    "replies": [
+      {
+        "user": "U02ANANYA",
+        "ts": "1788327270.000792"
+      }
+    ],
+    "is_locked": false,
+    "subscribed": false,
+    "reactions": [
+      {
+        "name": "pushpin",
+        "users": [
+          "U02ANANYA"
+        ],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Pinned, so future-us can see past-us being confident.",
+    "ts": "1788327270.000792",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1788327052.000755",
+    "parent_user_id": "U01ROHAN"
+  }
+]

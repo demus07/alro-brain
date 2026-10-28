@@ -1,0 +1,65 @@
+[
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "RLS design: every table gets `workspace_id`, and messages carry a `visible_to` array of source-tool user ids. Policy reads the user from a session setting:\n```\nalter table messages enable row level security;\ncreate policy msg_visibility on messages\n  using (current_setting('app.user_id') = any(visible_to));\n```\nThe app sets `app.user_id` per request inside a transaction.",
+    "ts": "1789536640.000446",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1789536640.000446",
+    "reply_count": 2,
+    "reply_users_count": 2,
+    "latest_reply": "1789537375.000520",
+    "reply_users": [
+      "U01ROHAN",
+      "U02ANANYA"
+    ],
+    "replies": [
+      {
+        "user": "U01ROHAN",
+        "ts": "1789537209.000483"
+      },
+      {
+        "user": "U02ANANYA",
+        "ts": "1789537375.000520"
+      }
+    ],
+    "is_locked": false,
+    "subscribed": false
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "this is the thing that makes enterprise people trust us right",
+    "ts": "1789537209.000483",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1789536640.000446",
+    "parent_user_id": "U02ANANYA"
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "This is the thing that keeps us out of the news.",
+    "ts": "1789537375.000520",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1789536640.000446",
+    "parent_user_id": "U02ANANYA"
+  }
+]

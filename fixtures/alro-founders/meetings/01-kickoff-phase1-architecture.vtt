@@ -1,0 +1,375 @@
+WEBVTT
+
+NOTE
+Title: ALRO kickoff: Phase 1 architecture
+Date: 2026-09-01T10:00:00+05:30
+Platform: Google Meet
+Attendees: Rohan Kulkarni <rohan@alro.ai>, Ananya Desai <ananya@alro.ai>
+
+1
+00:00:05.000 --> 00:00:07.721
+<v Rohan Kulkarni>Hello? Ananya, can you hear me?</v>
+
+2
+00:00:07.991 --> 00:00:12.175
+<v Ananya Desai>Yeah, I can hear you. You're a bit echoey though.</v>
+
+3
+00:00:13.410 --> 00:00:17.259
+<v Rohan Kulkarni>One sec, let me switch to the headphones. Okay, better?</v>
+
+4
+00:00:18.542 --> 00:00:22.369
+<v Ananya Desai>Much better. Okay. Happy first official day, I guess.</v>
+
+5
+00:00:23.057 --> 00:00:31.122
+<v Rohan Kulkarni>Ha, yes. Day one. Bank account is open, the domain is ours, and we have exactly zero lines of production code.</v>
+
+6
+00:00:32.100 --> 00:00:35.734
+<v Ananya Desai>Zero is a strong number. Very easy to maintain.</v>
+
+7
+00:00:36.621 --> 00:00:49.988
+<v Rohan Kulkarni>So I wanted to use this one to lock the Phase 1 architecture, figure out who does what for the next two weeks, and maybe settle pricing so I stop changing the deck every night.</v>
+
+8
+00:00:50.248 --> 00:00:55.902
+<v Ananya Desai>Okay. Should I share my screen? I made a rough diagram on the weekend.</v>
+
+9
+00:00:56.952 --> 00:00:58.913
+<v Rohan Kulkarni>Yes please.</v>
+
+10
+00:00:59.971 --> 00:01:03.733
+<v Ananya Desai>Can you see it? The boxes with the arrows.</v>
+
+11
+00:01:04.817 --> 00:01:08.715
+<v Rohan Kulkarni>I see... a white screen. Oh wait, there it is.</v>
+
+12
+00:01:09.517 --> 00:01:25.620
+<v Ananya Desai>Okay so, left to right. Sources: Slack, Gmail, WhatsApp exports, CRM, and meeting transcripts. All of them come in through Nango for the OAuth stuff, except WhatsApp, which is just file upload for now because there's no real API for personal chats.</v>
+
+13
+00:01:26.932 --> 00:01:28.441
+<v Rohan Kulkarni>Right, right.</v>
+
+14
+00:01:29.694 --> 00:01:40.483
+<v Ananya Desai>Everything lands as raw messages in Postgres. Neon, with pgvector, so embeddings sit in the same database. I really don't want a separate vector store in Phase 1.</v>
+
+15
+00:01:41.171 --> 00:01:43.558
+<v Rohan Kulkarni>One less bill. I like it.</v>
+
+16
+00:01:44.793 --> 00:01:58.724
+<v Ananya Desai>Then there are two model passes. A cheap model screens every message, basically, is there anything interesting here, yes or no. And only the yes ones go to the stronger model, which extracts entities, facts and commitments.</v>
+
+17
+00:01:59.635 --> 00:02:04.958
+<v Rohan Kulkarni>And the commitments are the promises thing. The "I'll send it by Friday" thing.</v>
+
+18
+00:02:05.826 --> 00:02:19.085
+<v Ananya Desai>Exactly. Each commitment gets an owner, a counterparty, a due date, and a status. Open, done, missed, cancelled. And every status change has to point to a source message, otherwise we're just hallucinating with confidence.</v>
+
+19
+00:02:19.653 --> 00:02:23.169
+<v Rohan Kulkarni>That's literally the pitch. Citations or it didn't happen.</v>
+
+20
+00:02:23.412 --> 00:02:33.208
+<v Ananya Desai>And the facts are time-stamped, so if something changes, like a price, we keep the old value with a valid-from, valid-to instead of overwriting it.</v>
+
+21
+00:02:34.137 --> 00:02:37.573
+<v Rohan Kulkarni>Okay. And the app itself is Next.js on Vercel?</v>
+
+22
+00:02:38.468 --> 00:02:50.433
+<v Ananya Desai>Next.js on Vercel, Drizzle for the schema and migrations, and the model calls go through the AI SDK with the Vercel AI Gateway, so we can switch providers without rewriting stuff.</v>
+
+23
+00:02:50.874 --> 00:02:57.364
+<v Rohan Kulkarni>Wait, sorry, what about permissions? Like if I'm in a private Slack channel and you're not...</v>
+
+24
+00:02:58.575 --> 00:03:13.389
+<v Ananya Desai>Row-level security in Postgres. Every row carries the source ACL, and the query runs as the user. So you only ever see what you could already see in Slack or Gmail. That's non-negotiable, honestly. One leak and we're done.</v>
+
+25
+00:03:14.775 --> 00:03:19.058
+<v Rohan Kulkarni>Agreed. Okay, this is good. So what's the first concrete thing?</v>
+
+26
+00:03:19.304 --> 00:03:24.034
+<v Ananya Desai>Schema. Everything depends on it. Messages, entities, facts, commitments, the ACL tables.</v>
+
+27
+00:03:24.453 --> 00:03:26.878
+<v Rohan Kulkarni>When can I see it?</v>
+
+28
+00:03:27.216 --> 00:03:36.751
+<v Ananya Desai>I'll have a draft of the Postgres schema up as a PR by Friday. So the fourth. It won't be pretty but it'll be reviewable.</v>
+
+29
+00:03:37.987 --> 00:03:41.812
+<v Rohan Kulkarni>Friday the fourth, perfect. I'll review it on the weekend.</v>
+
+30
+00:03:42.119 --> 00:03:43.959
+<v Ananya Desai>You say that now.</v>
+
+31
+00:03:44.591 --> 00:03:46.553
+<v Rohan Kulkarni>I will! Okay, maybe Sunday.</v>
+
+32
+00:03:47.558 --> 00:03:59.560
+<v Ananya Desai>The other thing that has a long lead time is Google. For Gmail we need the restricted scopes, which means OAuth verification and a CASA security assessment. That can take weeks.</v>
+
+33
+00:03:59.826 --> 00:04:01.842
+<v Rohan Kulkarni>Weeks? Like how many weeks?</v>
+
+34
+00:04:02.188 --> 00:04:08.081
+<v Ananya Desai>People on Reddit say anywhere from three weeks to three months. Depends on the assessor.</v>
+
+35
+00:04:09.061 --> 00:04:10.693
+<v Rohan Kulkarni>Yikes.</v>
+
+36
+00:04:11.887 --> 00:04:26.850
+<v Ananya Desai>So I want to start it now. I'll kick off the OAuth verification and the CASA paperwork this week, latest by Sunday. Even if the app isn't ready, the forms and the privacy URLs and all that can go in.</v>
+
+37
+00:04:28.131 --> 00:04:32.046
+<v Rohan Kulkarni>Good. And if CASA drags, maybe we ship Outlook first?</v>
+
+38
+00:04:32.386 --> 00:04:34.809
+<v Ananya Desai>Maybe. Let's not decide that today.</v>
+
+39
+00:04:35.677 --> 00:04:46.595
+<v Rohan Kulkarni>Fine, fine. Okay, my side. The big thing is design partners. We have the three warm ones. Kirana Kart through Neha, Finlo through Vikram, and Brightdesk through Sara.</v>
+
+40
+00:04:46.925 --> 00:04:51.034
+<v Ananya Desai>Have any of them actually said yes to a call?</v>
+
+41
+00:04:51.868 --> 00:04:58.502
+<v Rohan Kulkarni>Neha said yes on LinkedIn. Vikram is, like, enthusiastic but slow. Sara I haven't pinged properly yet.</v>
+
+42
+00:04:59.644 --> 00:05:01.270
+<v Ananya Desai>So, no.</v>
+
+43
+00:05:02.551 --> 00:05:11.705
+<v Rohan Kulkarni>So no. But, okay, I'll book calls with all three of them by Saturday the twelfth. That's my thing for the next two weeks.</v>
+
+44
+00:05:12.374 --> 00:05:16.058
+<v Ananya Desai>All three, booked, on the calendar, by the twelfth.</v>
+
+45
+00:05:16.908 --> 00:05:18.843
+<v Rohan Kulkarni>On the calendar. Yes.</v>
+
+46
+00:05:20.023 --> 00:05:22.429
+<v Ananya Desai>Okay. I'm writing it down.</v>
+
+47
+00:05:22.780 --> 00:05:27.046
+<v Rohan Kulkarni>You're writing everything down. This is why we're building the product.</v>
+
+48
+00:05:28.169 --> 00:05:30.061
+<v Ananya Desai>Ha. Literally.</v>
+
+49
+00:05:30.565 --> 00:05:37.403
+<v Rohan Kulkarni>Also, we should grab coffee with the Finlo folks sometime, they're like ten minutes from my place.</v>
+
+50
+00:05:38.645 --> 00:05:41.369
+<v Ananya Desai>Sure. What else is on your list?</v>
+
+51
+00:05:41.706 --> 00:05:51.854
+<v Rohan Kulkarni>Landing page. Right now alro dot ai is a logo and a waitlist box. We need actual copy. What it does, who it's for, the privacy story.</v>
+
+52
+00:05:53.093 --> 00:05:59.183
+<v Ananya Desai>And the one-pager for design partners, right? Neha asked what exactly she's signing up for.</v>
+
+53
+00:05:59.680 --> 00:06:08.374
+<v Rohan Kulkarni>Yeah, same content really. Okay, I'll write the landing-page copy and the one-pager and send it to you by Wednesday the ninth.</v>
+
+54
+00:06:08.815 --> 00:06:10.630
+<v Ananya Desai>Wednesday the ninth. Okay.</v>
+
+55
+00:06:11.465 --> 00:06:17.038
+<v Rohan Kulkarni>And someday I'll redo the logo, I know it looks like a dentist's office.</v>
+
+56
+00:06:17.385 --> 00:06:20.108
+<v Ananya Desai>It really does. A very trustworthy dentist.</v>
+
+57
+00:06:21.376 --> 00:06:25.200
+<v Rohan Kulkarni>Ha. Okay. Hold on, my mom's calling. Two seconds.</v>
+
+58
+00:06:26.001 --> 00:06:27.832
+<v Ananya Desai>Sure.</v>
+
+59
+00:06:28.988 --> 00:06:31.713
+<v Rohan Kulkarni>Sorry. Okay. I'm back. Where were we?</v>
+
+60
+00:06:32.202 --> 00:06:34.061
+<v Ananya Desai>You're on mute.</v>
+
+61
+00:06:35.038 --> 00:06:37.953
+<v Rohan Kulkarni>Sorry, sorry. I said where were we.</v>
+
+62
+00:06:38.321 --> 00:06:40.675
+<v Ananya Desai>Pricing. You wanted to settle pricing.</v>
+
+63
+00:06:41.211 --> 00:06:52.730
+<v Rohan Kulkarni>Right. So I looked at Glean, at the meeting note-takers, at some of the CRM add-ons. I think we're per seat. I was thinking forty-nine dollars per user per month.</v>
+
+64
+00:06:53.468 --> 00:06:59.440
+<v Ananya Desai>Forty-nine. For a company with fifty people, that's what, about twenty-nine thousand dollars a year.</v>
+
+65
+00:07:00.752 --> 00:07:05.168
+<v Rohan Kulkarni>Twenty-nine-four. For a brain that never forgets a promise? That's cheap.</v>
+
+66
+00:07:05.676 --> 00:07:10.667
+<v Ananya Desai>For a US company, sure. For Kirana Kart I'm not so sure.</v>
+
+67
+00:07:12.024 --> 00:07:18.653
+<v Rohan Kulkarni>We can do India pricing later. For the deck and the landing page, can we say forty-nine?</v>
+
+68
+00:07:19.941 --> 00:07:26.185
+<v Ananya Desai>Okay, fine. Forty-nine dollars per user per month for now. We revisit after the design-partner calls.</v>
+
+69
+00:07:26.536 --> 00:07:29.120
+<v Rohan Kulkarni>Done. Forty-nine it is. Locking it.</v>
+
+70
+00:07:30.426 --> 00:07:37.908
+<v Ananya Desai>Cost side, I have no idea yet. It depends a lot on how many messages pass the screening step.</v>
+
+71
+00:07:38.364 --> 00:07:39.913
+<v Rohan Kulkarni>Rough guess?</v>
+
+72
+00:07:41.266 --> 00:07:46.133
+<v Ananya Desai>No. Rough guesses become slides. I'll measure it once there's real data.</v>
+
+73
+00:07:47.053 --> 00:07:51.588
+<v Rohan Kulkarni>Ha, fair. Okay, what about Nango versus building the OAuth ourselves?</v>
+
+74
+00:07:52.862 --> 00:08:02.237
+<v Ananya Desai>Nango for Phase 1. Building token refresh for five providers is a tar pit. But their pricing page is confusing, we should compare plans.</v>
+
+75
+00:08:03.016 --> 00:08:06.533
+<v Rohan Kulkarni>Okay, let me look at that at some point.</v>
+
+76
+00:08:06.922 --> 00:08:13.960
+<v Ananya Desai>Also we need to look at Outlook at some point. A lot of Indian enterprises are on Microsoft.</v>
+
+77
+00:08:14.495 --> 00:08:16.897
+<v Rohan Kulkarni>Yeah. Not Phase 1 though.</v>
+
+78
+00:08:17.566 --> 00:08:19.488
+<v Ananya Desai>Not Phase 1.</v>
+
+79
+00:08:19.691 --> 00:08:23.924
+<v Rohan Kulkarni>What about Jira? Linear? Some of the design partners will ask.</v>
+
+80
+00:08:25.167 --> 00:08:31.465
+<v Ananya Desai>Not Phase 1 either. And honestly, I'll never touch Jira again if I can help it.</v>
+
+81
+00:08:32.029 --> 00:08:34.652
+<v Rohan Kulkarni>Ha. Noted, CTO has Jira trauma.</v>
+
+82
+00:08:35.298 --> 00:08:40.123
+<v Ananya Desai>Deep trauma. Okay, should we do a quick recap so we're aligned?</v>
+
+83
+00:08:41.389 --> 00:08:43.141
+<v Rohan Kulkarni>Yes. Go.</v>
+
+84
+00:08:44.194 --> 00:08:51.555
+<v Ananya Desai>Me: schema PR by Friday the fourth, and starting the Google verification and CASA stuff this week, by Sunday.</v>
+
+85
+00:08:52.234 --> 00:09:00.779
+<v Rohan Kulkarni>Me: calls with Kirana Kart, Finlo and Brightdesk booked by the twelfth. Landing-page copy plus the one-pager to you by the ninth.</v>
+
+86
+00:09:01.242 --> 00:09:05.311
+<v Ananya Desai>And pricing is forty-nine per user per month, for now.</v>
+
+87
+00:09:06.580 --> 00:09:14.456
+<v Rohan Kulkarni>For now. Oh, and Neha mentioned Kirana Kart might share some anonymised Slack data for testing, but no timeline yet.</v>
+
+88
+00:09:15.079 --> 00:09:18.574
+<v Ananya Desai>Let's not count on it until it actually arrives.</v>
+
+89
+00:09:18.832 --> 00:09:21.735
+<v Rohan Kulkarni>Fair. Okay, same time in two weeks?</v>
+
+90
+00:09:22.179 --> 00:09:26.564
+<v Ananya Desai>Tuesday the fifteenth, ten a.m. The invite's already on the calendar.</v>
+
+91
+00:09:27.011 --> 00:09:29.706
+<v Rohan Kulkarni>Perfect. Okay, go build things. Bye!</v>
+
+92
+00:09:30.050 --> 00:09:31.880
+<v Ananya Desai>Bye.</v>

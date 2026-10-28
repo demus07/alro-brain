@@ -1,0 +1,28 @@
+[
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "Positioning thought after today: lead with \"who promised what to whom\", not with \"AI memory\". Every partner reacted to the commitments view, nobody cared about search.",
+    "ts": "1791895810.000743",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    }
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Agree. The commitments view is also the only screen where people asked \"can I export this\".",
+    "ts": "1791896507.000312",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    }
+  }
+]

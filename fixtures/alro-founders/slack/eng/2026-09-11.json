@@ -1,0 +1,15 @@
+[
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "TIL Slack exports put thread replies both in the day file and in the parent's `replies` array. Dedup by `ts` or every reply shows up twice.",
+    "ts": "1789128014.000261",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    }
+  }
+]

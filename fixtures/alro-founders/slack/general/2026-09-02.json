@@ -1,0 +1,65 @@
+[
+  {
+    "type": "message",
+    "subtype": "channel_join",
+    "user": "U01ROHAN",
+    "text": "<@U01ROHAN> has joined the channel",
+    "ts": "1788321612.000100",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    }
+  },
+  {
+    "type": "message",
+    "subtype": "channel_join",
+    "user": "U02ANANYA",
+    "text": "<@U02ANANYA> has joined the channel",
+    "ts": "1788322282.000211",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    }
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "Welcome to the ALRO Slack :rocket: Officially a company with a Slack now.\n<#C0ENG00001|eng> for build stuff, <#C0PRODUCT1|product> for design partners / pricing / landing page, this one for everything else.",
+    "ts": "1788323103.000322",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "reactions": [
+      {
+        "name": "rocket",
+        "users": [
+          "U02ANANYA"
+        ],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Very official. Next we'll have an HR policy and a ping-pong table.",
+    "ts": "1788323621.000359",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    }
+  }
+]

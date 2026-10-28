@@ -1,0 +1,54 @@
+[
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "WhatsApp parser is done. A day after my \"kal tak\", sorry. Handles iOS + Android, 12h/24h, multi-line messages, media placeholders. Tested on both our groups.\n```\nconst IOS = /^\\[(\\d{1,2}\\/\\d{1,2}\\/\\d{2,4}), (\\d{1,2}:\\d{2}(?::\\d{2})?\\s?[AP]?M?)\\] ([^:]+): (.*)$/;\nconst ANDROID = /^(\\d{1,2}\\/\\d{1,2}\\/\\d{2,4}), (\\d{1,2}:\\d{2}\\s?[ap]?m?) - ([^:]+): (.*)$/;\n```",
+    "ts": "1790070052.000853",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1790070052.000853",
+    "reply_count": 1,
+    "reply_users_count": 1,
+    "latest_reply": "1790070609.000890",
+    "reply_users": [
+      "U01ROHAN"
+    ],
+    "replies": [
+      {
+        "user": "U01ROHAN",
+        "ts": "1790070609.000890"
+      }
+    ],
+    "is_locked": false,
+    "subscribed": false,
+    "reactions": [
+      {
+        "name": "tada",
+        "users": [
+          "U01ROHAN"
+        ],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "one day late is on time for a startup",
+    "ts": "1790070609.000890",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1790070052.000853",
+    "parent_user_id": "U02ANANYA"
+  }
+]

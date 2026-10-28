@@ -1,0 +1,63 @@
+[
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Pre-demo hygiene: I'll rotate the Slack signing secret before the demo. The current one has lived in three .env files and one screenshot.",
+    "ts": "1792729842.000398",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    }
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "which screenshot",
+    "ts": "1792729995.000435",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    }
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Yours. Slide 9 of the deck draft.",
+    "ts": "1792730041.000472",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "reactions": [
+      {
+        "name": "see_no_evil",
+        "users": [
+          "U01ROHAN"
+        ],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "oh no",
+    "ts": "1792730130.000509",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    }
+  }
+]

@@ -1,0 +1,74 @@
+[
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Citations format decided: every answer cites `source:message_id`, and the UI turns that into a link back to the original Slack/Gmail/WhatsApp message. No citation, no claim.",
+    "ts": "1791267002.000916",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1791267002.000916",
+    "reply_count": 2,
+    "reply_users_count": 2,
+    "latest_reply": "1791267543.000990",
+    "reply_users": [
+      "U01ROHAN",
+      "U02ANANYA"
+    ],
+    "replies": [
+      {
+        "user": "U01ROHAN",
+        "ts": "1791267446.000953"
+      },
+      {
+        "user": "U02ANANYA",
+        "ts": "1791267543.000990"
+      }
+    ],
+    "is_locked": false,
+    "subscribed": false
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "\"no citation no claim\" should go on the landing page",
+    "ts": "1791267446.000953",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1791267002.000916",
+    "parent_user_id": "U02ANANYA"
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Approved.",
+    "ts": "1791267543.000990",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1791267002.000916",
+    "parent_user_id": "U02ANANYA",
+    "reactions": [
+      {
+        "name": "+1",
+        "users": [
+          "U01ROHAN"
+        ],
+        "count": 1
+      }
+    ]
+  }
+]

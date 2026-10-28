@@ -1,0 +1,24 @@
+[
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "Demo week. Nobody burn out please. That includes me.",
+    "ts": "1793032809.000162",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "reactions": [
+      {
+        "name": "heart",
+        "users": [
+          "U02ANANYA"
+        ],
+        "count": 1
+      }
+    ]
+  }
+]

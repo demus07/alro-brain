@@ -1,0 +1,46 @@
+[
+  {
+    "id": "U01ROHAN",
+    "team_id": "T0ALRO001",
+    "name": "rohan",
+    "deleted": false,
+    "real_name": "Rohan Kulkarni",
+    "tz": "Asia/Kolkata",
+    "tz_label": "India Standard Time",
+    "tz_offset": 19800,
+    "profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "email": "rohan@alro.ai",
+      "real_name_normalized": "Rohan Kulkarni",
+      "display_name_normalized": "rohan",
+      "team": "T0ALRO001"
+    },
+    "is_admin": true,
+    "is_owner": true,
+    "is_bot": false,
+    "is_app_user": false
+  },
+  {
+    "id": "U02ANANYA",
+    "team_id": "T0ALRO001",
+    "name": "ananya",
+    "deleted": false,
+    "real_name": "Ananya Desai",
+    "tz": "Asia/Kolkata",
+    "tz_label": "India Standard Time",
+    "tz_offset": 19800,
+    "profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "email": "ananya@alro.ai",
+      "real_name_normalized": "Ananya Desai",
+      "display_name_normalized": "ananya",
+      "team": "T0ALRO001"
+    },
+    "is_admin": true,
+    "is_owner": false,
+    "is_bot": false,
+    "is_app_user": false
+  }
+]

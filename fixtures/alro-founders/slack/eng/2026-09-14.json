@@ -1,0 +1,24 @@
+[
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Entity resolution v0: \"Rohan\", \"Rohan K\", rohan@alro.ai and +91 98200 11223 now collapse into one person. Email + phone are hard keys, names are only hints.",
+    "ts": "1789378522.000298",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "reactions": [
+      {
+        "name": "100",
+        "users": [
+          "U01ROHAN"
+        ],
+        "count": 1
+      }
+    ]
+  }
+]

@@ -1,0 +1,54 @@
+[
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "someday I'll redo the logo. the A looks like a tent",
+    "ts": "1789829133.000655",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1789829133.000655",
+    "reply_count": 1,
+    "reply_users_count": 1,
+    "latest_reply": "1789829290.000692",
+    "reply_users": [
+      "U02ANANYA"
+    ],
+    "replies": [
+      {
+        "user": "U02ANANYA",
+        "ts": "1789829290.000692"
+      }
+    ],
+    "is_locked": false,
+    "subscribed": false
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "It's a nice tent. Very sturdy.",
+    "ts": "1789829290.000692",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1789829133.000655",
+    "parent_user_id": "U01ROHAN",
+    "reactions": [
+      {
+        "name": "camping",
+        "users": [
+          "U01ROHAN"
+        ],
+        "count": 1
+      }
+    ]
+  }
+]

@@ -1,0 +1,74 @@
+[
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Gold set: labelling UI is live at `/admin/label`. We need ~100 labelled messages to get numbers that mean anything. I did my 50 over the weekend.",
+    "ts": "1791349224.000656",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1791349224.000656",
+    "reply_count": 2,
+    "reply_users_count": 2,
+    "latest_reply": "1791350259.000730",
+    "reply_users": [
+      "U01ROHAN",
+      "U02ANANYA"
+    ],
+    "replies": [
+      {
+        "user": "U01ROHAN",
+        "ts": "1791350110.000693"
+      },
+      {
+        "user": "U02ANANYA",
+        "ts": "1791350259.000730"
+      }
+    ],
+    "is_locked": false,
+    "subscribed": false
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "I'll label 50 examples by the weekend. send me the link",
+    "ts": "1791350110.000693",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1791349224.000656",
+    "parent_user_id": "U02ANANYA"
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "It's the URL above, on the preview. Label owner + due date, mark \"unsure\" instead of guessing.",
+    "ts": "1791350259.000730",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1791349224.000656",
+    "parent_user_id": "U02ANANYA",
+    "reactions": [
+      {
+        "name": "ok_hand",
+        "users": [
+          "U01ROHAN"
+        ],
+        "count": 1
+      }
+    ]
+  }
+]

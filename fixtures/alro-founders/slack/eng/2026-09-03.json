@@ -1,0 +1,156 @@
+[
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "<@U02ANANYA> are we going to have preview envs or do I keep testing on your laptop over screenshare",
+    "ts": "1788413712.000384",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1788413712.000384",
+    "reply_count": 2,
+    "reply_users_count": 2,
+    "latest_reply": "1788414723.000458",
+    "reply_users": [
+      "U02ANANYA",
+      "U01ROHAN"
+    ],
+    "replies": [
+      {
+        "user": "U02ANANYA",
+        "ts": "1788414640.000421"
+      },
+      {
+        "user": "U01ROHAN",
+        "ts": "1788414723.000458"
+      }
+    ],
+    "is_locked": false,
+    "subscribed": false
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "I'll set up Neon + Vercel preview envs tomorrow. Every PR gets its own Neon branch and a Vercel preview URL, so you can stop borrowing my laptop.",
+    "ts": "1788414640.000421",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1788413712.000384",
+    "parent_user_id": "U01ROHAN"
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": ":raised_hands:",
+    "ts": "1788414723.000458",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1788413712.000384",
+    "parent_user_id": "U01ROHAN"
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Quick taste of the `facts` table:\n```\nexport const facts = pgTable('facts', {\n  id: uuid('id').primaryKey().defaultRandom(),\n  entityId: uuid('entity_id').notNull().references(() =&gt; entities.id),\n  attribute: text('attribute').notNull(),\n  value: jsonb('value').notNull(),\n  validFrom: timestamp('valid_from', { withTimezone: true }).notNull(),\n  validTo: timestamp('valid_to', { withTimezone: true }),\n  sourceMessageId: uuid('source_message_id'),\n});\n```",
+    "ts": "1788430225.000495",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1788430225.000495",
+    "reply_count": 3,
+    "reply_users_count": 2,
+    "latest_reply": "1788431462.000606",
+    "reply_users": [
+      "U01ROHAN",
+      "U02ANANYA"
+    ],
+    "replies": [
+      {
+        "user": "U01ROHAN",
+        "ts": "1788430934.000532"
+      },
+      {
+        "user": "U02ANANYA",
+        "ts": "1788431317.000569"
+      },
+      {
+        "user": "U01ROHAN",
+        "ts": "1788431462.000606"
+      }
+    ],
+    "is_locked": false,
+    "subscribed": false
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "validTo null = currently true?",
+    "ts": "1788430934.000532",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1788430225.000495",
+    "parent_user_id": "U02ANANYA"
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Yes. When the price changes from $49 to whatever you decide next, we close the old fact and open a new one.",
+    "ts": "1788431317.000569",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1788430225.000495",
+    "parent_user_id": "U02ANANYA"
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "hey $49 is final. for now.",
+    "ts": "1788431462.000606",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1788430225.000495",
+    "parent_user_id": "U02ANANYA",
+    "reactions": [
+      {
+        "name": "joy",
+        "users": [
+          "U02ANANYA"
+        ],
+        "count": 1
+      }
+    ]
+  }
+]

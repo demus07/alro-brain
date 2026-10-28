@@ -1,0 +1,24 @@
+[
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "Calendar: Brightdesk demo is Wed 28th, 3pm IST.",
+    "ts": "1792564252.000817",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "reactions": [
+      {
+        "name": "calendar",
+        "users": [
+          "U02ANANYA"
+        ],
+        "count": 1
+      }
+    ]
+  }
+]

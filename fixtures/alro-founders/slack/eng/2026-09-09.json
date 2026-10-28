@@ -1,0 +1,65 @@
+[
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "will customers ask about retention? how long do we keep raw messages",
+    "ts": "1788935418.000939",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1788935418.000939",
+    "reply_count": 2,
+    "reply_users_count": 2,
+    "latest_reply": "1788936365.000113",
+    "reply_users": [
+      "U02ANANYA",
+      "U01ROHAN"
+    ],
+    "replies": [
+      {
+        "user": "U02ANANYA",
+        "ts": "1788936282.000976"
+      },
+      {
+        "user": "U01ROHAN",
+        "ts": "1788936365.000113"
+      }
+    ],
+    "is_locked": false,
+    "subscribed": false
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "They will. Proposal: raw text 90 days by default, configurable per workspace. Extracted facts keep a pointer to the source message id, so citations survive until the raw text is purged.",
+    "ts": "1788936282.000976",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1788935418.000939",
+    "parent_user_id": "U01ROHAN"
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "makes sense :+1:",
+    "ts": "1788936365.000113",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1788935418.000939",
+    "parent_user_id": "U01ROHAN"
+  }
+]

@@ -1,0 +1,45 @@
+[
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Slack importer status: users, channels, messages done. Threads half done. Files and huddles: skipping for v1.",
+    "ts": "1790233221.000964",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1790233221.000964",
+    "reply_count": 1,
+    "reply_users_count": 1,
+    "latest_reply": "1790233917.000101",
+    "reply_users": [
+      "U01ROHAN"
+    ],
+    "replies": [
+      {
+        "user": "U01ROHAN",
+        "ts": "1790233917.000101"
+      }
+    ],
+    "is_locked": false,
+    "subscribed": false
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "skipping files is fine, nobody's promises live in PDFs. mostly.",
+    "ts": "1790233917.000101",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1790233221.000964",
+    "parent_user_id": "U02ANANYA"
+  }
+]

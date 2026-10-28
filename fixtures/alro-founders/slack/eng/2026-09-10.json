@@ -1,0 +1,74 @@
+[
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Embeddings: comparing `text-embedding-3-small` vs `voyage-3-lite`. Voyage at 512 dims keeps the HNSW index small and recall on my toy set is basically the same.",
+    "ts": "1789019127.000150",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1789019127.000150",
+    "reply_count": 2,
+    "reply_users_count": 2,
+    "latest_reply": "1789019493.000224",
+    "reply_users": [
+      "U01ROHAN",
+      "U02ANANYA"
+    ],
+    "replies": [
+      {
+        "user": "U01ROHAN",
+        "ts": "1789019450.000187"
+      },
+      {
+        "user": "U02ANANYA",
+        "ts": "1789019493.000224"
+      }
+    ],
+    "is_locked": false,
+    "subscribed": false
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "you decide, I trust you",
+    "ts": "1789019450.000187",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1789019127.000150",
+    "parent_user_id": "U02ANANYA"
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Dangerous words.",
+    "ts": "1789019493.000224",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1789019127.000150",
+    "parent_user_id": "U02ANANYA",
+    "reactions": [
+      {
+        "name": "smiling_imp",
+        "users": [
+          "U01ROHAN"
+        ],
+        "count": 1
+      }
+    ]
+  }
+]

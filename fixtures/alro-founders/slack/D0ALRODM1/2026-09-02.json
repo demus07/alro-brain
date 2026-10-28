@@ -1,0 +1,28 @@
+[
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "ok slack makes it feel like a real company lol",
+    "ts": "1788363033.000928",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    }
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Two humans, three channels. Peak efficiency.",
+    "ts": "1788363258.000965",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    }
+  }
+]

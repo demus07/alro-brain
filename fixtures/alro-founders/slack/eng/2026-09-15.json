@@ -1,0 +1,65 @@
+[
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Post-meeting eng list, for my own sanity:\n• RLS tests before any real data (by Sat)\n• Slack export importer by the 26th\n• Teams connector, mid-Oct\nAnything I missed?",
+    "ts": "1789479031.000335",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1789479031.000335",
+    "reply_count": 2,
+    "reply_users_count": 2,
+    "latest_reply": "1789479602.000409",
+    "reply_users": [
+      "U01ROHAN",
+      "U02ANANYA"
+    ],
+    "replies": [
+      {
+        "user": "U01ROHAN",
+        "ts": "1789479527.000372"
+      },
+      {
+        "user": "U02ANANYA",
+        "ts": "1789479602.000409"
+      }
+    ],
+    "is_locked": false,
+    "subscribed": false
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "privacy policy + DPA draft is on me, end of month. not eng but putting it here so you can shame me",
+    "ts": "1789479527.000372",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1789479031.000335",
+    "parent_user_id": "U02ANANYA"
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Shaming is a core competency.",
+    "ts": "1789479602.000409",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1789479031.000335",
+    "parent_user_id": "U02ANANYA"
+  }
+]

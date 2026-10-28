@@ -1,0 +1,41 @@
+[
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Neon bill heads-up: preview branches add up. Added a GitHub Action that deletes the Neon branch when a PR closes.",
+    "ts": "1790140533.000927",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    }
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Nango rate limits: Slack `conversations.history` is tier 3, so ~50 req/min. Full backfill of a 200-person workspace takes a few hours. Fine for onboarding, just needs a progress bar.",
+    "ts": "1790166919.000842",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    }
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "progress bar with fun messages. \"reading your 4,000 standup threads...\"",
+    "ts": "1790167370.000879",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    }
+  }
+]

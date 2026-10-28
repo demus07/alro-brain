@@ -1,0 +1,65 @@
+[
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Extraction v0: every message goes through `generateObject` (AI SDK) with a zod schema:\n```\nconst Commitment = z.object({\n  owner: z.string(),\n  counterparty: z.string().nullable(),\n  task: z.string(),\n  due: z.string().nullable(),\n  confidence: z.number().min(0).max(1),\n});\n```\nRight now it's Sonnet on every single message, which is going to be expensive.",
+    "ts": "1790746216.000360",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1790746216.000360",
+    "reply_count": 2,
+    "reply_users_count": 2,
+    "latest_reply": "1790746947.000434",
+    "reply_users": [
+      "U01ROHAN",
+      "U02ANANYA"
+    ],
+    "replies": [
+      {
+        "user": "U01ROHAN",
+        "ts": "1790746721.000397"
+      },
+      {
+        "user": "U02ANANYA",
+        "ts": "1790746947.000434"
+      }
+    ],
+    "is_locked": false,
+    "subscribed": false
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "how expensive is expensive",
+    "ts": "1790746721.000397",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1790746216.000360",
+    "parent_user_id": "U02ANANYA"
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "That's literally the estimate you asked me for yesterday. Ask me on the 13th.",
+    "ts": "1790746947.000434",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1790746216.000360",
+    "parent_user_id": "U02ANANYA"
+  }
+]

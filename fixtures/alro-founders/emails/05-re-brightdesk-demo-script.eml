@@ -1,0 +1,45 @@
+Message-ID: <20261024222054.rk.demo-script@alro.ai>
+In-Reply-To: <20261017193311.rk.brightdesk@alro.ai>
+References: <20261017193311.rk.brightdesk@alro.ai>
+Date: Sat, 24 Oct 2026 22:20:54 +0530
+From: Rohan Kulkarni <rohan@alro.ai>
+To: Ananya Desai <ananya@alro.ai>
+Subject: Re: Brightdesk demo + fundraising update
+MIME-Version: 1.0
+Content-Type: text/plain; charset="UTF-8"
+
+Ananya,
+
+Replying on this thread so everything Brightdesk is in one place. Here's the demo script for Wednesday, as promised on Thursday's call. 30 minutes total, with Sara and two of her support leads.
+
+RUN-OF-SHOW (Wed 28 Oct)
+00:00-03:00  Intros + agenda (Rohan). One line on what ALRO is: a company brain that remembers what your team promised.
+03:00-07:00  The problem in their words (Rohan). Ask Sara for one example of a promise to a customer that got dropped last month.
+07:00-15:00  Live demo, part 1 (Ananya drives): ask "What did we promise Acme about the refund?" - show the answer with citations to Slack + ticket thread.
+15:00-20:00  Live demo, part 2 (Ananya drives): commitments view - open, overdue, done. Click into one overdue item and show the source message.
+20:00-23:00  Trust (Ananya): row-level security, people only see what they could see in the source tool. Mention Gmail is pending Google's CASA review, don't demo it.
+23:00-26:00  Pricing (Rohan): $29/user/month for teams under 50, ₹1,999/user for India billing. Pilot is free for 6 weeks.
+26:00-30:00  Next steps (Rohan): pilot start date, who on their side owns it, which channels to connect first.
+
+Backup plan: if the live environment misbehaves, switch to the recorded walkthrough.
+
+Rules for us:
+- No roadmap promises on the call. If they ask about Teams or Outlook, say "not in Phase 1".
+- If they push on price, I'll say we can talk annual discounts, nothing more on the call.
+
+This all assumes the seeded demo environment is ready, so shout if Monday looks tight.
+
+If Brightdesk signs, maybe we finally take a weekend off. Maybe.
+
+Rohan
+
+--
+Rohan Kulkarni
+Co-founder & CEO, ALRO
+rohan@alro.ai | +91 98200 11223
+
+On Sat, 17 Oct 2026 at 19:33, Rohan Kulkarni <rohan@alro.ai> wrote:
+> 1) Brightdesk
+> Spoke to Sara on Thursday. She wants to see the product working on support-style data, not just Slack. Their team is ~35 people so they fit the under-50 bucket nicely.
+>
+> Sara said Brightdesk will share a sample export of their help-desk tickets before the demo. I'll believe it when I see it, so let's have our own sample data ready either way.

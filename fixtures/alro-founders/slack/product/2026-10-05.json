@@ -1,0 +1,45 @@
+[
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "Talked to Kabir (frontend contractor) yesterday. Portfolio is solid. Asking ₹1.2L/month, part time.",
+    "ts": "1791181845.000595",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1791181845.000595",
+    "reply_count": 1,
+    "reply_users_count": 1,
+    "latest_reply": "1791182911.000632",
+    "reply_users": [
+      "U02ANANYA"
+    ],
+    "replies": [
+      {
+        "user": "U02ANANYA",
+        "ts": "1791182911.000632"
+      }
+    ],
+    "is_locked": false,
+    "subscribed": false
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "His Next.js sample was clean, server components used properly. Thumbs up from me.",
+    "ts": "1791182911.000632",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1791181845.000595",
+    "parent_user_id": "U01ROHAN"
+  }
+]

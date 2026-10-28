@@ -1,0 +1,41 @@
+Message-ID: <20261004214817.rk.deck-v1@alro.ai>
+Date: Sun, 04 Oct 2026 21:48:17 +0530
+From: Rohan Kulkarni <rohan@alro.ai>
+To: Ananya Desai <ananya@alro.ai>
+Subject: Pitch deck - first draft
+MIME-Version: 1.0
+Content-Type: text/plain; charset="UTF-8"
+
+Ananya,
+
+As promised on Tuesday, here's the first draft of the pitch deck: https://docs.google.com/presentation/d/1aLr0DeCkV1-xQ7pZr9mKfT3bHnW2sYqE/edit?usp=sharing
+
+It's rough. Comment directly on the slides.
+
+Slide-by-slide:
+1. Title - ALRO: the company brain that keeps your team's promises.
+2. Problem - decisions and promises are scattered across Slack, email and WhatsApp; nobody can find "what did we agree with Finlo?" in under 10 minutes.
+3. Solution - ALRO ingests every channel, builds a timeline of facts and commitments, and answers with citations.
+4. Demo screenshots - placeholder for now, need your latest UI.
+5. How it works - connectors via Nango, Postgres + pgvector on Neon, cheap model screens, stronger model extracts. Keep it to one diagram.
+6. Trust - row-level security mirrors source permissions; Google CASA assessment in progress.
+7. Market - Indian SMB SaaS teams first, then global teams under 50 people.
+8. Business model - $39/user/month, design partners free during the pilot.
+9. Traction - three design partner calls done, Kirana Kart pilot under discussion, Finlo and Brightdesk in conversation.
+10. Team - you and me (need a better photo of you than the Goa one).
+11. Roadmap - Phase 1: Slack, Gmail, WhatsApp, CRM. Teams/Outlook later.
+12. The ask - pre-seed round, amount TBD after we talk.
+
+Open questions:
+- I sent the Neon invoice to the accountant yesterday, so ignore the reminder email you'll probably get.
+- We need to look at Outlook at some point, especially if a bigger customer asks.
+- If we raise, I'll hire a designer to make this deck not look like I made it at 2am. Which I did.
+
+Let me know what's weakest. My guess is slide 9.
+
+Rohan
+
+--
+Rohan Kulkarni
+Co-founder & CEO, ALRO
+rohan@alro.ai | +91 98200 11223

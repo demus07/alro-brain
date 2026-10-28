@@ -1,0 +1,15 @@
+[
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Neon cold starts on preview branches are ~1.5s. Fine for previews, not for prod. Prod branch has autosuspend off.",
+    "ts": "1789633826.000557",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    }
+  }
+]

@@ -1,0 +1,343 @@
+WEBVTT
+
+NOTE
+Title: Brightdesk demo prep
+Date: 2026-10-22T18:00:00+05:30
+Platform: Google Meet
+Attendees: Rohan Kulkarni <rohan@alro.ai>, Ananya Desai <ananya@alro.ai>
+
+1
+00:00:05.000 --> 00:00:07.934
+<v Rohan Kulkarni>Hi! Sorry, evening call, I know. Hello?</v>
+
+2
+00:00:09.217 --> 00:00:14.400
+<v Ananya Desai>Hi. It's fine. I'm eating, so I'll be on mute half the time.</v>
+
+3
+00:00:15.652 --> 00:00:17.520
+<v Rohan Kulkarni>What are you eating?</v>
+
+4
+00:00:18.913 --> 00:00:21.044
+<v Ananya Desai>Maggi. Don't judge. Okay, Brightdesk.</v>
+
+5
+00:00:22.038 --> 00:00:30.530
+<v Rohan Kulkarni>Brightdesk. So, recap for the transcript: the demo is booked for Wednesday the twenty-eighth, eleven a.m. I sent Sara the invite yesterday.</v>
+
+6
+00:00:31.417 --> 00:00:33.531
+<v Ananya Desai>Who's coming from their side?</v>
+
+7
+00:00:34.700 --> 00:00:44.463
+<v Rohan Kulkarni>Sara, plus their head of support. Sara said she'll bring their sample tickets and Slack channels to the call so we can map things live.</v>
+
+8
+00:00:45.456 --> 00:00:49.550
+<v Ananya Desai>Live mapping on a demo call sounds like a nightmare.</v>
+
+9
+00:00:49.803 --> 00:00:57.697
+<v Rohan Kulkarni>Ha, yeah, maybe not live. But they shared an anonymised export already. Slack, plus some support emails as EML files.</v>
+
+10
+00:00:58.305 --> 00:01:05.490
+<v Ananya Desai>I saw. Okay, so let me tell you where the product is, and then we decide what to show.</v>
+
+11
+00:01:05.968 --> 00:01:07.616
+<v Rohan Kulkarni>Go.</v>
+
+12
+00:01:07.963 --> 00:01:20.522
+<v Ananya Desai>Cost first, because it's good news. The screening step went in on Tuesday. Haiku screens, about twenty-two percent of messages go through to Sonnet, and we're at zero point seven cents per message.</v>
+
+13
+00:01:21.771 --> 00:01:24.390
+<v Rohan Kulkarni>Point seven! From two point one!</v>
+
+14
+00:01:25.062 --> 00:01:33.118
+<v Ananya Desai>From two point one. And recall on the gold set didn't drop. Actually went up slightly, because of the thread context.</v>
+
+15
+00:01:34.331 --> 00:01:37.381
+<v Rohan Kulkarni>And that's the full fifty now, right?</v>
+
+16
+00:01:38.231 --> 00:01:48.463
+<v Ananya Desai>Yes, your last twenty came in on the fifteenth. Thank you. Some of them were evil, by the way. The "I'll literally sleep for a week" one.</v>
+
+17
+00:01:49.780 --> 00:01:52.434
+<v Rohan Kulkarni>That one was for you specifically.</v>
+
+18
+00:01:53.652 --> 00:01:55.289
+<v Ananya Desai>I could tell.</v>
+
+19
+00:01:56.208 --> 00:02:03.573
+<v Rohan Kulkarni>Okay, so at point seven cents, pricing. I want to close this today, I keep changing the landing page.</v>
+
+20
+00:02:04.172 --> 00:02:06.530
+<v Ananya Desai>Okay. Where are you now?</v>
+
+21
+00:02:07.446 --> 00:02:19.895
+<v Rohan Kulkarni>So, Brightdesk and Kirana Kart both said per-seat is fine, but thirty-nine still feels like enterprise pricing for a fifty-person company. Sara compared us to their helpdesk tool, which is like twenty-five.</v>
+
+22
+00:02:21.090 --> 00:02:23.051
+<v Ananya Desai>And our cost per seat?</v>
+
+23
+00:02:23.983 --> 00:02:25.627
+<v Rohan Kulkarni>You tell me.</v>
+
+24
+00:02:26.785 --> 00:02:45.442
+<v Ananya Desai>A busy user generates maybe a hundred and fifty messages a day across Slack and email. At point seven cents, that's about a dollar a day, call it twenty, twenty-two dollars a month in model cost for a heavy user. Average user is much lower, maybe six or seven.</v>
+
+25
+00:02:45.869 --> 00:02:49.024
+<v Rohan Kulkarni>So at twenty-nine we're fine on average.</v>
+
+26
+00:02:49.869 --> 00:02:58.906
+<v Ananya Desai>Fine on average, thin on heavy users. Okay. I can live with twenty-nine if we have a fair-use cap on the giant channels.</v>
+
+27
+00:02:59.864 --> 00:03:09.669
+<v Rohan Kulkarni>Okay, final. Twenty-nine dollars per user per month, for teams under fifty. Above fifty we talk. And India pricing, nineteen ninety-nine rupees per user per month.</v>
+
+28
+00:03:10.503 --> 00:03:14.166
+<v Ananya Desai>One thousand nine hundred ninety-nine rupees. Okay. Final final?</v>
+
+29
+00:03:14.416 --> 00:03:19.024
+<v Rohan Kulkarni>Final final. I'm not touching it again until we have ten customers.</v>
+
+30
+00:03:19.303 --> 00:03:23.185
+<v Ananya Desai>I'll believe that when the landing page stops changing.</v>
+
+31
+00:03:23.952 --> 00:03:27.480
+<v Rohan Kulkarni>Ha. Okay. So, demo flow. What do we show?</v>
+
+32
+00:03:28.091 --> 00:03:41.637
+<v Ananya Desai>My suggestion: three things. One, ask a question and get an answer with citations. Two, the commitments page, with open, overdue and done. Three, the timeline of a fact changing, like a price or a status.</v>
+
+33
+00:03:42.189 --> 00:03:47.662
+<v Rohan Kulkarni>Oh, can we use our own price changes as the example? Forty-nine, thirty-nine, twenty-nine?</v>
+
+34
+00:03:48.414 --> 00:03:52.458
+<v Ananya Desai>Ha. Very meta. No, use their data. It's their demo.</v>
+
+35
+00:03:53.808 --> 00:03:58.739
+<v Rohan Kulkarni>Okay, okay. So we need a demo environment with their data in it.</v>
+
+36
+00:03:59.461 --> 00:04:09.315
+<v Ananya Desai>Yes. A separate Neon branch, their Slack export, their emails, seeded users so the row-level security looks real. Sara should see only what Sara would see.</v>
+
+37
+00:04:10.636 --> 00:04:14.989
+<v Rohan Kulkarni>When can that be ready? I want to rehearse on it.</v>
+
+38
+00:04:15.457 --> 00:04:23.398
+<v Ananya Desai>I'll have the demo environment seeded with Brightdesk's sample data by Monday the twenty-sixth. That leaves Tuesday for the rehearsal.</v>
+
+39
+00:04:23.845 --> 00:04:25.644
+<v Rohan Kulkarni>Monday. Perfect.</v>
+
+40
+00:04:26.659 --> 00:04:32.783
+<v Ananya Desai>Except Gmail. Their emails are fine as files, but live Gmail sync still needs CASA.</v>
+
+41
+00:04:33.450 --> 00:04:35.264
+<v Rohan Kulkarni>Still?</v>
+
+42
+00:04:35.905 --> 00:04:41.213
+<v Ananya Desai>Still. The assessor went quiet after the scan results. It's been almost two weeks.</v>
+
+43
+00:04:42.432 --> 00:04:50.385
+<v Rohan Kulkarni>Okay, that's on me, I'll chase Google tomorrow. I'll follow up with them on the CASA status first thing Friday.</v>
+
+44
+00:04:51.684 --> 00:04:56.655
+<v Ananya Desai>Please. Send it to the assessor and to the OAuth verification ticket, both.</v>
+
+45
+00:04:57.788 --> 00:04:59.304
+<v Rohan Kulkarni>Both. Got it.</v>
+
+46
+00:04:59.552 --> 00:05:07.053
+<v Ananya Desai>And if CASA drags past the demo, we just show the imported emails and say live Gmail is coming.</v>
+
+47
+00:05:08.038 --> 00:05:12.512
+<v Rohan Kulkarni>Yeah. Honestly Sara won't care about live sync for a demo.</v>
+
+48
+00:05:13.888 --> 00:05:16.769
+<v Ananya Desai>Probably not. Who's talking during the demo?</v>
+
+49
+00:05:17.721 --> 00:05:25.641
+<v Rohan Kulkarni>Me, mostly. You do the security part, the RLS and the citations, because they'll ask and you explain it better.</v>
+
+50
+00:05:26.407 --> 00:05:34.870
+<v Ananya Desai>Okay. But I want a script. Not slides, a script. Who clicks what, what question we ask, what the answer should be.</v>
+
+51
+00:05:36.115 --> 00:05:45.638
+<v Rohan Kulkarni>Yes. Okay, I'll write the demo script and send it to you by Saturday. The twenty-fourth. So you have Sunday to tell me it's wrong.</v>
+
+52
+00:05:46.662 --> 00:05:50.925
+<v Ananya Desai>Saturday the twenty-fourth. Okay. I'll tell you it's wrong very politely.</v>
+
+53
+00:05:51.983 --> 00:05:53.893
+<v Rohan Kulkarni>Ha. Thanks.</v>
+
+54
+00:05:54.466 --> 00:05:59.001
+<v Ananya Desai>Hmm, wait, one sec, the delivery guy is here. Okay. Back.</v>
+
+55
+00:06:00.387 --> 00:06:12.244
+<v Rohan Kulkarni>No worries. Oh, one question I'd love to answer in the demo: "what did we promise customers this week that we haven't done?" That's the killer one for a support team.</v>
+
+56
+00:06:12.535 --> 00:06:22.896
+<v Ananya Desai>That works if the extraction handles support emails. Customers write "we'll get back to you within 24 hours" a lot. That's a company promise, not a person's.</v>
+
+57
+00:06:24.161 --> 00:06:26.042
+<v Rohan Kulkarni>Is that a problem?</v>
+
+58
+00:06:26.429 --> 00:06:32.776
+<v Ananya Desai>The owner becomes the agent who sent it. It's fine. I tested a few last night.</v>
+
+59
+00:06:33.363 --> 00:06:40.965
+<v Rohan Kulkarni>Nice. Okay, other stuff. Fundraise. Meghna wants a second call, with you this time, next week after the demo.</v>
+
+60
+00:06:41.299 --> 00:06:44.766
+<v Ananya Desai>Good. Did you ever finish the investor list?</v>
+
+61
+00:06:45.285 --> 00:06:52.004
+<v Rohan Kulkarni>It's like eighty percent done. It's in a sheet. I just need to add the intro paths.</v>
+
+62
+00:06:53.016 --> 00:06:55.010
+<v Ananya Desai>That was due last Friday.</v>
+
+63
+00:06:55.524 --> 00:06:58.193
+<v Rohan Kulkarni>I know. Brightdesk ate my week.</v>
+
+64
+00:06:59.137 --> 00:07:01.674
+<v Ananya Desai>Okay. And Kabir? The frontend person?</v>
+
+65
+00:07:02.352 --> 00:07:10.125
+<v Rohan Kulkarni>Oh, he's great. He did the take-home in a day. If we close Tidewater, he comes on full-time, otherwise contract.</v>
+
+66
+00:07:11.334 --> 00:07:15.542
+<v Ananya Desai>Okay. We need him either way, the UI is still ugly.</v>
+
+67
+00:07:16.518 --> 00:07:18.210
+<v Rohan Kulkarni>It's charming.</v>
+
+68
+00:07:19.185 --> 00:07:20.686
+<v Ananya Desai>It's ugly, Rohan.</v>
+
+69
+00:07:21.538 --> 00:07:26.277
+<v Rohan Kulkarni>Ha. Okay. Finlo, quick update: still cold. Vikram hasn't replied on WhatsApp.</v>
+
+70
+00:07:26.575 --> 00:07:30.771
+<v Ananya Desai>Did you ever answer his WhatsApp question, though? The personal-chats one?</v>
+
+71
+00:07:31.373 --> 00:07:33.937
+<v Rohan Kulkarni>Can we not do this today?</v>
+
+72
+00:07:34.681 --> 00:07:36.500
+<v Ananya Desai>Fine. Noted.</v>
+
+73
+00:07:37.446 --> 00:07:43.441
+<v Rohan Kulkarni>We should do a proper launch video someday, by the way. Like a ninety-second thing.</v>
+
+74
+00:07:44.708 --> 00:07:48.210
+<v Ananya Desai>After the demo. After the funding. After sleep.</v>
+
+75
+00:07:48.537 --> 00:07:52.685
+<v Rohan Kulkarni>After the demo I will literally sleep for a week.</v>
+
+76
+00:07:53.029 --> 00:07:56.508
+<v Ananya Desai>You said that about the Kirana Kart call.</v>
+
+77
+00:07:57.903 --> 00:08:01.256
+<v Rohan Kulkarni>And I didn't, so I'm owed two weeks.</v>
+
+78
+00:08:01.846 --> 00:08:08.908
+<v Ananya Desai>Ha. Okay, recap. Me: demo environment seeded with the Brightdesk data by Monday the twenty-sixth, minus live Gmail.</v>
+
+79
+00:08:09.789 --> 00:08:14.748
+<v Rohan Kulkarni>Me: chase Google on CASA tomorrow, demo script to you by Saturday.</v>
+
+80
+00:08:15.133 --> 00:08:21.818
+<v Ananya Desai>And pricing is twenty-nine dollars per user for teams under fifty, and nineteen ninety-nine rupees in India.</v>
+
+81
+00:08:22.539 --> 00:08:24.589
+<v Rohan Kulkarni>Final. Demo Wednesday at eleven.</v>
+
+82
+00:08:25.260 --> 00:08:27.849
+<v Ananya Desai>Okay. Go have dinner. Real dinner.</v>
+
+83
+00:08:28.447 --> 00:08:30.821
+<v Rohan Kulkarni>Says the Maggi person. Bye!</v>
+
+84
+00:08:31.851 --> 00:08:33.851
+<v Ananya Desai>Bye.</v>

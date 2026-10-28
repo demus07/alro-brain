@@ -1,0 +1,24 @@
+[
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "fyi I sent the Vercel invoice to our CA yesterday, so September books are closed",
+    "ts": "1792769444.000125",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "reactions": [
+      {
+        "name": "white_check_mark",
+        "users": [
+          "U02ANANYA"
+        ],
+        "count": 1
+      }
+    ]
+  }
+]

@@ -1,0 +1,81 @@
+[
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "RLS tests are in. 24 cases: private channels, DMs, people who left a channel, shared channels, Gmail delegated mailboxes. All green. We can let real data in now.",
+    "ts": "1789729813.000594",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1789729813.000594",
+    "reply_count": 2,
+    "reply_users_count": 2,
+    "latest_reply": "1789730707.000668",
+    "reply_users": [
+      "U01ROHAN",
+      "U02ANANYA"
+    ],
+    "replies": [
+      {
+        "user": "U01ROHAN",
+        "ts": "1789730310.000631"
+      },
+      {
+        "user": "U02ANANYA",
+        "ts": "1789730707.000668"
+      }
+    ],
+    "is_locked": false,
+    "subscribed": false,
+    "reactions": [
+      {
+        "name": "white_check_mark",
+        "users": [
+          "U01ROHAN"
+        ],
+        "count": 1
+      },
+      {
+        "name": "lock",
+        "users": [
+          "U01ROHAN"
+        ],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "24!! I was expecting like 5",
+    "ts": "1789730310.000631",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1789729813.000594",
+    "parent_user_id": "U02ANANYA"
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "5 is what you write before your first data leak. Sample:\n```\nit('hides a DM from a non-participant', async () =&gt; {\n  await asUser('u_rohan');\n  const rows = await db.select().from(messages).where(eq(messages.id, dmId));\n  expect(rows).toHaveLength(0);\n});\n```",
+    "ts": "1789730707.000668",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1789729813.000594",
+    "parent_user_id": "U02ANANYA"
+  }
+]

@@ -1,0 +1,84 @@
+[
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "First extraction run on our own Slack: 41 candidate commitments, maybe 60% are real. Lots of \"I'll check\" noise.",
+    "ts": "1791178219.000508",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1791178219.000508",
+    "reply_count": 3,
+    "reply_users_count": 2,
+    "latest_reply": "1791178968.000619",
+    "reply_users": [
+      "U01ROHAN",
+      "U02ANANYA"
+    ],
+    "replies": [
+      {
+        "user": "U01ROHAN",
+        "ts": "1791178595.000545"
+      },
+      {
+        "user": "U02ANANYA",
+        "ts": "1791178742.000582"
+      },
+      {
+        "user": "U01ROHAN",
+        "ts": "1791178968.000619"
+      }
+    ],
+    "is_locked": false,
+    "subscribed": false
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "is \"I'll check\" a commitment?",
+    "ts": "1791178595.000545",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1791178219.000508",
+    "parent_user_id": "U02ANANYA"
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Philosophically, yes. Practically, nobody tracks it.",
+    "ts": "1791178742.000582",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1791178219.000508",
+    "parent_user_id": "U02ANANYA"
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "I'll never touch Jira again lol, this is going to be so much better",
+    "ts": "1791178968.000619",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1791178219.000508",
+    "parent_user_id": "U02ANANYA"
+  }
+]

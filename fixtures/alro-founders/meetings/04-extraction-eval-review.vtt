@@ -1,0 +1,347 @@
+WEBVTT
+
+NOTE
+Title: Extraction eval review
+Date: 2026-10-13T10:00:00+05:30
+Platform: Google Meet
+Attendees: Rohan Kulkarni <rohan@alro.ai>, Ananya Desai <ananya@alro.ai>
+
+1
+00:00:05.000 --> 00:00:06.792
+<v Ananya Desai>Hey. You're on mute.</v>
+
+2
+00:00:08.163 --> 00:00:09.970
+<v Rohan Kulkarni>Am I? Now?</v>
+
+3
+00:00:11.002 --> 00:00:12.756
+<v Ananya Desai>Now, yes.</v>
+
+4
+00:00:13.181 --> 00:00:21.845
+<v Rohan Kulkarni>Sorry. Good morning. Okay, first, before anything. Kirana Kart signed! The pilot paperwork came back on the eighth, Neha signed it herself.</v>
+
+5
+00:00:23.059 --> 00:00:26.967
+<v Ananya Desai>I know, you sent me eleven exclamation marks on WhatsApp.</v>
+
+6
+00:00:27.948 --> 00:00:33.583
+<v Rohan Kulkarni>It deserved eleven. First design partner, signed pilot. Okay. Eval review. You have numbers?</v>
+
+7
+00:00:34.641 --> 00:00:39.220
+<v Ananya Desai>I have numbers. Let me share. Can you see the sheet?</v>
+
+8
+00:00:40.434 --> 00:00:42.200
+<v Rohan Kulkarni>Yep, I see it.</v>
+
+9
+00:00:43.007 --> 00:00:54.208
+<v Ananya Desai>So, the eval harness has been running on the gold set since Friday. Every PR runs it now, and it posts precision and recall for commitments, facts and entities.</v>
+
+10
+00:00:54.580 --> 00:00:57.286
+<v Rohan Kulkarni>Nice. And that's against the labelled examples.</v>
+
+11
+00:00:57.670 --> 00:01:04.484
+<v Ananya Desai>Against the labelled examples. Which brings me to the awkward part. You said fifty by the weekend.</v>
+
+12
+00:01:05.074 --> 00:01:06.725
+<v Rohan Kulkarni>Yeah...</v>
+
+13
+00:01:07.067 --> 00:01:09.450
+<v Ananya Desai>There are thirty in the folder.</v>
+
+14
+00:01:10.811 --> 00:01:18.714
+<v Rohan Kulkarni>I know. I did thirty. Saturday was the Tidewater prep and Sunday I just, I died. So thirty out of fifty.</v>
+
+15
+00:01:20.095 --> 00:01:28.249
+<v Ananya Desai>Thirty is not nothing. But the confidence intervals on thirty examples are huge. Like, one mistake moves recall by three points.</v>
+
+16
+00:01:28.746 --> 00:01:34.779
+<v Rohan Kulkarni>Okay, the remaining twenty, I'll have them labelled by Wednesday. Tomorrow's packed, but Wednesday for sure.</v>
+
+17
+00:01:36.037 --> 00:01:42.999
+<v Ananya Desai>Wednesday the fourteenth. Okay. And please include some tricky ones. Conditionals, jokes, stuff where someone else promises something.</v>
+
+18
+00:01:44.337 --> 00:01:47.429
+<v Rohan Kulkarni>Like "I'll literally die if this demo fails".</v>
+
+19
+00:01:48.586 --> 00:01:56.054
+<v Ananya Desai>Exactly like that. Okay, so on the thirty. Commitment precision is point eight four, recall is point seven one.</v>
+
+20
+00:01:57.224 --> 00:01:58.970
+<v Rohan Kulkarni>Is that good?</v>
+
+21
+00:02:00.032 --> 00:02:09.241
+<v Ananya Desai>Precision is okay. Recall is meh. It's missing promises that are spread across two messages, like "can you do X" and then "yep, Friday".</v>
+
+22
+00:02:09.723 --> 00:02:11.370
+<v Rohan Kulkarni>Oh, the reply-accepts-request thing.</v>
+
+23
+00:02:12.137 --> 00:02:21.865
+<v Ananya Desai>Yeah. I need to give the extractor the thread context, not just the single message. Which makes it more expensive. Which brings me to cost.</v>
+
+24
+00:02:22.089 --> 00:02:23.748
+<v Rohan Kulkarni>Yes. The big question.</v>
+
+25
+00:02:25.050 --> 00:02:39.861
+<v Ananya Desai>So, last time I said I'd bring cost per message. Here it is. Right now we send every message to Sonnet with the thread context. Average is about four thousand input tokens and three hundred output tokens per call.</v>
+
+26
+00:02:40.726 --> 00:02:42.530
+<v Rohan Kulkarni>Okay...</v>
+
+27
+00:02:42.907 --> 00:02:51.005
+<v Ananya Desai>With the retries and the embeddings, it comes to roughly two point one cents per message. About two cents, call it.</v>
+
+28
+00:02:51.673 --> 00:02:53.985
+<v Rohan Kulkarni>Two cents. That sounds tiny.</v>
+
+29
+00:02:54.773 --> 00:03:07.423
+<v Ananya Desai>It's not tiny. Kirana Kart's sample has, what, about four thousand messages a day across Slack and email. That's eighty-four dollars a day. Two and a half thousand a month. For one customer.</v>
+
+30
+00:03:08.726 --> 00:03:15.736
+<v Rohan Kulkarni>Oh. Okay, that's not tiny. At thirty-nine a seat with, like, forty seats, that's fifteen-sixty a month revenue.</v>
+
+31
+00:03:16.892 --> 00:03:25.422
+<v Ananya Desai>So we'd lose a thousand dollars a month on our first pilot. Which is a very fast way to become a non-profit.</v>
+
+32
+00:03:26.776 --> 00:03:29.706
+<v Rohan Kulkarni>Ha. Okay. So what do we do?</v>
+
+33
+00:03:30.205 --> 00:03:38.557
+<v Ananya Desai>The plan was always to screen first. Most messages are "ok", "thanks", "lol", standup bots, emoji reactions. They don't need Sonnet.</v>
+
+34
+00:03:39.648 --> 00:03:41.671
+<v Rohan Kulkarni>Right, the cheap model step.</v>
+
+35
+00:03:42.302 --> 00:03:54.871
+<v Ananya Desai>So, proposal. Haiku for screening, Sonnet for extraction. Haiku looks at a batch of messages and says which ones might contain a commitment, a fact, or a decision. Only those go to Sonnet.</v>
+
+36
+00:03:55.136 --> 00:03:56.826
+<v Rohan Kulkarni>What fraction gets through?</v>
+
+37
+00:03:57.159 --> 00:04:04.351
+<v Ananya Desai>On the Kirana sample, I'm guessing twenty, twenty-five percent. Haiku is cheap and fast enough to run on everything.</v>
+
+38
+00:04:04.651 --> 00:04:09.622
+<v Rohan Kulkarni>And do we lose recall? If Haiku throws away a real promise?</v>
+
+39
+00:04:10.828 --> 00:04:21.177
+<v Ananya Desai>That's the risk. So the screen is biased to say yes. False positives just cost money, false negatives cost trust. And the eval harness will tell us.</v>
+
+40
+00:04:21.783 --> 00:04:25.288
+<v Rohan Kulkarni>Okay. I'm convinced. Haiku screens, Sonnet extracts. Decided.</v>
+
+41
+00:04:26.415 --> 00:04:38.586
+<v Ananya Desai>Decided. So, I'll add the Haiku screening step and get extraction under one cent a message by next Tuesday, the twentieth. And I'll show it on the eval, not just the bill.</v>
+
+42
+00:04:39.222 --> 00:04:42.785
+<v Rohan Kulkarni>Under one cent by the twentieth. Love it.</v>
+
+43
+00:04:42.998 --> 00:04:48.996
+<v Ananya Desai>Also prompt caching on the system prompt, that alone saves a chunk on input tokens.</v>
+
+44
+00:04:49.889 --> 00:04:52.351
+<v Rohan Kulkarni>Okay, I'll pretend I understood that.</v>
+
+45
+00:04:53.181 --> 00:05:00.416
+<v Ananya Desai>The instructions part of every prompt is identical, so the provider can cache it and charge less. That's all.</v>
+
+46
+00:05:01.449 --> 00:05:07.811
+<v Rohan Kulkarni>Got it. Hey, can you send me the Anthropic invoice from last month? Accountant wants it.</v>
+
+47
+00:05:08.836 --> 00:05:15.905
+<v Ananya Desai>Hmm. Wait, one more thing on the eval. The facts precision is worse than commitments. Point seven six.</v>
+
+48
+00:05:16.151 --> 00:05:17.654
+<v Rohan Kulkarni>Why?</v>
+
+49
+00:05:18.754 --> 00:05:26.018
+<v Ananya Desai>Mostly it's turning opinions into facts. "I think Finlo will churn" becomes a fact that Finlo will churn.</v>
+
+50
+00:05:27.029 --> 00:05:30.203
+<v Rohan Kulkarni>Ha, that's... honestly not wrong about Finlo.</v>
+
+51
+00:05:31.462 --> 00:05:36.223
+<v Ananya Desai>Speaking of. Did you ever reply to Vikram? About the WhatsApp exports?</v>
+
+52
+00:05:37.124 --> 00:05:41.032
+<v Rohan Kulkarni>Ugh. It's on my list. It's, like, mentally drafted.</v>
+
+53
+00:05:41.269 --> 00:05:44.810
+<v Ananya Desai>That was supposed to be the thirtieth of September.</v>
+
+54
+00:05:45.984 --> 00:05:47.970
+<v Rohan Kulkarni>I know, Ananya.</v>
+
+55
+00:05:48.298 --> 00:05:52.378
+<v Ananya Desai>Okay. Moving on. Privacy policy and DPA. Also the thirtieth.</v>
+
+56
+00:05:53.720 --> 00:06:02.331
+<v Rohan Kulkarni>Yeah. That one also slipped. Kirana Kart signed the pilot with a one-page NDA, so it wasn't blocking, and I deprioritised it.</v>
+
+57
+00:06:03.564 --> 00:06:10.081
+<v Ananya Desai>It will block the next one. And CASA wants a real privacy policy URL, not the placeholder.</v>
+
+58
+00:06:10.747 --> 00:06:20.479
+<v Rohan Kulkarni>Okay. Fair. New date: I'll have the privacy policy and the DPA template drafted by Saturday the thirty-first. End of October. Real date this time.</v>
+
+59
+00:06:20.976 --> 00:06:24.208
+<v Ananya Desai>Saturday the thirty-first. Writing it down in red.</v>
+
+60
+00:06:25.497 --> 00:06:27.449
+<v Rohan Kulkarni>Red is aggressive.</v>
+
+61
+00:06:28.291 --> 00:06:30.104
+<v Ananya Desai>Red is earned.</v>
+
+62
+00:06:31.367 --> 00:06:37.769
+<v Rohan Kulkarni>Ha. Okay, fundraise. The deck went out to Meghna on Friday, with your comments from last week.</v>
+
+63
+00:06:38.196 --> 00:06:42.898
+<v Ananya Desai>Wait, the one you sent me on the fourth, with my comments?</v>
+
+64
+00:06:44.100 --> 00:06:50.942
+<v Rohan Kulkarni>Yes, that one, v3 now. She said she'll get back to us after their Monday partner meeting.</v>
+
+65
+00:06:51.768 --> 00:06:53.757
+<v Ananya Desai>Okay. And besides Tidewater?</v>
+
+66
+00:06:53.977 --> 00:07:05.086
+<v Rohan Kulkarni>That's the thing. We need a proper list. Angels, operators, a few funds that do pre-seed in India and the US. Like thirty names, with who can intro us.</v>
+
+67
+00:07:05.827 --> 00:07:07.743
+<v Ananya Desai>Do you have that?</v>
+
+68
+00:07:08.066 --> 00:07:17.908
+<v Rohan Kulkarni>Half of it is in my head. Okay, I'll put the angel and investor target list together and send it to you by Friday, the sixteenth.</v>
+
+69
+00:07:18.430 --> 00:07:20.239
+<v Ananya Desai>Friday the sixteenth.</v>
+
+70
+00:07:20.724 --> 00:07:26.584
+<v Rohan Kulkarni>And if Meghna says yes, I'll take you out for the fanciest dinner in Pune.</v>
+
+71
+00:07:27.468 --> 00:07:31.579
+<v Ananya Desai>I'm holding you to the dinner more than the list.</v>
+
+72
+00:07:32.954 --> 00:07:36.538
+<v Rohan Kulkarni>Ha. Okay, what about the pilot itself? Kirana Kart.</v>
+
+73
+00:07:36.776 --> 00:07:46.596
+<v Ananya Desai>The Slack import is done, their sample is loaded in a separate project, RLS is on. Neha's team can log in. The commitments page works.</v>
+
+74
+00:07:47.545 --> 00:07:49.470
+<v Rohan Kulkarni>And Gmail?</v>
+
+75
+00:07:50.200 --> 00:07:58.382
+<v Ananya Desai>Still waiting on CASA. The assessor asked for a pen test report last week. I sent the scan results on Thursday.</v>
+
+76
+00:07:58.872 --> 00:08:00.756
+<v Rohan Kulkarni>Ugh, Google.</v>
+
+77
+00:08:01.730 --> 00:08:03.463
+<v Ananya Desai>Google.</v>
+
+78
+00:08:04.380 --> 00:08:09.184
+<v Rohan Kulkarni>Someday we should write a blog post about the whole CASA saga.</v>
+
+79
+00:08:09.511 --> 00:08:12.390
+<v Ananya Desai>It'll be a horror story. Okay, recap?</v>
+
+80
+00:08:13.004 --> 00:08:20.953
+<v Rohan Kulkarni>Recap. Me: remaining twenty labels by Wednesday, investor list by Friday the sixteenth, privacy policy and DPA by the thirty-first.</v>
+
+81
+00:08:21.760 --> 00:08:26.724
+<v Ananya Desai>Me: Haiku screening step and under one cent per message by the twentieth.</v>
+
+82
+00:08:27.297 --> 00:08:33.371
+<v Rohan Kulkarni>And the decision: Haiku screens, Sonnet extracts. And cost today is about two cents a message.</v>
+
+83
+00:08:33.728 --> 00:08:36.735
+<v Ananya Desai>Two point one. Okay, done. Go label.</v>
+
+84
+00:08:37.475 --> 00:08:39.257
+<v Rohan Kulkarni>Going. Bye!</v>
+
+85
+00:08:39.621 --> 00:08:41.364
+<v Ananya Desai>Bye.</v>

@@ -1,0 +1,93 @@
+[
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "<@U02ANANYA> landing page nav is broken on mobile. Hamburger opens, overlay covers the whole page, can't close it. can you fix? KK's team is looking at the site this week",
+    "ts": "1790830247.000447",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1790830247.000447",
+    "reply_count": 3,
+    "reply_users_count": 2,
+    "latest_reply": "1790853920.000558",
+    "reply_users": [
+      "U02ANANYA",
+      "U01ROHAN"
+    ],
+    "replies": [
+      {
+        "user": "U02ANANYA",
+        "ts": "1790831052.000484"
+      },
+      {
+        "user": "U02ANANYA",
+        "ts": "1790853638.000521"
+      },
+      {
+        "user": "U01ROHAN",
+        "ts": "1790853920.000558"
+      }
+    ],
+    "is_locked": false,
+    "subscribed": false
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "On it, will fix today. It's the z-index on the overlay, I can see it from here.",
+    "ts": "1790831052.000484",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1790830247.000447",
+    "parent_user_id": "U01ROHAN"
+  },
+  {
+    "type": "message",
+    "user": "U02ANANYA",
+    "text": "Fixed and deployed. Overlay now closes on tap outside and on route change. Checked on my phone and the iOS simulator.",
+    "ts": "1790853638.000521",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Ananya Desai",
+      "display_name": "ananya",
+      "name": "ananya",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1790830247.000447",
+    "parent_user_id": "U01ROHAN",
+    "reactions": [
+      {
+        "name": "pray",
+        "users": [
+          "U01ROHAN"
+        ],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "type": "message",
+    "user": "U01ROHAN",
+    "text": "thank you :pray:",
+    "ts": "1790853920.000558",
+    "team": "T0ALRO001",
+    "user_profile": {
+      "real_name": "Rohan Kulkarni",
+      "display_name": "rohan",
+      "name": "rohan",
+      "team": "T0ALRO001"
+    },
+    "thread_ts": "1790830247.000447",
+    "parent_user_id": "U01ROHAN"
+  }
+]
