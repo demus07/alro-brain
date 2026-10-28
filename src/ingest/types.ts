@@ -55,6 +55,18 @@ export interface NormalizedMessage {
   deleted?: boolean;
 }
 
+/** A CRM object's current state. The writer diffs it against what's stored and logs changes as record_change messages. */
+export interface NormalizedRecord {
+  /** deal | account | contact | lead | task | note | ticket | ... */
+  type: string;
+  externalId: string;
+  title: string;
+  fields: Record<string, string>;
+  ownerKey?: string;
+  url?: string;
+  sourceUpdatedAt?: Date;
+}
+
 export interface NormalizedBatch {
   connection: {
     provider: string;
@@ -67,4 +79,5 @@ export interface NormalizedBatch {
   people: NormalizedPerson[];
   threads: NormalizedThread[];
   messages: NormalizedMessage[];
+  records?: NormalizedRecord[];
 }

@@ -668,6 +668,15 @@ export const syncRuns = pgTable(
   (t) => [index("sync_runs_connection_idx").on(t.connectionId, t.startedAt)],
 );
 
+/** At most one pipeline run per org at a time, across all instances. A crashed run's lease simply expires. */
+export const pipelineLeases = pgTable("pipeline_leases", {
+  orgId: uuid("org_id")
+    .primaryKey()
+    .references(() => orgs.id, { onDelete: "cascade" }),
+  holder: text("holder").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});
+
 /** Every model call, so cost per org and per pipeline stage is visible. */
 export const llmRuns = pgTable(
   "llm_runs",

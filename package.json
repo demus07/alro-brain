@@ -8,19 +8,24 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "fixtures:load": "tsx --env-file=.env.local scripts/load-fixtures.ts"
+    "fixtures:load": "tsx --env-file=.env.local scripts/load-fixtures.mts",
+    "eval": "tsx scripts/eval.mts"
   },
   "dependencies": {
+    "@ai-sdk/openai-compatible": "^3.0.68",
+    "@ai-sdk/react": "^4.0.141",
     "@vercel/functions": "3.10.1",
+    "ai": "^7.0.138",
     "drizzle-orm": "^0.45.4",
     "fflate": "0.8.2",
     "next": "16.4.3",
     "pg": "^8.23.1",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.9",

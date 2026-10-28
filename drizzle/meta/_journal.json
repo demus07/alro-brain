@@ -22,6 +22,13 @@
       "when": 1793111928213,
       "tag": "0002_access_control",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793172681733,
+      "tag": "0003_pipeline_leases",
+      "breakpoints": true
     }
   ]
 }

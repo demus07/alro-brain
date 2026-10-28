@@ -47,3 +47,121 @@ a {
     color-scheme: dark;
   }
 }
+
+/* Plain working styles until the Phase 4 design system. */
+:root {
+  --muted: #6b6b6b;
+  --border: #e2e2e2;
+  --accent: #2f5bea;
+  --danger: #c4321b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --muted: #9a9a9a;
+    --border: #2c2c2c;
+    --accent: #7d9bff;
+    --danger: #ff7a66;
+  }
+}
+
+.shell {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.nav {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.nav a:hover,
+.shell a.link {
+  color: var(--accent);
+}
+
+.shell h1 {
+  font-size: 22px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.error {
+  color: var(--danger);
+}
+
+.shell form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.shell label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.shell input,
+.shell select,
+.shell textarea,
+.shell button {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.shell button {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.shell button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.shell table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.shell th,
+.shell td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.shell .scroll {
+  overflow-x: auto;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.row > * {
+  flex: 1 1 180px;
+}

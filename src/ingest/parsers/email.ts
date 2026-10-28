@@ -5,31 +5,122 @@ interface ParsedEmail {
   body: string;
 }
 
-/** Minimal RFC 5322 parser for single-part text emails (.eml). */
+/**
+ * Minimal RFC 5322 / MIME parser for .eml files. Multipart messages yield
+ * their text/plain part (or the text/html part with tags stripped);
+ * attachments are skipped.
+ */
 export function parseEml(source: string): ParsedEmail {
-  const normalized = source.replace(/\r\n/g, "\n");
-  const split = normalized.indexOf("\n\n");
-  const head = split === -1 ? normalized : normalized.slice(0, split);
-  const body = split === -1 ? "" : normalized.slice(split + 2);
+  const { headers, body } = splitPart(source.replace(/\r\n/g, "\n"));
+  for (const name of ["subject", "from", "to", "cc"]) {
+    const value = headers.get(name);
+    if (value) headers.set(name, decodeWords(value));
+  }
+  return { headers, body: bodyText(headers, body) ?? "" };
+}
 
+function splitPart(source: string): ParsedEmail {
+  const split = source.indexOf("\n\n");
+  const head = split === -1 ? source : source.slice(0, split);
+  const body = split === -1 ? "" : source.slice(split + 2);
   const headers = new Map<string, string>();
   // Unfold continuation lines, then split "Name: value".
   for (const line of head.replace(/\n[ \t]+/g, " ").split("\n")) {
     const i = line.indexOf(":");
     if (i > 0) headers.set(line.slice(0, i).trim().toLowerCase(), line.slice(i + 1).trim());
   }
-
-  const encoding = headers.get("content-transfer-encoding")?.toLowerCase();
-  let text = body;
-  if (encoding === "base64") text = Buffer.from(body.replace(/\s+/g, ""), "base64").toString("utf8");
-  if (encoding === "quoted-printable") {
-    text = Buffer.from(
-      body.replace(/=\n/g, "").replace(/=([0-9A-F]{2})/gi, (_, h: string) => String.fromCharCode(parseInt(h, 16))),
-      "latin1",
-    ).toString("utf8");
-  }
-  return { headers, body: text };
+  return { headers, body };
 }
+
+/** The readable text of a part, preferring text/plain over text/html in multipart/alternative. */
+function bodyText(headers: Map<string, string>, body: string): string | undefined {
+  const type = headers.get("content-type") ?? "text/plain";
+  const mime = type.split(";")[0].trim().toLowerCase();
+  if (/attachment/i.test(headers.get("content-disposition") ?? "")) return undefined;
+
+  if (mime.startsWith("multipart/")) {
+    const boundary = param(type, "boundary");
+    if (!boundary) return undefined;
+    const parts = body
+      .split(new RegExp(`^--${escapeRegExp(boundary)}(?:--)?[ \\t]*$`, "m"))
+      .slice(1, -1)
+      .map((p) => splitPart(p.replace(/^\n/, "")));
+    const texts = parts.map((p) => ({ mime: (p.headers.get("content-type") ?? "text/plain").toLowerCase(), text: bodyText(p.headers, p.body) }));
+    const plain = texts.find((t) => t.text && !t.mime.startsWith("text/html"));
+    return (plain ?? texts.find((t) => t.text))?.text;
+  }
+  if (!mime.startsWith("text/")) return undefined;
+
+  const charset = (param(type, "charset") ?? "utf-8").toLowerCase();
+  let text = decodeTransfer(body, headers.get("content-transfer-encoding"), charset);
+  if (mime === "text/html") text = htmlToText(text);
+  return text.trimEnd();
+}
+
+function decodeTransfer(body: string, encoding: string | undefined, charset: string): string {
+  let bytes: Buffer;
+  switch (encoding?.toLowerCase()) {
+    case "base64":
+      bytes = Buffer.from(body.replace(/\s+/g, ""), "base64");
+      break;
+    case "quoted-printable":
+      bytes = Buffer.from(
+        body.replace(/=\n/g, "").replace(/=([0-9A-F]{2})/gi, (_, h: string) => String.fromCharCode(parseInt(h, 16))),
+        "latin1",
+      );
+      break;
+    default:
+      return body;
+  }
+  return decodeCharset(bytes, charset);
+}
+
+function decodeCharset(bytes: Buffer, charset: string): string {
+  try {
+    return new TextDecoder(charset).decode(bytes);
+  } catch {
+    return bytes.toString("utf8");
+  }
+}
+
+/** RFC 2047 encoded words in headers: "=?UTF-8?B?...?=" and "=?utf-8?Q?...?=". */
+export function decodeWords(value: string): string {
+  return value
+    .replace(/(=\?[^?]+\?[bq]\?[^?]*\?=)\s+(?==\?)/gi, "$1")
+    .replace(/=\?([^?]+)\?([bq])\?([^?]*)\?=/gi, (_, charset: string, enc: string, data: string) => {
+      const bytes =
+        enc.toLowerCase() === "b"
+          ? Buffer.from(data, "base64")
+          : Buffer.from(
+              data.replace(/_/g, " ").replace(/=([0-9A-F]{2})/gi, (__, h: string) => String.fromCharCode(parseInt(h, 16))),
+              "latin1",
+            );
+      return decodeCharset(bytes, charset.toLowerCase());
+    });
+}
+
+function htmlToText(html: string): string {
+  return html
+    .replace(/\s*\n\s*/g, " ")
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|li|tr|h[1-6])>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/[ \t]*\n[ \t]*/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+const param = (header: string, name: string) =>
+  header.match(new RegExp(`;\\s*${name}\\s*=\\s*(?:"([^"]*)"|([^;\\s]+))`, "i"))?.slice(1).find(Boolean);
+
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** "Rohan Kulkarni <rohan@alro.ai>, ananya@alro.ai" → [{ name, email }] */
 export function parseAddresses(value: string | undefined): { name?: string; email: string }[] {
