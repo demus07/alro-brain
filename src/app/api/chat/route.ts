@@ -1,10 +1,7 @@
-import { convertToModelMessages, createUIMessageStreamResponse, isStepCount, streamText, toUIMessageStream, type UIMessage } from "ai";
-import { eq } from "drizzle-orm";
-import { agentInstructions } from "@/agent/agent";
-import { agentTools } from "@/agent/tools";
+import { convertToModelMessages, createUIMessageStreamResponse, streamText, toUIMessageStream, type UIMessage } from "ai";
+import { agentFor } from "@/agent/answer";
 import { defaultModels, recordRun } from "@/ai/models";
 import { getDb } from "@/db/client";
-import { orgs } from "@/db/schema";
 import { getViewer } from "@/lib/viewer";
 
 export const maxDuration = 60;
@@ -14,15 +11,11 @@ export async function POST(request: Request) {
   const { messages }: { messages: UIMessage[] } = await request.json();
   const db = getDb();
   const models = defaultModels();
-  const [org] = await db.select({ timezone: orgs.timezone }).from(orgs).where(eq(orgs.id, viewer.orgId));
-  const tools = agentTools(db, viewer, models, org.timezone);
+  const agent = await agentFor(db, viewer, models);
 
   const result = streamText({
-    model: models.answer,
-    instructions: agentInstructions({ askerName: viewer.displayName, now: new Date(), timeZone: org.timezone }),
+    ...agent,
     messages: await convertToModelMessages(messages),
-    tools,
-    stopWhen: isStepCount(8),
     onEnd: async ({ totalUsage }) => {
       await recordRun(db, {
         orgId: viewer.orgId,
@@ -34,5 +27,16 @@ export async function POST(request: Request) {
     },
   });
 
-  return createUIMessageStreamResponse({ stream: toUIMessageStream({ stream: result.stream, tools }) });
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({
+      stream: result.stream,
+      tools: agent.tools,
+      // Model provider errors (no credit, bad key, rate limit) are safe and useful to show; anything else stays in the logs.
+      onError: (error) => {
+        console.error(error);
+        const providerError = error instanceof Error && "statusCode" in error;
+        return providerError ? `The model provider refused the request: ${error.message}` : "Something failed while answering. Check the server logs.";
+      },
+    }),
+  });
 }

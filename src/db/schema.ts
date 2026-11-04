@@ -176,6 +176,7 @@ export const threadKind = pgEnum("thread_kind", [
   "whatsapp",
   "meeting",
   "crm_timeline",
+  "doc",
   "upload",
 ]);
 export const threadVisibility = pgEnum("thread_visibility", ["org", "members"]);
@@ -354,6 +355,8 @@ export const chunks = pgTable(
     endAt: timestamp("end_at", { withTimezone: true }).notNull(),
     text: text("text").notNull(),
     embedding: halfvec("embedding", { dimensions: EMBEDDING_DIMS }),
+    /** When the graph stage read this chunk; null means it's waiting. */
+    graphedAt: timestamp("graphed_at", { withTimezone: true }),
     tsv: tsvector("tsv")
       .notNull()
       .generatedAlwaysAs(sql`to_tsvector('simple', text)`),
@@ -400,6 +403,8 @@ export const entities = pgTable(
       onDelete: "set null",
     }),
     nameEmbedding: halfvec("name_embedding", { dimensions: EMBEDDING_DIMS }),
+    /** Hidden by a person (noise, or not worth tracking): left out of the graph and search. */
+    hiddenAt: timestamp("hidden_at", { withTimezone: true }),
     acl: acl(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -426,6 +431,27 @@ export const entityAliases = pgTable(
     primaryKey({ columns: [t.entityId, t.alias] }),
     index("entity_aliases_trgm_idx").using("gin", t.alias.op("gin_trgm_ops")),
   ],
+);
+
+/**
+ * Where an entity comes up: one row per (entity, chunk), with what that
+ * conversation says about it. Graph search goes entity → mentions → chunks,
+ * so it can answer from conversations that never name the query's words.
+ * Visible only when the chunk is (row-level security via chunks).
+ */
+export const entityMentions = pgTable(
+  "entity_mentions",
+  {
+    entityId: uuid("entity_id")
+      .notNull()
+      .references(() => entities.id, { onDelete: "cascade" }),
+    chunkId: uuid("chunk_id")
+      .notNull()
+      .references(() => chunks.id, { onDelete: "cascade" }),
+    orgId: orgId(),
+    description: text("description"),
+  },
+  (t) => [primaryKey({ columns: [t.entityId, t.chunkId] }), index("entity_mentions_chunk_idx").on(t.chunkId)],
 );
 
 /**
@@ -458,6 +484,8 @@ export const edges = pgTable(
     expiredAt: timestamp("expired_at", { withTimezone: true }),
     invalidatedBy: uuid("invalidated_by"),
     sourceMessageIds: uuid("source_message_ids").array().notNull(),
+    /** The chunk the graph stage read this fact from (null for facts from commitment extraction). */
+    sourceChunkId: uuid("source_chunk_id").references(() => chunks.id, { onDelete: "set null" }),
     confidence: real("confidence"),
     acl: acl(),
   },
@@ -693,4 +721,25 @@ export const llmRuns = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("llm_runs_org_stage_idx").on(t.orgId, t.stage, t.createdAt)],
+);
+
+/** One run of the answer-quality eval: real questions, graded answers, and what they cost. */
+export const evalRuns = pgTable(
+  "eval_runs",
+  {
+    id: id(),
+    orgId: orgId(),
+    /** Model per stage when the run happened. */
+    models: jsonb("models").$type<Record<string, string>>().notNull(),
+    cases: integer("cases").notNull(),
+    /** 0 to 1: share of expected facts present and supported, unanswerables declined. */
+    score: real("score").notNull(),
+    /** Answers whose citations all pointed at real sources, 0 to 1. */
+    citationRate: real("citation_rate").notNull(),
+    costUsd: real("cost_usd").notNull(),
+    avgSeconds: real("avg_seconds").notNull(),
+    details: jsonb("details").$type<unknown[]>().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("eval_runs_org_idx").on(t.orgId, t.createdAt)],
 );

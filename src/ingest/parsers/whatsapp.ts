@@ -28,19 +28,21 @@ const INVISIBLE = /[‎‏‪-‮]/g;
  */
 export function parseWhatsApp(source: string, chatTitle?: string): WhatsAppMessage[] {
   const lines = source.replace(/\r\n/g, "\n").replace(/^﻿/, "").split("\n");
-  const raw: { d: string[]; rest: string; marked: boolean }[] = [];
+  const raw: { d: string[]; rest: string; marked: boolean; authorMarked: boolean }[] = [];
   for (const line of lines) {
     const clean = line.replace(INVISIBLE, "");
     const m = clean.match(IOS) ?? clean.match(ANDROID);
     // iOS writes system notices as "<chat name>: \u200e<notice>"; the mark is what tells them apart
     // from a 1:1 chat, where the chat name is also the other person's name.
     const sep = line.indexOf(": ");
-    if (m) raw.push({ d: m.slice(1, 8), rest: m[8], marked: sep > 0 && line[sep + 2] === "\u200e" });
+    // Notices about the exporter's own actions mark the author too: "[date] \u200eYou: \u200eYou pinned a message".
+    const authorMarked = line[line.indexOf("] ") + 2] === "\u200e";
+    if (m) raw.push({ d: m.slice(1, 8), rest: m[8], marked: sep > 0 && line[sep + 2] === "\u200e", authorMarked });
     else if (raw.length) raw[raw.length - 1].rest += `\n${clean}`;
   }
 
   const monthFirst = raw.some((r) => Number(r.d[1]) > 12);
-  return raw.map(({ d, rest, marked }) => {
+  return raw.map(({ d, rest, marked, authorMarked }) => {
     const [a, b, y, h, min, s, ampm] = d;
     let hour = Number(h);
     if (ampm) {
@@ -55,7 +57,7 @@ export function parseWhatsApp(source: string, chatTitle?: string): WhatsAppMessa
     let author: string | undefined = sep > 0 ? rest.slice(0, sep).trim() : undefined;
     let text = sep > 0 ? rest.slice(sep + 2) : rest;
     // System lines have no author (Android) or carry the chat name plus the mark (iOS).
-    let system = !author || (!!chatTitle && author === chatTitle && marked);
+    let system = !author || (!!chatTitle && author === chatTitle && marked) || (authorMarked && marked);
     if (system) {
       author = undefined;
       text = rest.slice(sep > 0 && chatTitle && rest.startsWith(`${chatTitle}: `) ? chatTitle.length + 2 : 0);
@@ -74,6 +76,18 @@ export function parseWhatsApp(source: string, chatTitle?: string): WhatsAppMessa
       edited,
     };
   });
+}
+
+/**
+ * The chat's name, from an iOS export's own notices ("[date] Alro: \u200eMessages and calls
+ * are end-to-end encrypted"). For files that don't carry it, like "_chat.txt".
+ */
+export function chatNameOf(source: string): string | undefined {
+  for (const line of source.split("\n", 50)) {
+    const m = line.match(/^\[[^\]]+\]\s+([^:]+): \u200e/);
+    if (m) return m[1].trim();
+  }
+  return undefined;
 }
 
 /** "+05:30" → minutes. */

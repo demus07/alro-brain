@@ -7,7 +7,8 @@ import { createTestDb } from "@/db/test-db";
 import { crmCsvToBatch, parseCsv } from "./parsers/crm-csv";
 import { decodeWords, parseEml } from "./parsers/email";
 import { mboxToBatch, splitMbox } from "./parsers/mbox";
-import { uploadToBatches } from "./upload";
+import { zipSync } from "fflate";
+import { exporterName, unwrapWhatsAppZip, uploadToBatches } from "./upload";
 import { writeBatch } from "./writer";
 
 const MULTIPART = `From: =?UTF-8?B?UHJpeWEgU2hhcm1h?= <priya@acme.com>
@@ -194,5 +195,49 @@ describe("uploads into the database", () => {
     const opts = { uploader: { email: "rohan@alro.ai", displayName: "Rohan Kulkarni" } };
     expect(() => uploadToBatches([{ name: "notes.docx", bytes: new Uint8Array() }], opts)).toThrow(/unsupported file type/);
     expect(() => uploadToBatches([{ name: "deals.csv", bytes: new TextEncoder().encode(DEALS_V1) }], opts)).toThrow(/CRM name/);
+  });
+});
+
+describe("iPhone WhatsApp exports", () => {
+  const chat = [
+    "[25/10/26, 9:59:33\u202fPM] Alro: \u200eYou created group \u201cAutomations\u201d",
+    "[25/10/26, 10:00:37\u202fPM] Sumedh Kudav: i have a bunch of name ideas",
+    "[25/10/26, 10:00:51\u202fPM] Jash Doshi: drop them",
+    "[25/10/26, 10:01:02\u202fPM] \u200eYou: \u200eYou pinned a message",
+    "[25/10/26, 10:01:09\u202fPM] Jash Doshi: \u200e<attached: 00000012-PHOTO.jpg>",
+  ].join("\r\n");
+  const zip = zipSync({ "_chat.txt": new TextEncoder().encode(chat) });
+
+  it("reads the chat out of the zip and names it after the zip", () => {
+    const f = unwrapWhatsAppZip({ name: "WhatsApp Chat - Alro.zip", bytes: zip });
+    expect(f.name).toBe("WhatsApp Chat - Alro.txt");
+    const [batch] = uploadToBatches([{ name: "WhatsApp Chat - Alro.zip", bytes: zip }], {
+      uploader: { email: "sumedh@example.com", displayName: "Sumedh Kudav" },
+      utcOffset: "+05:30",
+    });
+    expect(batch.threads[0].title).toBe("Alro");
+    // The group's own notices aren't messages from a person called "Alro".
+    // Neither are the exporter's own notices; a photo still is a message.
+    expect(batch.messages.map((m) => m.text)).toEqual(["i have a bunch of name ideas", "drop them", "[media]"]);
+    expect(batch.people.map((p) => p.displayName).sort()).toEqual(["Jash Doshi", "Sumedh Kudav"]);
+  });
+
+  it("names a bare _chat.txt after the group it came from", () => {
+    const [batch] = uploadToBatches([{ name: "_chat 2.txt", bytes: new TextEncoder().encode(chat) }], {
+      uploader: { email: "sumedh@example.com", displayName: "Sumedh Kudav" },
+    });
+    expect(batch.threads[0].title).toBe("Alro");
+    expect(batch.messages).toHaveLength(3);
+  });
+
+  it("leaves other zips alone", () => {
+    const slack = zipSync({ "users.json": new TextEncoder().encode("[]") });
+    expect(unwrapWhatsAppZip({ name: "export.zip", bytes: slack }).name).toBe("export.zip");
+  });
+
+  it("matches a short name to the one author it starts", () => {
+    expect(exporterName(chat, "Sumedh")).toBe("Sumedh Kudav");
+    expect(exporterName(chat, "sumedh kudav")).toBe("Sumedh Kudav");
+    expect(exporterName(chat, "Rohan")).toBe("Rohan");
   });
 });

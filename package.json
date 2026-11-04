@@ -12,9 +12,12 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "fixtures:load": "tsx --env-file=.env.local scripts/load-fixtures.mts",
-    "eval": "tsx scripts/eval.mts"
+    "eval": "tsx scripts/eval.mts",
+    "eval:answers": "tsx --env-file=.env.local scripts/eval-answers.mts",
+    "db:local": "tsx scripts/local-db.mts"
   },
   "dependencies": {
+    "@ai-sdk/openai": "4.0.93",
     "@ai-sdk/openai-compatible": "^3.0.68",
     "@ai-sdk/react": "^4.0.141",
     "@vercel/functions": "3.10.1",
@@ -30,6 +33,7 @@
   "devDependencies": {
     "@electric-sql/pglite": "0.5.9",
     "@electric-sql/pglite-pgvector": "0.0.10",
+    "@electric-sql/pglite-socket": "0.2.12",
     "@types/node": "^20",
     "@types/pg": "^8.23.1",
     "@types/react": "^19",

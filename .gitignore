@@ -43,3 +43,10 @@ next-env.d.ts
 
 # eval output
 eval-report.json
+
+# Answer evals over your own data stay local
+/evals/*.local.json
+/evals/runs/
+
+# Local development database
+/.data/

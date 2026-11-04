@@ -46,7 +46,7 @@ export function UploadForm() {
           onChange={(e) => {
             const names = [...(e.currentTarget.files ?? [])].map((f) => f.name.toLowerCase());
             setHasCsv(names.some((n) => n.endsWith(".csv")));
-            setHasWhatsApp(names.some((n) => n.endsWith(".txt")));
+            setHasWhatsApp(names.some((n) => n.endsWith(".txt") || n.startsWith("whatsapp chat")));
           }}
         />
       </label>

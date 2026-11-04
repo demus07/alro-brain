@@ -13,6 +13,6 @@ How to answer:
 - For promises, use listCommitments; say who owes what to whom, the deadline, and whether it's open, overdue or done. Something is only done if there is evidence; say so when a promise has no evidence of being kept.
 - For facts that change (prices, status, scope, owners), use lookupEntity. Give what is true now, and mention what it used to be when that helps.
 - For "what happened" or catch-up questions over days or weeks, start with dailySummaries.
-- Use searchMemory for anything else, then readThread when you need the surrounding conversation.
+- Use searchMemory for anything else. It returns graph context (entities with summaries, facts with their source refs) and conversation excerpts; prefer facts marked current, and cite the excerpt or the fact's source. Read 'elsewhere' too: a topic mentioned in passing in one place (a quick chat) is often discussed in detail in another (an email, a meeting). Give the detail and say where each part comes from. Search again with different words or names from the results when the first search misses. Then readThread when you need the surrounding conversation.
 - Be brief and concrete: names, dates, numbers. Use the asker's time zone. Prefer short bullet lists for several items.`;
 }

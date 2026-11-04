@@ -6,7 +6,7 @@ import type { Db } from "@/db/client";
 import { commitmentEvents, commitments, edges, entities, entityAliases, messages, people, rollups, threads } from "@/db/schema";
 import { withScope, type Viewer } from "@/db/scope";
 import { formatShort } from "@/lib/time";
-import { search } from "@/memory/search";
+import { embedQuery, recall } from "@/memory/search";
 
 /** Something an answer can cite as [S1], [S2], ... The UI renders these as links. */
 export interface Source {
@@ -38,7 +38,7 @@ export function agentTools(db: Db, viewer: Viewer, models: Models, timeZone: str
   return {
     searchMemory: tool({
       description:
-        "Search everything the user can see (chats, emails, meeting transcripts, CRM changes) by meaning and keywords. Returns conversation excerpts with sources to cite.",
+        "Search everything the user can see (chats, emails, meeting transcripts, CRM changes) by meaning, keywords and the knowledge graph. Returns the people, things and facts the question is about (from the graph), the best-matching conversation excerpts, and 'elsewhere': excerpts from other conversations and sources about the same things, often where the detail is. All with sources to cite.",
       inputSchema: z.object({
         query: z.string().describe("What to look for, in natural language"),
         since: z.string().nullish().describe("Only after this date, ISO 8601"),
@@ -46,11 +46,50 @@ export function agentTools(db: Db, viewer: Viewer, models: Models, timeZone: str
         limit: z.number().int().min(1).max(15).nullish(),
       }),
       execute: async ({ query, since, until, limit }) => {
-        const hits = await scoped((tx) =>
-          search(tx, models, query, { since: date(since), until: date(until), limit: limit ?? 8 }),
-        );
+        const { hits, related, graph, evidence } = await scoped(async (tx) => {
+          const found = await recall(tx, models, query, { since: date(since), until: date(until), limit: limit ?? 8 });
+          const ids = [...new Set(found.graph.facts.flatMap((f) => (f.messageId ? [f.messageId] : [])))];
+          const evidence = ids.length
+            ? await tx
+                .select({ id: messages.id, sentAt: messages.sentAt, url: messages.url, text: messages.text, thread: threads.title, kind: threads.kind, author: people.displayName })
+                .from(messages)
+                .innerJoin(threads, eq(threads.id, messages.threadId))
+                .leftJoin(people, eq(people.id, messages.authorPersonId))
+                .where(inArray(messages.id, ids))
+            : [];
+          return { ...found, evidence: new Map(evidence.map((m) => [m.id, m])) };
+        });
+        // One citation per evidence message, shared by every fact it supports.
+        const cited = new Map<string, Source>();
+        const citeMessage = (id: string | null) => {
+          const m = id ? evidence.get(id) : undefined;
+          if (!m) return undefined;
+          if (!cited.has(m.id)) {
+            cited.set(m.id, cite({ thread: m.thread ?? "Untitled", kind: m.kind, at: when(m.sentAt), author: m.author ?? undefined, text: m.text, url: m.url ?? undefined, messageId: m.id }));
+          }
+          return cited.get(m.id)!.ref;
+        };
         return {
+          entities: graph.entities.map((e) => ({ name: e.name, type: e.type, summary: e.summary ?? undefined })),
+          facts: graph.facts.map((f) => ({
+            fact: f.fact,
+            current: f.current,
+            validFrom: f.validFrom ? when(f.validFrom) : undefined,
+            validTo: f.validTo ? when(f.validTo) : undefined,
+            source: citeMessage(f.messageId),
+          })),
+          sources: [...cited.values()],
           results: hits.map((h) =>
+            cite({
+              thread: h.threadTitle ?? "Untitled",
+              kind: h.threadKind,
+              at: `${when(h.startAt)} – ${when(h.endAt)}`,
+              text: h.text,
+              url: h.threadUrl ?? undefined,
+              messageId: h.messageIds[0],
+            }),
+          ),
+          elsewhere: related.map((h) =>
             cite({
               thread: h.threadTitle ?? "Untitled",
               kind: h.threadKind,
@@ -262,7 +301,7 @@ export function agentTools(db: Db, viewer: Viewer, models: Models, timeZone: str
       }),
       execute: async ({ name, includeHistory, hops }) =>
         scoped(async (tx) => {
-          const [entity] = await tx
+          let [entity] = await tx
             .select({ id: entities.id, name: entities.name, type: entities.type, summary: entities.summary })
             .from(entities)
             .where(
@@ -274,6 +313,17 @@ export function agentTools(db: Db, viewer: Viewer, models: Models, timeZone: str
             )
             .orderBy(sql`similarity(${entities.name}, ${name}) desc`)
             .limit(1);
+          // Not by name: the closest entity by meaning, if it's close ("the naming exercise" → a topic entity).
+          const vector = entity ? undefined : `[${(await embedQuery(models, name)).join(",")}]`;
+          const [nearest] = vector
+            ? await tx
+                .select({ id: entities.id, name: entities.name, type: entities.type, summary: entities.summary })
+                .from(entities)
+                .where(sql`${entities.nameEmbedding} is not null and ${entities.nameEmbedding} <=> ${vector}::halfvec < 0.5`)
+                .orderBy(sql`${entities.nameEmbedding} <=> ${vector}::halfvec`)
+                .limit(1)
+            : [];
+          entity ??= nearest;
           if (!entity) return { error: `Nothing known about "${name}".` };
 
           // Breadth-first over current facts, up to `hops` away. RLS hides edges from unseen sources.

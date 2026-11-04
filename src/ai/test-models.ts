@@ -59,6 +59,7 @@ export function testModels(overrides: Partial<Models> = {}): Models {
   return {
     screen: unused,
     extract: unused,
+    graph: unused,
     answer: unused,
     embed: mockEmbeddingModel(),
     embedDimensions: EMBEDDING_DIMS,

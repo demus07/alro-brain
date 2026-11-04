@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Link from "next/link";
+import { Suspense } from "react";
+import { Nav } from "./nav";
+import { SyncStatus } from "./sync-status";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -22,17 +24,20 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body>
-        <div className="shell">
-          <nav className="nav">
-            <Link href="/">
-              <strong>ALRO</strong>
-            </Link>
-            <Link href="/">Ask</Link>
-            <Link href="/commitments">Commitments</Link>
-            <Link href="/upload">Upload</Link>
-            <Link href="/connectors">Connectors</Link>
-          </nav>
-          {children}
+        <div className="app">
+          <aside className="sidebar">
+            <div className="brand">
+              <span className="brand-mark">A</span>
+              <span>alro</span>
+            </div>
+            <Nav />
+            <div className="sidebar-foot">
+              <Suspense fallback={<span className="small muted">…</span>}>
+                <SyncStatus />
+              </Suspense>
+            </div>
+          </aside>
+          <main className="shell">{children}</main>
         </div>
       </body>
     </html>

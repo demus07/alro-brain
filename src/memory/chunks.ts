@@ -17,12 +17,17 @@ export interface ChunkMessage {
   text: string;
 }
 
-/** Splits a thread's messages (oldest first) into windows of consecutive messages. */
+/**
+ * Splits a thread's messages (oldest first) into windows of consecutive
+ * messages. A message longer than a window (a pasted document) is cut into
+ * window-sized parts, each its own window, so no chunk exceeds what an
+ * embedding model accepts.
+ */
 export function windowMessages(msgs: ChunkMessage[]): ChunkMessage[][] {
   const windows: ChunkMessage[][] = [];
   let current: ChunkMessage[] = [];
   let chars = 0;
-  for (const m of msgs) {
+  for (const m of msgs.flatMap(splitLong)) {
     const last = current[current.length - 1];
     const full = current.length >= MAX_MESSAGES || (current.length > 0 && chars + m.text.length > MAX_CHARS);
     const gap = last && m.sentAt.getTime() - last.sentAt.getTime() > GAP_MS;
@@ -36,6 +41,22 @@ export function windowMessages(msgs: ChunkMessage[]): ChunkMessage[][] {
   }
   if (current.length) windows.push(current);
   return windows;
+}
+
+/** Cuts a too-long message into parts at paragraph or line breaks where possible. */
+function splitLong(m: ChunkMessage): ChunkMessage[] {
+  if (m.text.length <= MAX_CHARS) return [m];
+  const parts: ChunkMessage[] = [];
+  let rest = m.text;
+  while (rest.length > MAX_CHARS) {
+    const window = rest.slice(0, MAX_CHARS);
+    const cut = Math.max(window.lastIndexOf("\n\n"), window.lastIndexOf("\n"), window.lastIndexOf(". ") + 1);
+    const at = cut > MAX_CHARS / 2 ? cut : MAX_CHARS;
+    parts.push({ ...m, text: `${parts.length ? "(continued) " : ""}${rest.slice(0, at).trim()}` });
+    rest = rest.slice(at);
+  }
+  if (rest.trim()) parts.push({ ...m, text: `(continued) ${rest.trim()}` });
+  return parts;
 }
 
 /** "[Fri 4 Sep 2026, 12:10] Ananya Desai: Schema PR is up" lines under a thread heading. */
@@ -77,7 +98,14 @@ export async function chunkPending(db: Db, orgId: string, models: Models, opts: 
     .limit(opts.maxThreads ?? 200);
 
   let written = 0;
-  for (const { threadId } of pending) written += await rechunkThread(db, orgId, threadId, models, org?.timezone ?? "UTC");
+  for (const { threadId } of pending) {
+    try {
+      written += await rechunkThread(db, orgId, threadId, models, org?.timezone ?? "UTC");
+    } catch (e) {
+      // One thread failing (a provider error, an odd message) mustn't leave every other thread unsearchable.
+      console.error(`chunking failed for thread ${threadId}`, e instanceof Error ? e.message : e);
+    }
+  }
   return written;
 }
 
@@ -120,7 +148,7 @@ async function rechunkThread(db: Db, orgId: string, threadId: string, models: Mo
       windows.map((w, i) => ({
         orgId,
         threadId,
-        messageIds: w.map((m) => m.id),
+        messageIds: [...new Set(w.map((m) => m.id))],
         startAt: w[0].sentAt,
         endAt: w[w.length - 1].sentAt,
         text: texts[i],

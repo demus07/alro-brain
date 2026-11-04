@@ -1,10 +1,11 @@
+import { unzipSync } from "fflate";
 import type { NormalizedBatch } from "./types";
 import { crmCsvToBatch } from "./parsers/crm-csv";
 import { emailsToBatch } from "./parsers/email";
 import { mboxToBatch } from "./parsers/mbox";
 import { slackExportToBatch, unzipSlackExport } from "./parsers/slack-export";
 import { transcriptsToBatch } from "./parsers/vtt";
-import { whatsAppToBatch } from "./parsers/whatsapp";
+import { chatNameOf, parseWhatsApp, whatsAppToBatch } from "./parsers/whatsapp";
 
 export interface UploadedFile {
   name: string;
@@ -31,19 +32,48 @@ export function uploadKind(name: string): UploadKind | undefined {
 
 const decode = (bytes: Uint8Array) => new TextDecoder("utf-8").decode(bytes);
 
-/** WhatsApp names its export "WhatsApp Chat with <name>.txt"; iOS zips hold "_chat.txt" and the zip carries the name. */
-const whatsAppTitle = (fileName: string) =>
-  fileName.replace(/\.txt$/i, "").replace(/^WhatsApp Chat (with|-)\s*/i, "").trim() || fileName;
+/**
+ * WhatsApp names its export "WhatsApp Chat with <name>.txt"; iOS zips hold "_chat.txt" and the
+ * zip carries the name. A bare "_chat.txt" (or "_chat 2.txt") takes the name from its own notices.
+ */
+const whatsAppTitle = (fileName: string, content: string) =>
+  (/^_chat( \d+)?\.txt$/i.test(fileName) ? chatNameOf(content) : undefined) ??
+  (fileName.replace(/\.txt$/i, "").replace(/^WhatsApp Chat (with|-)\s*/i, "").trim() || fileName);
+
+/**
+ * iPhone exports a chat as "WhatsApp Chat - <name>.zip" holding "_chat.txt" (plus
+ * media when included). Unwraps it to the .txt, named after the zip so the
+ * chat keeps its title. Any other file passes through unchanged.
+ */
+export function unwrapWhatsAppZip(f: UploadedFile): UploadedFile {
+  if (!f.name.toLowerCase().endsWith(".zip")) return f;
+  const chat = unzipSync(f.bytes, { filter: (entry) => /(^|\/)_chat\.txt$/.test(entry.name) && !entry.name.startsWith("__MACOSX/") });
+  const [bytes] = Object.values(chat);
+  return bytes ? { name: f.name.replace(/\.zip$/i, ".txt"), bytes } : f;
+}
+
+/**
+ * The uploader's name as it appears in the chat. People often type a short form
+ * ("Sumedh" for "Sumedh Kudav"); when exactly one author's name starts with it, that's them.
+ */
+export function exporterName(content: string, given: string): string {
+  const authors = new Set(parseWhatsApp(content).flatMap((m) => (m.author && !m.system ? [m.author] : [])));
+  if (authors.has(given)) return given;
+  const lower = given.trim().toLowerCase();
+  const matches = [...authors].filter((a) => a.toLowerCase() === lower || a.toLowerCase().startsWith(`${lower} `));
+  return matches.length === 1 ? matches[0] : given;
+}
 
 /**
  * Groups uploaded files by kind and parses each group into one batch. Throws
  * with a message fit for the uploader when a file can't be read.
  */
-export function uploadToBatches(files: UploadedFile[], options: UploadOptions): NormalizedBatch[] {
+export function uploadToBatches(uploads: UploadedFile[], options: UploadOptions): NormalizedBatch[] {
+  const files = uploads.map(unwrapWhatsAppZip);
   const groups = new Map<UploadKind, UploadedFile[]>();
   for (const f of files) {
     const kind = uploadKind(f.name);
-    if (!kind) throw new Error(`${f.name}: unsupported file type. Upload .zip (Slack export), .txt (WhatsApp), .eml, .mbox, .vtt or .csv.`);
+    if (!kind) throw new Error(`${f.name}: unsupported file type. Upload .zip (Slack export or iPhone WhatsApp export), .txt (WhatsApp), .eml, .mbox, .vtt or .csv.`);
     groups.set(kind, [...(groups.get(kind) ?? []), f]);
   }
 
@@ -63,12 +93,15 @@ export function uploadToBatches(files: UploadedFile[], options: UploadOptions): 
       case "whatsapp":
         batches.push(
           whatsAppToBatch(
-            group.map((f) => ({
-              title: whatsAppTitle(f.name),
-              content: decode(f.bytes),
-              exportedBy: options.whatsAppName ?? options.uploader.displayName,
-              utcOffset: options.utcOffset ?? "+00:00",
-            })),
+            group.map((f) => {
+              const content = decode(f.bytes);
+              return {
+                title: whatsAppTitle(f.name, content),
+                content,
+                exportedBy: exporterName(content, options.whatsAppName ?? options.uploader.displayName),
+                utcOffset: options.utcOffset ?? "+00:00",
+              };
+            }),
             `whatsapp:${mailbox}`,
           ),
         );

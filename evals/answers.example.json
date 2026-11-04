@@ -1,0 +1,13 @@
+[
+  {
+    "id": "agency-name",
+    "question": "Which agency name did we finally go with?",
+    "expect": ["The name chosen was Alro", "It was picked from a shortlist that included Continuum and Veyra"]
+  },
+  {
+    "id": "no-seed-round",
+    "question": "What did we agree with investors about the seed round?",
+    "expect": [],
+    "unanswerable": true
+  }
+]

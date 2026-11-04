@@ -37,6 +37,15 @@ describe("windowing", () => {
     expect(windowMessages(msgs).map((w) => w.length)).toEqual([15, 2, 1]);
   });
 
+  it("cuts a pasted document into window-sized parts of the same message", () => {
+    const doc = "A paragraph of the pasted brief.\n\n".repeat(1400);
+    const windows = windowMessages([msg(1, 1, "short"), msg(2, 1, doc), msg(3, 1, "after")]);
+    expect(windows.length).toBeGreaterThan(10);
+    for (const w of windows) expect(w.reduce((n, m) => n + m.text.length, 0)).toBeLessThanOrEqual(4000 + 12);
+    expect(windows.flat().filter((m) => m.id === "m2").length).toBeGreaterThan(10);
+    expect(windows.flat().map((m) => m.text).join("")).toContain("(continued)");
+  });
+
   it("caps a window's size in characters", () => {
     const long = "x".repeat(3000);
     expect(windowMessages([msg(1, 1, long), msg(2, 1, long)]).map((w) => w.length)).toEqual([1, 1]);

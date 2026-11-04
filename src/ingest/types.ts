@@ -22,6 +22,7 @@ export type ThreadKind =
   | "whatsapp"
   | "meeting"
   | "crm_timeline"
+  | "doc"
   | "upload";
 
 export interface NormalizedThread {

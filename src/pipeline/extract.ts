@@ -1,5 +1,5 @@
 import { embedMany, generateText, Output } from "ai";
-import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, or, sql, type AnyColumn } from "drizzle-orm";
 import { z } from "zod";
 import { modelId, recordRun, type Models } from "@/ai/models";
 import type { Db } from "@/db/client";
@@ -127,7 +127,7 @@ interface WindowMessage {
   extractedAt: Date | null;
 }
 
-interface Person {
+export interface Person {
   id: string;
   displayName: string;
   isMember: boolean;
@@ -483,7 +483,7 @@ async function embedNew(db: Db, orgId: string, models: Models, items: { table: "
 }
 
 /** Entities whose name or alias appears in the text (for showing their current facts to the model). */
-async function mentionedEntities(db: Db, orgId: string, lowerText: string) {
+export async function mentionedEntities(db: Db, orgId: string, lowerText: string) {
   const names = await db
     .select({ id: entities.id, name: entities.name })
     .from(entities)
@@ -507,7 +507,7 @@ async function mentionedEntities(db: Db, orgId: string, lowerText: string) {
  * Same entity if the name or an alias matches exactly, or a same-type entity's
  * name is very similar (trigram). New evidence widens who can see it.
  */
-async function findOrCreateEntity(
+export async function findOrCreateEntity(
   db: Db,
   orgId: string,
   e: { name: string; type: Extraction["entities"][number]["type"]; aliases: string[] },
@@ -516,6 +516,8 @@ async function findOrCreateEntity(
 ): Promise<{ id: string; isNew: boolean }> {
   const names = [e.name, ...e.aliases].map((n) => n.trim()).filter(Boolean);
   const lower = names.map((n) => n.toLowerCase());
+  // "360 Labs", "360labs" and "360-Labs" are one name.
+  const squashed = names.map(squash).filter((n) => n.length >= 3);
   const [exact] = await db
     .select({ id: entities.id, acl: entities.acl })
     .from(entities)
@@ -524,6 +526,7 @@ async function findOrCreateEntity(
         eq(entities.orgId, orgId),
         or(
           inArray(sql`lower(${entities.name})`, lower),
+          squashed.length ? inArray(squashedSql(entities.name), squashed) : undefined,
           inArray(entities.id, db.select({ id: entityAliases.entityId }).from(entityAliases).where(and(eq(entityAliases.orgId, orgId), inArray(sql`lower(${entityAliases.alias})`, lower)))),
         ),
       ),
@@ -559,6 +562,10 @@ async function findOrCreateEntity(
   }
   return { id, isNew };
 }
+
+/** A name with case, spaces and punctuation removed, for matching spelling variants. */
+export const squash = (name: string) => name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+export const squashedSql = (column: AnyColumn) => sql`regexp_replace(lower(${column}), '[^[:alnum:]]+', '', 'g')`;
 
 /** A directory person by full name, or by a first name only one person has. */
 export function resolveName(name: string, directory: Person[]): Person | undefined {
