@@ -6,6 +6,7 @@ import { getDb } from "@/db/client";
 import { commitmentEvents, commitments, connections, messages, orgs, people, threads } from "@/db/schema";
 import { withScope } from "@/db/scope";
 import { sourceOf } from "@/lib/sources";
+import { buildBrief } from "@/notify/brief";
 import { formatShort } from "@/lib/time";
 import { getViewer } from "@/lib/viewer";
 import { setVerdict } from "../commitments/actions";
@@ -90,8 +91,33 @@ async function Updates() {
   }));
 
   const overdue = needsYou.filter((c) => c.status === "overdue").length;
+  const brief = await buildBrief(db, viewer, org.timezone);
+  const tiles = [
+    { label: "Overdue", value: brief.overdue.length, tone: brief.overdue.length ? "bad" : "" },
+    { label: "Due soon", value: brief.dueSoon.length, tone: brief.dueSoon.length ? "warn" : "" },
+    { label: "Waiting on you", value: brief.waitingOnYou.length, tone: "" },
+    { label: "Owed to you", value: brief.owedToYou.length, tone: "" },
+    { label: "Messages, last 24h", value: brief.messages, tone: "" },
+  ];
 
   return (
+    <>
+    <div className="today">
+      <h1>Today</h1>
+      <div className="tiles">
+        {tiles.map((t) => (
+          <div key={t.label} className={`tile ${t.tone}`}>
+            <span className="tile-value">{t.value}</span>
+            <span className="muted small">{t.label}</span>
+          </div>
+        ))}
+      </div>
+      {brief.active.length > 0 && (
+        <p className="muted small">
+          Busiest in the last day: {brief.active.map((a) => `${a.title} (${a.messages})`).join(", ")}. {brief.newPromises} new promises, {brief.changedFacts} facts changed.
+        </p>
+      )}
+    </div>
     <div className="split">
       <section className="column">
         <p className="label center">Incoming · all channels</p>
@@ -171,5 +197,6 @@ async function Updates() {
         )}
       </section>
     </div>
+    </>
   );
 }

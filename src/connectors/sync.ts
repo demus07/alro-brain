@@ -4,7 +4,7 @@ import { chunks, connections, messages } from "@/db/schema";
 import type { Viewer } from "@/db/scope";
 import { writeBatch } from "@/ingest/writer";
 import { fetchGmail, type GmailCursor } from "./gmail";
-import { listConnections, proxyApi } from "./nango";
+import { listConnections, ProviderError, proxyApi, type Api } from "./nango";
 import { fetchNotion, type NotionCursor } from "./notion";
 import { fetchSlack, type SlackCursor } from "./slack";
 
@@ -62,7 +62,7 @@ export async function syncConnection(
   orgId: string,
   c: { provider: LiveProvider; nangoConnectionId: string; ownerPersonId?: string; connectionId?: string; cursor?: Record<string, unknown> },
 ): Promise<SyncOutcome> {
-  const api = proxyApi(c.nangoConnectionId, LIVE[c.provider].integration());
+  const api = withRetries(proxyApi(c.nangoConnectionId, LIVE[c.provider].integration()));
   const kind = c.cursor ? "incremental" : "backfill";
   try {
     const fetched =
@@ -101,3 +101,21 @@ export async function retireOldVersions(db: Db, connectionId: string, current: M
   }
 }
 
+
+/** Network blips, rate limits and provider 5xx: worth another try. Auth and bad requests aren't. */
+export const transient = (e: unknown) =>
+  e instanceof ProviderError ? e.status === 429 || e.status >= 500 : /ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|fetch failed|socket hang up/i.test(String(e));
+
+/** Retries each provider call up to 3 times with growing waits (1s, 4s, 16s) on transient errors. */
+export function withRetries(api: Api, waits = [1000, 4000, 16000]): Api {
+  return async (method, path, opts) => {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await api(method, path, opts);
+      } catch (e) {
+        if (attempt >= waits.length || !transient(e)) throw e;
+        await new Promise((r) => setTimeout(r, waits[attempt]));
+      }
+    }
+  };
+}

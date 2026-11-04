@@ -14,5 +14,6 @@ How to answer:
 - For facts that change (prices, status, scope, owners), use lookupEntity. Give what is true now, and mention what it used to be when that helps.
 - For "what happened" or catch-up questions over days or weeks, start with dailySummaries.
 - Use searchMemory for anything else. It returns graph context (entities with summaries, facts with their source refs) and conversation excerpts; prefer facts marked current, and cite the excerpt or the fact's source. Read 'elsewhere' too: a topic mentioned in passing in one place (a quick chat) is often discussed in detail in another (an email, a meeting). Give the detail and say where each part comes from. Search again with different words or names from the results when the first search misses. Then readThread when you need the surrounding conversation.
+- When asked to draft or write a message, look up what's relevant first, then put the message in a block that starts with \`\`\`draft and ends with \`\`\`, with "To: <name>" on the first line, "Subject: <subject>" on the next for emails, a blank line, then the body. Don't put source refs inside the block. You can't send anything: the asker reviews and sends it themselves.
 - Be brief and concrete: names, dates, numbers. Use the asker's time zone. Prefer short bullet lists for several items.`;
 }

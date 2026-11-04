@@ -10,6 +10,7 @@ import { adoptConnections, isLive, LIVE, syncConnection, tagsFor } from "@/conne
 import { getDb } from "@/db/client";
 import { connections } from "@/db/schema";
 import { getViewer } from "@/lib/viewer";
+import { forgetConnection } from "@/memory/forget";
 import { runPipeline } from "@/pipeline/run";
 
 /** Opens Nango's connect screen for one source. */
@@ -43,5 +44,17 @@ export async function syncNow(formData: FormData) {
     const r = await syncConnection(db, viewer.orgId, { provider: c.provider as keyof typeof LIVE, nangoConnectionId: c.nangoConnectionId!, ownerPersonId: c.ownerPersonId ?? undefined, connectionId: c.id, cursor: c.cursor ?? undefined });
     if (r.messages) await runPipeline(db, viewer.orgId, defaultModels());
   });
+  refresh();
+}
+
+/** Deletes a source and everything derived only from it. Personal sources: only their owner. */
+export async function deleteSource(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  const viewer = await getViewer();
+  const db = getDb();
+  const [c] = await db.select().from(connections).where(and(eq(connections.id, id), eq(connections.orgId, viewer.orgId)));
+  if (!c) throw new Error("Not found");
+  if (c.scope === "personal" && c.ownerPersonId !== viewer.personId) throw new Error("Only the person who connected this source can delete it");
+  await forgetConnection(db, viewer.orgId, id);
   refresh();
 }

@@ -37,6 +37,18 @@ export default function SettingsPage() {
 
       <section className="settings-section">
         <div>
+          <h2>Your data</h2>
+          <p className="muted small">Everything ALRO holds that you can see. Deleting a source above removes it and everything found only in it.</p>
+        </div>
+        <div>
+          <a className="button-link" href="/api/export" download>
+            Export as JSON
+          </a>
+        </div>
+      </section>
+
+      <section className="settings-section">
+        <div>
           <h2>Models</h2>
           <p className="muted small">Set in .env.local (ALRO_*_MODEL). Changing the embedding model means re-indexing.</p>
         </div>

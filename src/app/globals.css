@@ -1,37 +1,44 @@
 /* Working styles until the Phase 4 design system: quiet and monochrome, full screen. */
 :root {
-  --desk: #f2f2f2;
-  --window: #f7f7f7;
+  /* Brand colours live here: swap these to retheme the app. */
+  --desk: #f3efe6;
+  --window: #faf7f0;
   --surface: #ffffff;
-  --foreground: #171717;
-  --muted: #8a8a8a;
-  --border: #e6e6e6;
-  --chip: #f1f1f1;
-  --primary: #0a0a0a;
-  --on-primary: #ffffff;
-  --accent: #2f5bea;
-  --danger: #c4321b;
-  --warn: #c98a00;
-  --ok: #1f9d55;
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 16px 40px rgb(0 0 0 / 0.07);
+  --foreground: #1f1a17;
+  --muted: #7d746b;
+  --border: #e8e2d6;
+  --chip: #f1ece1;
+  --primary: #1f1a17;
+  --on-primary: #faf7f0;
+  --accent: #a3172d;
+  --on-accent: #fff8f0;
+  --accent-soft: #f6e4e2;
+  --danger: #b3261e;
+  --warn: #a8700a;
+  --ok: #2e7d57;
+  --shadow: 0 1px 2px rgb(60 40 20 / 0.05), 0 12px 32px rgb(60 40 20 / 0.08);
+  --radius: 14px;
+  --font-display: var(--font-instrument-serif), Georgia, serif;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --desk: #0b0b0b;
-    --window: #131313;
-    --surface: #1a1a1a;
-    --foreground: #ededed;
-    --muted: #8c8c8c;
-    --border: #2a2a2a;
-    --chip: #242424;
-    --primary: #ededed;
-    --on-primary: #0a0a0a;
-    --accent: #7d9bff;
-    --danger: #ff7a66;
-    --warn: #e6b13d;
-    --ok: #4cc287;
-    --shadow: 0 16px 40px rgb(0 0 0 / 0.5);
+    --desk: #100e0c;
+    --window: #161311;
+    --surface: #1f1b18;
+    --foreground: #f1ebe2;
+    --muted: #9b9188;
+    --border: #2e2925;
+    --chip: #2a2521;
+    --primary: #f1ebe2;
+    --on-primary: #161311;
+    --accent: #ec6a7c;
+    --on-accent: #1a0c0e;
+    --accent-soft: #3a1c21;
+    --danger: #ff8a7a;
+    --warn: #e5b04a;
+    --ok: #62c592;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px rgb(0 0 0 / 0.4);
   }
   html {
     color-scheme: dark;
@@ -63,6 +70,15 @@ a {
   text-decoration: none;
 }
 
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
 /* ---- App frame: sidebar and page, edge to edge ----------------------------- */
 
 .app {
@@ -77,7 +93,7 @@ a {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  padding: 18px 12px 14px;
+  padding: 20px 12px 14px;
   background: var(--desk);
   border-right: 1px solid var(--border);
   overflow-y: auto;
@@ -86,10 +102,10 @@ a {
 .brand {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 0 8px;
-  font-weight: 600;
-  font-size: 16px;
+  gap: 10px;
+  padding: 0 10px;
+  font-family: var(--font-display);
+  font-size: 23px;
   letter-spacing: -0.01em;
 }
 
@@ -98,11 +114,11 @@ a {
   height: 24px;
   display: grid;
   place-items: center;
-  border-radius: 7px;
-  background: var(--primary);
-  color: var(--on-primary);
-  font-family: var(--font-geist-mono), monospace;
-  font-size: 12px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 17px;
+  line-height: 1;
 }
 
 .side-nav {
@@ -116,10 +132,25 @@ a {
 }
 
 .side-nav a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 7px 10px;
-  border-radius: 8px;
+  border-radius: 9px;
   color: var(--muted);
   font-size: 14px;
+  transition: background 0.12s, color 0.12s;
+}
+
+.side-nav svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .side-nav a:hover {
@@ -131,6 +162,10 @@ a {
   color: var(--foreground);
   background: var(--surface);
   box-shadow: 0 0 0 1px var(--border);
+}
+
+.side-nav a[aria-current="page"] svg {
+  color: var(--accent);
 }
 
 .sidebar-foot {
@@ -260,21 +295,29 @@ a {
 .shell {
   min-width: 0;
   overflow-y: auto;
-  padding: 24px;
+  padding: 32px 40px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 
 .shell h1 {
-  font-size: 20px;
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.shell h2 {
+  font-size: 15px;
   font-weight: 600;
 }
 
 .label {
   font-family: var(--font-geist-mono), monospace;
-  font-size: 11px;
-  letter-spacing: 0.18em;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -314,6 +357,10 @@ a {
   font-size: 16px;
 }
 
+.warn {
+  color: var(--warn);
+}
+
 .shell a.link,
 a.link {
   color: var(--accent);
@@ -322,8 +369,8 @@ a.link {
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 14px 16px;
+  border-radius: var(--radius);
+  padding: 16px 18px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -411,26 +458,33 @@ a.link {
 .chat {
   flex: 1;
   width: 100%;
-  max-width: 760px;
+  max-width: 740px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 
 .chat-log {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 22px;
 }
 
 .chat-empty {
   margin: auto 0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
   padding: 40px 0;
+}
+
+.chat-title {
+  font-family: var(--font-display);
+  font-size: 44px;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
 }
 
 .suggestions {
@@ -438,25 +492,44 @@ a.link {
   flex-wrap: wrap;
   justify-content: center;
   gap: 8px;
+  margin-top: 14px;
 }
 
 .turn.you {
   align-self: flex-end;
   max-width: 80%;
   background: var(--chip);
-  padding: 8px 14px;
-  border-radius: 12px;
+  padding: 9px 15px;
+  border-radius: 16px 16px 4px 16px;
+}
+
+.turn.card {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  gap: 12px;
+}
+
+.turn.card > .label {
+  display: none;
 }
 
 .answer {
   white-space: pre-wrap;
+  line-height: 1.65;
+  font-size: 15.5px;
+}
+
+.answer strong {
+  font-weight: 600;
 }
 
 .cites {
-  padding-left: 20px;
+  padding: 10px 0 0 18px;
+  border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .composer {
@@ -465,11 +538,16 @@ a.link {
   flex-direction: row !important;
   align-items: flex-end;
   gap: 8px !important;
-  padding: 8px;
+  padding: 10px 10px 10px 14px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 18px;
   box-shadow: var(--shadow);
+  transition: border-color 0.15s;
+}
+
+.composer:focus-within {
+  border-color: var(--accent);
 }
 
 .shell .composer textarea {
@@ -477,6 +555,166 @@ a.link {
   border: 0;
   resize: none;
   outline: none;
+  background: transparent;
+  padding: 6px 2px;
+}
+
+.shell .composer button {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  border-radius: 12px;
+  padding: 7px 16px;
+}
+
+/* ---- Drafts ---------------------------------------------------------------- */
+
+.draft {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+}
+
+.draft-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.draft-body {
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+/* ---- Today ----------------------------------------------------------------- */
+
+.today {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.tile-value {
+  font-family: var(--font-display);
+  font-size: 34px;
+  line-height: 1.1;
+}
+
+.tile.bad .tile-value {
+  color: var(--danger);
+}
+
+.tile.warn .tile-value {
+  color: var(--warn);
+}
+
+/* ---- Search ---------------------------------------------------------------- */
+
+.search-page {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.shell form.search-form {
+  flex-direction: row;
+  gap: 8px;
+}
+
+.shell .search-form input {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 12px;
+}
+
+.shell .search-form button {
+  border-radius: 12px;
+  align-self: stretch;
+}
+
+.search-hit {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  gap: 10px;
+  padding: 8px;
+  margin: 0 -8px;
+  border-radius: 8px;
+}
+
+.search-hit:hover {
+  background: var(--chip);
+}
+
+.entity-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  font-size: 12.5px;
+}
+
+/* ---- Health ---------------------------------------------------------------- */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.error-card {
+  border-color: var(--danger);
+}
+
+.button-link,
+a.chip-button {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 7px;
+  background: var(--chip);
+  font-size: 12.5px;
+}
+
+.button-link {
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 13.5px;
+}
+
+.shell button.chip-button.danger {
+  color: var(--danger);
   background: transparent;
 }
 
@@ -507,6 +745,7 @@ a.link {
 }
 
 .shell button {
+  transition: opacity 0.12s, background 0.12s;
   background: var(--primary);
   border-color: var(--primary);
   color: var(--on-primary);
@@ -519,6 +758,13 @@ a.link {
   background: var(--surface);
   border-color: var(--border);
   color: var(--foreground);
+  border-radius: 99px;
+  padding: 6px 14px;
+}
+
+.shell button.ghost:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .shell button:disabled {
@@ -531,7 +777,7 @@ a.link {
   border-collapse: collapse;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius);
   overflow: hidden;
 }
 
@@ -569,10 +815,10 @@ a.link {
 /* ---- Graph ---------------------------------------------------------------- */
 
 :root {
-  --t-person: #2f5bea;
+  --t-person: #3f5fbf;
   --t-company: #1f9d55;
   --t-product: #c98a00;
-  --t-project: #8b5cf6;
+  --t-project: #8a5fbf;
   --t-deal: #c4321b;
   --t-topic: #0e9aa7;
   --t-other: #8a8a8a;
@@ -957,7 +1203,13 @@ a.link {
     display: none;
   }
   .shell {
-    padding: 16px;
+    padding: 18px 16px;
+  }
+  .side-nav svg {
+    display: none;
+  }
+  .search-hit {
+    grid-template-columns: minmax(0, 1fr);
   }
   .split,
   .graph-body,

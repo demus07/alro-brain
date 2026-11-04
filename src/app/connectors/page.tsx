@@ -8,8 +8,9 @@ import { chunks, connections, llmRuns, messages, orgs, people, syncRuns } from "
 import { withScope } from "@/db/scope";
 import { formatShort } from "@/lib/time";
 import { getViewer } from "@/lib/viewer";
+import { Pipeline } from "./pipeline";
 
-export const metadata: Metadata = { title: "Connectors · ALRO" };
+export const metadata: Metadata = { title: "Health · ALRO" };
 
 /** A source counts as stale when it hasn't synced in this long. */
 const STALE_MS = 24 * 60 * 60 * 1000;
@@ -17,11 +18,14 @@ const STALE_MS = 24 * 60 * 60 * 1000;
 export default function ConnectorsPage() {
   return (
     <>
-      <h1>Connectors</h1>
+      <h1>Health</h1>
       <p className="muted">
         Where ALRO&apos;s memory comes from and whether it&apos;s up to date. Live connectors (Slack, Gmail, CRM, WhatsApp Business) aren&apos;t built
         yet; until then, <Link className="link" href="/upload">upload exports</Link>.
       </p>
+      <Suspense fallback={<p className="muted">Loading…</p>}>
+        <Pipeline />
+      </Suspense>
       <Suspense fallback={<p className="muted">Loading…</p>}>
         <Health />
       </Suspense>

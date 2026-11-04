@@ -15,7 +15,7 @@ const TOOL_LABELS: Record<string, string> = {
   dailySummaries: "Reading summaries",
 };
 
-const EXAMPLES = ["What do I owe people this week?", "Who am I waiting on?", "What's our current pricing, and how did it change?", "What's overdue?"];
+const EXAMPLES = ["What do I owe people this week?", "Who am I waiting on?", "What changed since yesterday?", "Draft a reminder for my oldest overdue promise"];
 
 /** Every cited source in a message's tool results, by ref. */
 function sourcesOf(message: UIMessage): Map<string, Source> {
@@ -75,9 +75,54 @@ function Cite({ n, source }: { n: number; source: Source }) {
   );
 }
 
+/** "To:" / "Subject:" lines and the body of a ```draft block. */
+function parseDraft(block: string) {
+  const to = block.match(/^To:\s*(.*)$/m)?.[1]?.trim() ?? "";
+  const subject = block.match(/^Subject:\s*(.*)$/m)?.[1]?.trim() ?? "";
+  const body = block.replace(/^(To|Subject):.*\n?/gm, "").trim();
+  return { to, subject, body };
+}
+
+/** A message the agent wrote. ALRO never sends anything: copy it, or open it in the app that will. */
+function Draft({ block }: { block: string }) {
+  const { to, subject, body } = parseDraft(block);
+  const [copied, setCopied] = useState(false);
+  const email = /\S+@\S+/.exec(to)?.[0] ?? "";
+  const gmail = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  return (
+    <div className="draft">
+      <div className="draft-head small">
+        <span className="label">Draft</span>
+        {to && <span>To {to}</span>}
+        {subject && <span className="muted truncate">{subject}</span>}
+      </div>
+      <p className="draft-body">{body}</p>
+      <div className="chips">
+        <button
+          type="button"
+          className="chip-button"
+          onClick={() => {
+            navigator.clipboard.writeText(body).then(() => setCopied(true));
+          }}
+        >
+          {copied ? "Copied" : "Copy"}
+        </button>
+        <a className="chip-button" href={gmail} target="_blank" rel="noreferrer">
+          Open in Gmail ↗
+        </a>
+        <a className="chip-button" href={`https://wa.me/?text=${encodeURIComponent(body)}`} target="_blank" rel="noreferrer">
+          Send on WhatsApp ↗
+        </a>
+      </div>
+    </div>
+  );
+}
+
 function Answer({ text, sources }: { text: string; sources: Map<string, Source> }) {
   const cited: Source[] = [];
-  const pieces = text.split(/\[((?:S\d+)(?:\s*[,–-]\s*S\d+)*)\]/g).map((piece, i) => {
+  // A draft block may still be arriving, so its closing fence is optional.
+  const blocks = text.split(/```draft\n([\s\S]*?)(?:```|$)/g);
+  const inline = (chunk: string) => chunk.split(/\[((?:S\d+)(?:\s*[,–-]\s*S\d+)*)\]/g).map((piece, i) => {
     if (i % 2 === 0) return <Rich key={i} text={piece} />;
     return piece.split(/\s*[,–-]\s*/).map((ref) => {
       const s = sources.get(ref);
@@ -88,7 +133,15 @@ function Answer({ text, sources }: { text: string; sources: Map<string, Source> 
   });
   return (
     <>
-      <div className="answer">{pieces}</div>
+      {blocks.map((b, i) =>
+        i % 2 ? (
+          <Draft key={i} block={b} />
+        ) : b.trim() ? (
+          <div key={i} className="answer">
+            {inline(b)}
+          </div>
+        ) : null,
+      )}
       {cited.length > 0 && (
         <ol className="cites muted small">
           {cited.map((s) => (
@@ -152,8 +205,8 @@ export function Chat() {
       <div className="chat-log">
         {messages.length === 0 && (
           <div className="chat-empty">
-            <p className="label center">Ask ALRO</p>
-            <p className="lead center">Anything said in Slack, email, WhatsApp, meetings or the CRM, answered with sources.</p>
+            <h1 className="chat-title center">What do you want to know?</h1>
+            <p className="muted center">Anything said across your chats, email and meetings, answered with sources.</p>
             <div className="suggestions">
               {EXAMPLES.map((q) => (
                 <button key={q} type="button" className="ghost" onClick={() => ask(q)}>

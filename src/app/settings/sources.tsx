@@ -9,6 +9,7 @@ import { getViewer } from "@/lib/viewer";
 import { nangoConfigured } from "@/connectors/nango";
 import { isLive } from "@/connectors/sync";
 import { connectSource, importConnected, syncNow } from "./actions";
+import { DeleteSource } from "./delete-source";
 
 const STALE_MS = 24 * 60 * 60 * 1000;
 
@@ -53,6 +54,7 @@ export async function Sources() {
                   <button className="chip-button">Sync now</button>
                 </form>
               )}
+              {(s.scope !== "personal" || s.owner === viewer.displayName) && <DeleteSource id={s.id} label={info.label} />}
               <span className={`dot ${s.lastError ? "bad" : health}`} title={s.lastError ?? (health === "upload" ? "Imported from an export" : health)} />
             </li>
           );
