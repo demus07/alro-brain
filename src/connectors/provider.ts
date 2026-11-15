@@ -1,4 +1,5 @@
 import type { ToolSet } from "ai";
+import type { z } from "zod";
 import type { NormalizedMessage, NormalizedPerson, NormalizedRecord, NormalizedThread } from "@/ingest/types";
 import type { Api } from "./api";
 import type { OAuthApp } from "./oauth";
@@ -56,6 +57,11 @@ export type Auth =
       setup: string;
       docsUrl?: string;
       api(credentials: Record<string, string>): Api;
+      /**
+       * Runs once when connecting, before `identify`: trades what was typed for what should be kept,
+       * e.g. a one-time grant code for a lasting refresh token. What it returns is stored instead.
+       */
+      exchange?(credentials: Record<string, string>): Promise<Record<string, string>>;
     }
   | {
       /** Sign in with Google or Microsoft; needs that OAuth app's client id and secret in the environment. */
@@ -65,6 +71,34 @@ export type Auth =
       baseUrl: string;
       hosts?: string[];
     };
+
+/** What live tools and actions know about the connection they run for. */
+export interface ToolContext {
+  /** The account id `identify` returned (a workspace, mailbox, company or tenant id). */
+  accountId: string;
+  /** What was typed on the connect form, or what the sign-in returned alongside the token (e.g. QuickBooks' realmId). */
+  credentials: Record<string, string>;
+}
+
+/**
+ * Something a source can do for someone: send an email, post a message, add a CRM note.
+ * Proposing one never runs it. It waits under Approvals until a person approves it
+ * (or a scheduled task they trust runs it), and only then does `run` reach the app.
+ */
+export interface ActionDef<I = Record<string, unknown>> {
+  /** Told to the agent, e.g. "Send an email from the asker's Gmail." */
+  description: string;
+  input: z.ZodType<I>;
+  /** "external" reaches a client, vendor or the public; "internal" stays inside the company. */
+  audience(input: I): "external" | "internal";
+  /** One line for the approval card, e.g. "Email to priya@acme.com: Revised quote". */
+  summary(input: I): string;
+  /** The text a person reads (and may edit) before approving: an email body, a message. */
+  body?(input: I): string;
+  /** The same input with the approver's edited text put back. */
+  withBody?(input: I, body: string): I;
+  run(api: Api, input: I, ctx: ToolContext): Promise<{ url?: string; detail?: string }>;
+}
 
 /**
  * A source ALRO can connect to directly. `sync` reads what's new into memory;
@@ -79,5 +113,8 @@ export interface Provider {
   /** Checks the credential works and names the account (workspace id, mailbox, site). Throws with a message fit for the connect form. */
   identify(api: Api, credentials: Record<string, string>): Promise<{ accountId: string; label?: string }>;
   sync?(api: Api, cursor: Record<string, unknown> | undefined, ctx: SyncContext): Promise<Fetched>;
-  tools?(api: Api): ToolSet;
+  tools?(api: Api, ctx: ToolContext): ToolSet;
+  /** Keyed by tool name, `<id>_<verb>` (e.g. "gmail_send_email"). Only ever run after approval. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  actions?: Record<string, ActionDef<any>>;
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ProviderError, type Api } from "./api";
-import { htmlToText, teams } from "./teams";
+import { htmlToText, teams, teamsChannels } from "./teams";
 
 /** A provider API answered from a table of paths; records every call. */
 function fakeApi(routes: Record<string, (q: Record<string, unknown>, body?: unknown) => unknown>) {
@@ -139,6 +139,106 @@ describe("Teams", () => {
   it("reduces HTML bodies to plain text", () => {
     expect(htmlToText("<p>Hi <at id=\"0\">Jash</at>,</p>\n<p>1 &lt; 2 &#38; 3&#x20;&gt; 2 <emoji id=\"smile\" alt=\"🙂\" title=\"Smile\"></emoji></p><ul><li>one</li><li>two</li></ul>")).toBe("Hi Jash,\n1 < 2 & 3 > 2 🙂\none\ntwo");
     expect(htmlToText("<systemEventMessage/>")).toBe("");
+  });
+
+  describe("channels", () => {
+    const TEAM = "team-1";
+    const GENERAL = "19:general@thread.tacv2";
+    const LEADS = "19:leads@thread.tacv2";
+    const PARTNER = "19:partner@thread.tacv2";
+    const channelPath = (c: string) => `teams/${TEAM}/channels/${encodeURIComponent(c)}`;
+    const OLDER = `https://graph.microsoft.com/v1.0/teams/${TEAM}/channels/${GENERAL}/messages?$skiptoken=older`;
+    const MORE_REPLIES = `https://graph.microsoft.com/v1.0/teams/${TEAM}/channels/${GENERAL}/messages/p1/replies?$skiptoken=r`;
+    const reply = (id: string, at: string, userId: string, content: string) => ({ ...message(id, at, userId, content), replyToId: "p1" });
+
+    const channelRoutes = {
+      ...routes,
+      "me/chats": () => ({ value: [] }),
+      "me/joinedTeams": () => ({ value: [{ id: TEAM, displayName: "Launch" }] }),
+      [`teams/${TEAM}/channels`]: () => ({
+        value: [
+          { id: GENERAL, displayName: "General", membershipType: "standard", webUrl: "https://teams.microsoft.com/l/channel/general" },
+          { id: LEADS, displayName: "Leads", membershipType: "private" },
+          { id: PARTNER, displayName: "Partner", membershipType: "shared" },
+        ],
+      }),
+      [`teams/${TEAM}/members`]: () => ({ value: [sumedh, jash, priya] }),
+      [`${channelPath(LEADS)}/members`]: () => ({ value: [sumedh, jash] }),
+      [`${channelPath(PARTNER)}/members`]: () => {
+        throw new ProviderError("GET graph.microsoft.com/…/members: 403 Forbidden", 403);
+      },
+      [`${channelPath(GENERAL)}/messages`]: () => ({
+        value: [
+          {
+            ...message("p1", "2026-10-30T09:00:00Z", "u3", "<p>Launch checklist</p>", { subject: "Launch", webUrl: "https://teams.microsoft.com/l/message/p1", lastModifiedDateTime: "2026-10-30T09:00:00Z" }),
+            replies: [reply("r2", "2026-10-31T09:00:00Z", "u2", "Venue done"), reply("r1", "2026-10-30T10:00:00Z", "u1", "<p>On it</p>")],
+            "replies@odata.nextLink": MORE_REPLIES,
+          },
+          { ...message("p0", "2026-10-29T09:00:00Z", null, "<systemEventMessage/>"), messageType: "systemEventMessage", replies: [] },
+          { ...message("p-old", "2026-05-01T09:00:00Z", "u1", "Too old"), replies: [] },
+        ],
+        "@odata.nextLink": OLDER,
+      }),
+      [MORE_REPLIES]: () => ({ value: [reply("r3", "2026-11-01T08:00:00Z", "u3", "Signage ordered")] }),
+      [`${channelPath(LEADS)}/messages`]: () => ({ value: [{ ...message("q1", "2026-11-01T12:00:00Z", "u1", "Hiring plan"), replies: [] }] }),
+      [`${channelPath(PARTNER)}/messages`]: () => ({ value: [{ ...message("s1", "2026-11-01T12:00:00Z", "u1", "Shared with the agency"), replies: [] }] }),
+    };
+
+    it("reads posts and replies into one thread per channel, visible to the team or the channel's own members", async () => {
+      const { api, calls } = fakeApi(channelRoutes);
+      const found = await teamsChannels.sync!(api, undefined, ctx);
+
+      expect(found.threads).toEqual([
+        {
+          externalId: GENERAL,
+          kind: "channel",
+          title: "Launch / General",
+          url: "https://teams.microsoft.com/l/channel/general",
+          visibility: "members",
+          memberKeys: ["teams:u1", "teams:u2", "teams:u3"],
+          metadata: { teamId: TEAM, membershipType: "standard" },
+        },
+        { externalId: LEADS, kind: "channel", title: "Launch / Leads", url: undefined, visibility: "members", memberKeys: ["teams:u1", "teams:u2"], metadata: { teamId: TEAM, membershipType: "private" } },
+      ]);
+      expect(found.messages!.map((m) => [m.threadExternalId, m.externalId, m.authorKey, m.text, m.subject, m.replyToExternalId])).toEqual([
+        [GENERAL, `${GENERAL}:p1`, "teams:u3", "Launch checklist", "Launch", undefined],
+        [GENERAL, `${GENERAL}:r1`, "teams:u1", "On it", undefined, `${GENERAL}:p1`],
+        [GENERAL, `${GENERAL}:r2`, "teams:u2", "Venue done", undefined, `${GENERAL}:p1`],
+        [GENERAL, `${GENERAL}:r3`, "teams:u3", "Signage ordered", undefined, `${GENERAL}:p1`],
+        [LEADS, `${LEADS}:q1`, "teams:u1", "Hiring plan", undefined, undefined],
+      ]);
+      expect(found.messages![0].url).toBe("https://teams.microsoft.com/l/message/p1");
+      // The shared channel's members couldn't be read: skipped, and its cursor left alone for a later sync.
+      expect(found.cursor).toEqual({ latest: {}, channels: { [GENERAL]: "2026-11-01T08:00:00Z", [LEADS]: "2026-11-01T12:00:00Z" } });
+      expect(calls.find((c) => c.path === `${channelPath(GENERAL)}/messages`)!.query).toEqual({ $top: 50, $expand: "replies" });
+      expect(calls.find((c) => c.path === `teams/${TEAM}/members`)!.query).toEqual({ $top: 999 });
+      // Posts are listed by latest activity, so reading stops at the first one older than the cursor.
+      expect(calls.some((c) => c.path === OLDER)).toBe(false);
+    });
+
+    it("asks each channel only for chains with new activity, keeping replies tied to their post", async () => {
+      const { api } = fakeApi(channelRoutes);
+      const found = await teamsChannels.sync!(api, { latest: {}, channels: { [GENERAL]: "2026-10-31T09:00:00Z", [LEADS]: "2026-11-01T13:00:00Z" } }, ctx);
+      // r2 is re-read: each sync overlaps its cursor by five minutes (stored messages are skipped by id).
+      expect(found.messages!.map((m) => [m.externalId, m.replyToExternalId])).toEqual([
+        [`${GENERAL}:r2`, `${GENERAL}:p1`],
+        [`${GENERAL}:r3`, `${GENERAL}:p1`],
+      ]);
+      expect(found.threads!.map((t) => t.externalId)).toEqual([GENERAL]);
+    });
+
+    it("skips channels it isn't allowed to read, and chats are a separate source", async () => {
+      const forbidden = () => {
+        throw new ProviderError("GET graph.microsoft.com/…/messages: 403 Forbidden", 403);
+      };
+      const { api } = fakeApi({ ...channelRoutes, "me/chats": routes["me/chats"], [`${channelPath(GENERAL)}/messages`]: forbidden, [`${channelPath(LEADS)}/messages`]: forbidden, [`${channelPath(PARTNER)}/messages`]: forbidden });
+      const found = await teamsChannels.sync!(api, undefined, ctx);
+      expect(found.threads).toEqual([]);
+      expect(found.cursor.channels).toBeUndefined();
+      // Chats never touch channels, so they don't wait for an admin.
+      const chats = await teams.sync!(api, undefined, ctx);
+      expect(chats.threads!.map((t) => t.externalId)).toEqual([ONE, GROUP]);
+    });
   });
 
   it("identifies the account, and says so plainly when access is refused", async () => {

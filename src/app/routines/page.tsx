@@ -7,8 +7,10 @@ import { orgs, routineRuns, routines } from "@/db/schema";
 import { withScope } from "@/db/scope";
 import { formatShort } from "@/lib/time";
 import { getViewer } from "@/lib/viewer";
-import { describeSchedule } from "@/routines/schedule";
-import { deleteRoutine, runRoutineNow, toggleRoutine } from "./actions";
+import { describeSchedule, NOTHING_NEW } from "@/routines/schedule";
+import { departmentLabel } from "@/team/presets";
+import { loadTeam } from "@/team/team";
+import { deleteRoutine, runRoutineNow, toggleRoutine, trustRoutine } from "./actions";
 import { NewRoutine } from "./new-routine";
 
 export const metadata: Metadata = { title: "Scheduled · ALRO" };
@@ -22,10 +24,19 @@ export default function RoutinesPage() {
         <Suspense fallback={<p className="muted">Loading…</p>}>
           <Routines />
         </Suspense>
-        <NewRoutine />
+        <Suspense fallback={null}>
+          <NewRoutineForm />
+        </Suspense>
       </div>
     </>
   );
+}
+
+async function NewRoutineForm() {
+  await connection();
+  const viewer = await getViewer();
+  const team = await loadTeam(getDb(), viewer.orgId);
+  return <NewRoutine departments={[...team.keys()].map((id) => ({ id, label: departmentLabel(id) }))} />;
 }
 
 async function Routines() {
@@ -59,6 +70,12 @@ async function Routines() {
               <span className="muted small nowrap">{describeSchedule(r.schedule)}</span>
             </header>
             <p className="muted small">{r.instruction}</p>
+            {(r.team || r.trusted) && (
+              <div className="chips">
+                {r.team && <span className="chip">{departmentLabel(r.team)} team</span>}
+                {r.trusted && <span className="tag warn">trusted: internal actions run without asking</span>}
+              </div>
+            )}
             <p className="small">
               {r.enabled && r.nextRunAt ? `Next: ${formatShort(r.nextRunAt, org.timezone)}` : r.schedule.kind === "once" && r.lastRunAt ? "Done" : "Paused"}
               {last && <span className="muted"> · last ran {formatShort(last.startedAt, org.timezone)}</span>}
@@ -66,7 +83,7 @@ async function Routines() {
             {last && (
               <details>
                 <summary className="small link">{last.status === "running" ? "Running…" : last.status === "error" ? "Last run failed" : "Latest result"}</summary>
-                <p className={`prose small${last.status === "error" ? " error" : ""}`}>{last.status === "error" ? last.error : last.output}</p>
+                <p className={`prose small${last.status === "error" ? " error" : ""}`}>{last.status === "error" ? last.error : last.output?.startsWith(NOTHING_NEW) ? "Nothing new to act on." : last.output}</p>
               </details>
             )}
             <div className="row">
@@ -80,6 +97,12 @@ async function Routines() {
                   <button className="chip-button">{r.enabled ? "Pause" : "Resume"}</button>
                 </form>
               )}
+              <form action={trustRoutine} className="actions">
+                <input type="hidden" name="id" value={r.id} />
+                <button className="chip-button" title={r.trusted ? "Everything it proposes will wait for your approval again" : "Let its internal actions (CRM notes, tasks, team posts) run without asking. Anything going to a client or the public still waits for you."}>
+                  {r.trusted ? "Ask me first" : "Trust it"}
+                </button>
+              </form>
               <form action={deleteRoutine} className="actions">
                 <input type="hidden" name="id" value={r.id} />
                 <button className="chip-button danger">Delete</button>

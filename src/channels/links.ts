@@ -19,13 +19,20 @@ export async function createLinkCode(db: Db, viewer: Viewer, now = new Date()): 
 }
 
 /** Links a messaging account to whoever generated the code. The code is used up either way. */
-export async function redeemLinkCode(db: Db, channel: ChannelId, externalUserId: string, code: string, now = new Date()): Promise<Viewer | undefined> {
+export async function redeemLinkCode(
+  db: Db,
+  channel: ChannelId,
+  externalUserId: string,
+  code: string,
+  now = new Date(),
+  address?: Record<string, string>,
+): Promise<Viewer | undefined> {
   const [row] = await db.delete(channelLinkCodes).where(and(eq(channelLinkCodes.code, code), gt(channelLinkCodes.expiresAt, now))).returning();
   if (!row) return undefined;
   await db
     .insert(channelLinks)
-    .values({ orgId: row.orgId, personId: row.personId, channel, externalUserId })
-    .onConflictDoUpdate({ target: [channelLinks.channel, channelLinks.externalUserId], set: { orgId: row.orgId, personId: row.personId } });
+    .values({ orgId: row.orgId, personId: row.personId, channel, externalUserId, address })
+    .onConflictDoUpdate({ target: [channelLinks.channel, channelLinks.externalUserId], set: { orgId: row.orgId, personId: row.personId, address } });
   return { orgId: row.orgId, personId: row.personId };
 }
 
@@ -58,7 +65,7 @@ export async function notifyPerson(db: Db, orgId: string, personId: string, text
       if (!last || now.getTime() - last.at.getTime() > WHATSAPP_WINDOW_MS) continue;
     }
     try {
-      await channel.send(link.externalUserId, text);
+      await channel.send(link.externalUserId, text, link.address);
       await db.insert(channelMessages).values({ orgId, personId, channel: channel.id, role: "assistant", text });
       sent.push(channel.id);
     } catch (e) {
@@ -66,4 +73,9 @@ export async function notifyPerson(db: Db, orgId: string, personId: string, text
     }
   }
   return sent;
+}
+
+/** Keeps where to reach a linked account up to date (Teams can move a conversation to another service URL). */
+export async function rememberAddress(db: Db, channel: ChannelId, externalUserId: string, address: Record<string, string>) {
+  await db.update(channelLinks).set({ address }).where(and(eq(channelLinks.channel, channel), eq(channelLinks.externalUserId, externalUserId)));
 }

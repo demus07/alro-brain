@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeSchedule, localToInstant, nextRun, onceInstant } from "./schedule";
+import { describeSchedule, localToInstant, nextRun, onceInstant, scheduleSchema } from "./schedule";
 
 const IST = "Asia/Kolkata";
 const iso = (d: Date | null) => d?.toISOString();
@@ -33,5 +33,15 @@ describe("schedules", () => {
   it("describes a schedule in words", () => {
     expect(describeSchedule({ kind: "weekly", weekday: 1, time: "08:00" })).toBe("Every Monday at 08:00");
     expect(describeSchedule({ kind: "weekdays", time: "07:00" })).toBe("Weekdays at 07:00");
+  });
+});
+
+describe("watches", () => {
+  it("run again a fixed number of minutes later, whatever the time zone", () => {
+    const after = new Date("2026-11-05T04:00:00Z");
+    expect(nextRun({ kind: "every", minutes: 15 }, "Asia/Kolkata", after)?.toISOString()).toBe("2026-11-05T04:15:00.000Z");
+    expect(describeSchedule({ kind: "every", minutes: 15 })).toBe("Every 15 minutes");
+    expect(describeSchedule({ kind: "every", minutes: 120 })).toBe("Every 2 hours");
+    expect(scheduleSchema.safeParse({ kind: "every", minutes: 7 }).success).toBe(false);
   });
 });

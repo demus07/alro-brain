@@ -30,7 +30,13 @@ export async function createRoutine(_prev: RoutineState, formData: FormData): Pr
   const kind = String(formData.get("kind") ?? "");
   const time = String(formData.get("time") ?? "");
   const parsed = scheduleSchema.safeParse(
-    kind === "once" ? { kind, at: `${formData.get("date")}T${time}` } : kind === "weekly" ? { kind, weekday: Number(formData.get("weekday")), time } : { kind, time },
+    kind === "once"
+      ? { kind, at: `${formData.get("date")}T${time}` }
+      : kind === "weekly"
+        ? { kind, weekday: Number(formData.get("weekday")), time }
+        : kind === "every"
+          ? { kind, minutes: Number(formData.get("minutes")) }
+          : { kind, time },
   );
   if (!parsed.success) return { error: "Pick when it should run." };
   const schedule: Schedule = parsed.data;
@@ -39,7 +45,8 @@ export async function createRoutine(_prev: RoutineState, formData: FormData): Pr
   const [org] = await db.select({ timezone: orgs.timezone }).from(orgs).where(eq(orgs.id, viewer.orgId));
   const nextRunAt = nextRun(schedule, org.timezone, new Date());
   if (!nextRunAt) return { error: "That time has already passed." };
-  await db.insert(routines).values({ orgId: viewer.orgId, ownerPersonId: viewer.personId, title, instruction, schedule, nextRunAt });
+  const team = String(formData.get("team") ?? "").trim() || null;
+  await db.insert(routines).values({ orgId: viewer.orgId, ownerPersonId: viewer.personId, title, instruction, schedule, nextRunAt, team });
   refresh();
   return { ok: true };
 }
@@ -51,6 +58,13 @@ export async function toggleRoutine(formData: FormData) {
     .update(routines)
     .set({ enabled, nextRunAt: enabled ? nextRun(routine.schedule, timeZone, new Date()) : null })
     .where(eq(routines.id, routine.id));
+  refresh();
+}
+
+/** Trusted: what it proposes runs without asking. For tasks that have earned it. */
+export async function trustRoutine(formData: FormData) {
+  const { routine } = await mine(String(formData.get("id") ?? ""));
+  await getDb().update(routines).set({ trusted: !routine.trusted }).where(eq(routines.id, routine.id));
   refresh();
 }
 

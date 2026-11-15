@@ -17,7 +17,7 @@ export function AddLiveTools() {
       </summary>
       <form action={action} className="connect-form">
         <p className="muted small">
-          Paste the address of an app&apos;s MCP server (its docs call it &quot;MCP server URL&quot;). If the app wants you to sign in, you&apos;ll be sent there. Only tools that read are switched on.
+          Paste the address of an app&apos;s MCP server (its docs call it &quot;MCP server URL&quot;). If the app wants you to sign in, you&apos;ll be sent there. Tools that read are switched on; tools that change things can be switched on too, and then each use waits for your approval.
         </p>
         <label className="small">
           Name

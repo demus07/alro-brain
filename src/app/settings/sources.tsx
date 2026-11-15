@@ -1,7 +1,7 @@
 import { and, count, eq, isNull, sql } from "drizzle-orm";
 import Link from "next/link";
 import { connection } from "next/server";
-import { oauthConfigured, oauthEnvNames } from "@/connectors/oauth";
+import { oauthConfigured, oauthConsole, oauthEnvNames, oauthLabel } from "@/connectors/oauth";
 import { PROVIDERS, providerOf } from "@/connectors/registry";
 import { getDb } from "@/db/client";
 import { connections, events, messages, people } from "@/db/schema";
@@ -87,8 +87,8 @@ export async function Sources() {
                   Sign in
                 </a>
               ) : (
-                <span className="tag" title={`Register a ${p.auth.app === "google" ? "Google Cloud" : "Microsoft Entra"} app and set ${oauthEnvNames(p.auth.app)}`}>
-                  needs {p.auth.app === "google" ? "Google" : "Microsoft"} app
+                <span className="tag" title={`Register an app in ${oauthConsole(p.auth.app)} and set ${oauthEnvNames(p.auth.app)}`}>
+                  needs {oauthLabel(p.auth.app)} app
                 </span>
               )}
             </li>

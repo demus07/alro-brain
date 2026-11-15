@@ -1,6 +1,6 @@
 import { aliasedTable, and, count, desc, eq, gte, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { commitments, edges, events, messages, people, threads } from "@/db/schema";
+import { approvals, commitmentEvents, commitments, edges, events, messages, people, threads } from "@/db/schema";
 import { withScope, type Viewer } from "@/db/scope";
 import { formatShort, startOfLocalDay } from "@/lib/time";
 
@@ -17,6 +17,10 @@ export interface BriefPromise {
 export interface Brief {
   /** The rest of today's meetings, from the member's connected calendar. */
   meetings: { title: string; at: string; with: string[] }[];
+  /** Drafts and actions waiting for their OK. */
+  approvals: { summary: string; code: string }[];
+  /** Promises (anyone's they can see) that went overdue in the last day. */
+  slipped: BriefPromise[];
   overdue: BriefPromise[];
   dueSoon: BriefPromise[];
   /** Open promises you made to someone: they're waiting on you. */
@@ -71,6 +75,21 @@ export async function buildBrief(db: Db, viewer: Viewer, timeZone: string, now =
       .where(and(eq(events.ownerPersonId, viewer.personId), eq(events.cancelled, false), eq(events.allDay, false), gte(events.startsAt, now), lt(events.startsAt, endOfDay)))
       .orderBy(events.startsAt);
 
+    const waiting = await tx
+      .select({ summary: approvals.summary, code: approvals.code })
+      .from(approvals)
+      .where(and(eq(approvals.personId, viewer.personId), eq(approvals.status, "pending")))
+      .orderBy(desc(approvals.createdAt))
+      .limit(10);
+    const owner = aliasedTable(people, "owner");
+    const slipped = await tx
+      .selectDistinct({ id: commitments.id, title: commitments.title, person: owner.displayName, dueAt: commitments.dueAt, dueText: commitments.dueText })
+      .from(commitmentEvents)
+      .innerJoin(commitments, eq(commitments.id, commitmentEvents.commitmentId))
+      .leftJoin(owner, eq(owner.id, commitments.ownerPersonId))
+      .where(and(eq(commitmentEvents.toStatus, "overdue"), gte(commitmentEvents.createdAt, since), eq(commitments.status, "overdue")))
+      .limit(10);
+
     const item = (c: (typeof mine)[number]): BriefPromise => ({ id: c.id, title: c.title, person: c.person, due: when(c.dueAt, c.dueText) });
     return {
       meetings: today.map((e) => ({
@@ -78,6 +97,8 @@ export async function buildBrief(db: Db, viewer: Viewer, timeZone: string, now =
         at: new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(e.startsAt),
         with: e.attendees.filter((a) => a.personId !== viewer.personId).map((a) => a.name ?? a.email ?? "someone"),
       })),
+      approvals: waiting,
+      slipped: slipped.map((c) => ({ id: c.id, title: c.title, person: c.person, due: when(c.dueAt, c.dueText) })),
       overdue: mine.filter((c) => c.status === "overdue").map(item),
       dueSoon: mine.filter((c) => c.status === "due_soon").map(item),
       waitingOnYou: mine.filter((c) => c.status === "open" && c.person).map(item),
@@ -95,6 +116,8 @@ const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 function sectionsOf(b: Brief) {
   const line = (p: BriefPromise, to: "to" | "from") => `${p.title}${p.person ? ` (${to} ${p.person})` : ""}${p.due ? `, ${p.due}` : ""}`;
   return [
+    { title: "Waiting for your OK", items: b.approvals.map((a) => `${a.summary} (reply "yes ${a.code}")`) },
+    { title: "Slipped since yesterday", items: b.slipped.map((p) => `${p.title}${p.person ? ` (${p.person})` : ""}${p.due ? `, was due ${p.due}` : ""}`) },
     { title: "Today's meetings", items: b.meetings.map((m) => `${m.at} ${m.title}${m.with.length ? ` (with ${m.with.slice(0, 4).join(", ")}${m.with.length > 4 ? ` +${m.with.length - 4}` : ""})` : ""}`) },
     { title: "Overdue", items: b.overdue.map((p) => line(p, "to")) },
     { title: "Due soon", items: b.dueSoon.map((p) => line(p, "to")) },
@@ -107,7 +130,7 @@ function sectionsOf(b: Brief) {
 /** Subject and body of the morning email. */
 export function renderBrief(b: Brief, name: string, appUrl?: string): { subject: string; text: string; html: string } {
   const first = name.split(/\s+/)[0];
-  const top = b.overdue.length ? `${b.overdue.length} overdue` : b.meetings.length ? `${b.meetings.length} meeting${b.meetings.length === 1 ? "" : "s"} today` : b.dueSoon.length ? `${b.dueSoon.length} due soon` : `${b.messages} new messages`;
+  const top = b.approvals.length ? `${b.approvals.length} waiting for your OK` : b.overdue.length ? `${b.overdue.length} overdue` : b.meetings.length ? `${b.meetings.length} meeting${b.meetings.length === 1 ? "" : "s"} today` : b.dueSoon.length ? `${b.dueSoon.length} due soon` : `${b.messages} new messages`;
   const stats = `${b.messages} messages, ${b.newPromises} new promises, ${b.changedFacts} facts changed in the last day.`;
   const sections = sectionsOf(b);
   const text = [`Morning ${first}.`, stats, ...sections.map((s) => `${s.title}\n${s.items.map((i) => `- ${i}`).join("\n")}`), ...(appUrl ? [`Open ALRO: ${appUrl}/updates`] : [])].join("\n\n");

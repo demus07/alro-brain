@@ -1,6 +1,10 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { splitMessage } from "./split";
+import { sendTeams, teamsBotConfigured, type TeamsAddress } from "./teams-bot";
 
-export type ChannelId = "whatsapp" | "telegram" | "slack";
+export { splitMessage };
+
+export type ChannelId = "whatsapp" | "telegram" | "slack" | "teams";
 
 /** A messaging app the agent can be asked in. One bot per ALRO deployment, configured in the environment. */
 export interface Channel {
@@ -9,23 +13,8 @@ export interface Channel {
   /** How a member finds the bot, shown in Settings. */
   where: () => string;
   configured: () => boolean;
-  send(to: string, text: string): Promise<void>;
-}
-
-const MAX_LENGTH = 3800;
-
-/** Messaging apps cap message length; split on paragraph or line breaks where possible. */
-export function splitMessage(text: string, max = MAX_LENGTH): string[] {
-  const parts: string[] = [];
-  let rest = text.trim();
-  while (rest.length > max) {
-    const cut = Math.max(rest.lastIndexOf("\n\n", max), rest.lastIndexOf("\n", max), rest.lastIndexOf(" ", max));
-    const at = cut > max / 2 ? cut : max;
-    parts.push(rest.slice(0, at).trim());
-    rest = rest.slice(at).trim();
-  }
-  if (rest) parts.push(rest);
-  return parts;
+  /** `address` is what was kept when the person linked, for apps that need more than an id (Teams). */
+  send(to: string, text: string, address?: Record<string, string> | null): Promise<void>;
 }
 
 async function post(url: string, headers: Record<string, string>, body: unknown): Promise<Record<string, unknown>> {
@@ -50,11 +39,11 @@ export const whatsapp: Channel = {
   },
 };
 
-/** Downloads a WhatsApp voice note: the media id resolves to a short-lived URL. */
+/** Downloads a WhatsApp voice note, photo or document: the media id resolves to a short-lived URL. */
 export async function whatsappMedia(mediaId: string): Promise<Uint8Array> {
   const auth = { authorization: `Bearer ${process.env.WHATSAPP_TOKEN}` };
   const meta = (await (await fetch(`${graph()}/${mediaId}`, { headers: auth })).json()) as { url?: string };
-  if (!meta.url) throw new Error("WhatsApp didn't return the voice note");
+  if (!meta.url) throw new Error("WhatsApp didn't return the file");
   return new Uint8Array(await (await fetch(meta.url, { headers: auth })).arrayBuffer());
 }
 
@@ -79,7 +68,7 @@ export const telegram: Channel = {
 
 export async function telegramFile(fileId: string): Promise<Uint8Array> {
   const meta = (await (await fetch(`${telegramApi("getFile")}?file_id=${encodeURIComponent(fileId)}`)).json()) as { result?: { file_path?: string } };
-  if (!meta.result?.file_path) throw new Error("Telegram didn't return the voice note");
+  if (!meta.result?.file_path) throw new Error("Telegram didn't return the file");
   return new Uint8Array(await (await fetch(`https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${meta.result.file_path}`)).arrayBuffer());
 }
 
@@ -94,6 +83,15 @@ export const slackDm: Channel = {
   },
 };
 
+/** A file shared in a direct message with the app; Slack needs the bot token (files:read) to download it. */
+export async function slackFile(url: string): Promise<Uint8Array> {
+  const u = new URL(url);
+  if (u.protocol !== "https:" || !/(^|\.)slack\.com$/.test(u.hostname)) throw new Error("Not a Slack file link");
+  const res = await fetch(u, { headers: { authorization: `Bearer ${process.env.SLACK_BOT_TOKEN}` } });
+  if (!res.ok) throw new Error(`Slack file download failed: ${res.status}`);
+  return new Uint8Array(await res.arrayBuffer());
+}
+
 /** Slack signs "v0:<timestamp>:<body>" with the signing secret; stale timestamps are replays. */
 export function validSlackSignature(rawBody: string, timestamp: string | null, signature: string | null, now = Date.now(), secret = process.env.SLACK_SIGNING_SECRET): boolean {
   if (!secret || !timestamp || !signature?.startsWith("v0=")) return false;
@@ -107,4 +105,16 @@ function sameHex(a: string, b: string): boolean {
   return x.length === y.length && x.length > 0 && timingSafeEqual(x, y);
 }
 
-export const CHANNELS: Record<ChannelId, Channel> = { whatsapp, telegram, slack: slackDm };
+/** Microsoft Teams, as a personal chat with the ALRO bot. */
+export const teamsBot: Channel = {
+  id: "teams",
+  label: "Teams",
+  where: () => "the ALRO app in Teams (Apps → ALRO → Chat)",
+  configured: teamsBotConfigured,
+  async send(_to, text, address) {
+    if (!address?.serviceUrl || !address.conversationId) throw new Error("No Teams conversation to send to yet: message the bot once first");
+    await sendTeams(address as unknown as TeamsAddress, text);
+  },
+};
+
+export const CHANNELS: Record<ChannelId, Channel> = { whatsapp, telegram, slack: slackDm, teams: teamsBot };

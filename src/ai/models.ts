@@ -46,6 +46,44 @@ export function defaultModels(): Models {
 }
 
 function chatModels(): Models {
+  // Any OpenAI-compatible endpoint: a local Ollama (http://localhost:11434/v1), OpenRouter
+  // (https://openrouter.ai/api/v1), etc. Set explicitly, so it wins over OPENAI_API_KEY.
+  const baseURL = process.env.ALRO_LLM_BASE_URL;
+  if (baseURL) {
+    const fallbacks = (process.env.ALRO_LLM_FALLBACK_MODELS ?? "")
+      .split(",")
+      .map((m) => m.trim())
+      .filter(Boolean);
+    const freeOnly = process.env.ALRO_FREE_MODELS_ONLY === "true";
+    const checkFree = (id: string) => {
+      // OpenRouter's free models all end in ":free"; anything else may be billed.
+      if (freeOnly && !id.endsWith(":free")) throw new Error(`ALRO_FREE_MODELS_ONLY is on, and ${id} isn't a free model (free ids end in ":free").`);
+    };
+    fallbacks.forEach(checkFree);
+    const provider = createOpenAICompatible({
+      name: "openai-compatible",
+      baseURL,
+      apiKey: process.env.ALRO_LLM_API_KEY,
+      supportsStructuredOutputs: true,
+      includeUsage: true,
+      // OpenRouter tries `models` in order (up to 3) when one is busy or down; free models are often rate-limited.
+      fetch: fallbacks.length ? withFallbacks(fallbacks) : undefined,
+    });
+    const chat = (id: string | undefined) => {
+      if (!id) throw new Error("With ALRO_LLM_BASE_URL set, also set ALRO_SCREEN_MODEL (and optionally the other model ids).");
+      checkFree(id);
+      return provider.chatModel(id);
+    };
+    const screen = process.env.ALRO_SCREEN_MODEL;
+    return {
+      screen: chat(screen),
+      extract: chat(process.env.ALRO_EXTRACT_MODEL ?? screen),
+      graph: chat(process.env.ALRO_GRAPH_MODEL ?? process.env.ALRO_EXTRACT_MODEL ?? screen),
+      answer: chat(process.env.ALRO_ANSWER_MODEL ?? screen),
+      embed: provider.embeddingModel(process.env.ALRO_EMBEDDING_MODEL ?? "text-embedding-3-small"),
+      embedDimensions: EMBEDDING_DIMS,
+    };
+  }
   // OpenAI directly. Uses the Responses API, which current GPT models need for tool calling (the agent).
   if (process.env.OPENAI_API_KEY) {
     const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -61,31 +99,6 @@ function chatModels(): Models {
     };
   }
 
-  // Any OpenAI-compatible endpoint instead of AI Gateway: a local Ollama
-  // (http://localhost:11434/v1), OpenRouter (https://openrouter.ai/api/v1), etc.
-  const baseURL = process.env.ALRO_LLM_BASE_URL;
-  if (baseURL) {
-    const provider = createOpenAICompatible({
-      name: "openai-compatible",
-      baseURL,
-      apiKey: process.env.ALRO_LLM_API_KEY,
-      supportsStructuredOutputs: true,
-      includeUsage: true,
-    });
-    const chat = (id: string | undefined) => {
-      if (!id) throw new Error("With ALRO_LLM_BASE_URL set, also set ALRO_SCREEN_MODEL (and optionally the other model ids).");
-      return provider.chatModel(id);
-    };
-    const screen = process.env.ALRO_SCREEN_MODEL;
-    return {
-      screen: chat(screen),
-      extract: chat(process.env.ALRO_EXTRACT_MODEL ?? screen),
-      graph: chat(process.env.ALRO_GRAPH_MODEL ?? process.env.ALRO_EXTRACT_MODEL ?? screen),
-      answer: chat(process.env.ALRO_ANSWER_MODEL ?? screen),
-      embed: provider.embeddingModel(process.env.ALRO_EMBEDDING_MODEL ?? "text-embedding-3-small"),
-      embedDimensions: EMBEDDING_DIMS,
-    };
-  }
   return {
     screen: process.env.ALRO_SCREEN_MODEL ?? "anthropic/claude-haiku-5.5",
     extract: process.env.ALRO_EXTRACT_MODEL ?? "anthropic/claude-sonnet-5.5",
@@ -96,6 +109,18 @@ function chatModels(): Models {
   };
 }
 
+/** Adds OpenRouter's `models` fallback list to each chat request, after the requested model. */
+function withFallbacks(fallbacks: string[]): typeof fetch {
+  return async (input, init) => {
+    if (init?.body && typeof init.body === "string" && String(input).endsWith("/chat/completions")) {
+      const body = JSON.parse(init.body) as { model?: string; models?: string[] };
+      body.models = [body.model, ...fallbacks.filter((m) => m !== body.model)].filter((m): m is string => !!m).slice(0, 3);
+      init = { ...init, body: JSON.stringify(body) };
+    }
+    return fetch(input, init);
+  };
+}
+
 export const modelId = (model: LanguageModel | EmbeddingModel) => (typeof model === "string" ? model : model.modelId);
 
 /** Logs one model call to llm_runs so cost per org and stage stays visible. */
@@ -103,7 +128,7 @@ export async function recordRun(
   db: Db,
   run: {
     orgId: string;
-    stage: "screen" | "extract" | "graph" | "fulfil" | "embed" | "answer" | "rollup" | "notes" | "routine" | "profile";
+    stage: "screen" | "extract" | "graph" | "fulfil" | "embed" | "answer" | "rollup" | "notes" | "routine" | "profile" | "procedures" | "trackers" | "team" | "read";
     model: LanguageModel | EmbeddingModel;
     inputTokens?: number;
     outputTokens?: number;

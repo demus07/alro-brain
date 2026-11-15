@@ -4,9 +4,12 @@ import { useState } from "react";
 
 interface Result {
   provider: string;
-  threads: number;
-  messages: { inserted: number; skipped: number };
+  threads?: number;
+  messages?: { inserted: number; skipped: number };
   records?: { upserted: number; changed: number };
+  /** A photo or document that was read into your notes. */
+  file?: string;
+  error?: string;
 }
 
 export function UploadForm() {
@@ -42,7 +45,7 @@ export function UploadForm() {
           name="files"
           multiple
           required
-          accept=".zip,.txt,.eml,.mbox,.vtt,.csv"
+          accept=".zip,.txt,.eml,.mbox,.vtt,.csv,.jpg,.jpeg,.png,.webp,.heic,.pdf,.docx,.pptx,.xlsx"
           onChange={(e) => {
             const names = [...(e.currentTarget.files ?? [])].map((f) => f.name.toLowerCase());
             setHasCsv(names.some((n) => n.endsWith(".csv")));
@@ -112,15 +115,24 @@ export function UploadForm() {
               </tr>
             </thead>
             <tbody>
-              {results.map((r, i) => (
-                <tr key={i}>
-                  <td>{r.provider}</td>
-                  <td>{r.threads}</td>
-                  <td>{r.messages.inserted}</td>
-                  <td>{r.messages.skipped}</td>
-                  <td>{r.records ? `${r.records.upserted} (${r.records.changed})` : "—"}</td>
-                </tr>
-              ))}
+              {results.map((r, i) =>
+                r.file ? (
+                  <tr key={i}>
+                    <td>{r.file}</td>
+                    <td colSpan={4} className={r.error ? "error" : "muted"}>
+                      {r.error ?? "Read and saved to your notes"}
+                    </td>
+                  </tr>
+                ) : (
+                  <tr key={i}>
+                    <td>{r.provider}</td>
+                    <td>{r.threads}</td>
+                    <td>{r.messages?.inserted}</td>
+                    <td>{r.messages?.skipped}</td>
+                    <td>{r.records ? `${r.records.upserted} (${r.records.changed})` : "—"}</td>
+                  </tr>
+                ),
+              )}
             </tbody>
           </table>
           <p className="muted">New messages are searchable after the next processing run.</p>

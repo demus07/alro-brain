@@ -7,6 +7,7 @@ import { chunkPending } from "@/memory/chunks";
 import { extractPending, type ExtractStats } from "./extract";
 import { graphPending, type GraphStats } from "./graph";
 import { notePending } from "./meeting-notes";
+import { scanTrackers } from "@/work/trackers";
 import { screenPending } from "./screen";
 
 /** Longer than any single run (cron routes allow 300s), so a live run never loses its lease. */
@@ -19,12 +20,14 @@ export interface PipelineResult {
   extraction: ExtractStats;
   /** Meetings that got their notes written. */
   notes: number;
+  /** Rows added to trackers. */
+  trackerRows: number;
 }
 
 /**
  * One processing pass for an org: make new messages searchable, add them to
- * the knowledge graph, screen them, extract commitments, updates and facts, then write notes for new
- * meetings. Safe to run repeatedly; each
+ * the knowledge graph, screen them, extract commitments, updates and facts, write notes for new
+ * meetings, then add rows to trackers. Safe to run repeatedly; each
  * stage only picks up what the previous runs haven't done.
  */
 export async function runPipeline(db: Db, orgId: string, models: Models): Promise<PipelineResult | { skipped: "already running" }> {
@@ -43,7 +46,8 @@ export async function runPipeline(db: Db, orgId: string, models: Models): Promis
     const screened = await screenPending(db, orgId, models);
     const extraction = await extractPending(db, orgId, models);
     const notes = await notePending(db, orgId, models);
-    return { chunks, graph, screened, extraction, notes };
+    const trackerRows = await scanTrackers(db, orgId, models);
+    return { chunks, graph, screened, extraction, notes, trackerRows };
   } finally {
     await db.delete(pipelineLeases).where(and(eq(pipelineLeases.orgId, orgId), eq(pipelineLeases.holder, holder)));
   }

@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { after } from "next/server";
 import { defaultModels } from "@/ai/models";
-import { exchangeCode, redirectUri } from "@/connectors/oauth";
+import { callbackParams, exchangeCode, redirectUri } from "@/connectors/oauth";
 import { providerOf } from "@/connectors/registry";
 import { connectAccount, syncConnection } from "@/connectors/sync";
 import { getDb } from "@/db/client";
@@ -10,7 +10,7 @@ import { verify } from "@/lib/secrets";
 import { getViewer } from "@/lib/viewer";
 import { runPipeline } from "@/pipeline/run";
 
-/** Google or Microsoft sends the member back here with a code; trade it for tokens and connect the source. */
+/** The sign-in app sends the member back here with a code; trade it for tokens and connect the source. */
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const back = (params: Record<string, string>) => Response.redirect(new URL(`/settings?${new URLSearchParams(params)}`, url.origin), 302);
@@ -25,7 +25,9 @@ export async function GET(request: Request) {
   try {
     const tokens = await exchangeCode(provider.auth.app, code, redirectUri(url.origin));
     const db = getDb();
-    const id = await connectAccount(db, viewer, provider, { kind: "oauth", app: provider.auth.app, ...tokens });
+    const kept = callbackParams(provider.auth.app).flatMap((k) => (url.searchParams.get(k) ? [[k, url.searchParams.get(k)!]] : []));
+    const account = kept.length ? Object.fromEntries(kept) : undefined;
+    const id = await connectAccount(db, viewer, provider, { kind: "oauth", app: provider.auth.app, ...tokens, account });
     after(async () => {
       const [c] = await db.select().from(connections).where(eq(connections.id, id));
       if (!c || !provider.sync) return;

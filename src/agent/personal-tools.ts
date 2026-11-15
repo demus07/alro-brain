@@ -37,16 +37,21 @@ export function personalTools(db: Db, viewer: Viewer, timeZone: string, opts: { 
     ...remember,
     scheduleTask: tool({
       description:
-        'Schedule something for the asker: a one-off ("have the Acme summary ready by 5am") or a repeating task ("every Monday, list overdue payments"). At that time you run the instruction with their access and they get the result in ALRO, by email and in their linked messaging apps. Write the instruction so it makes sense on its own later.',
+        'Schedule something for the asker: a one-off ("have the Acme summary ready by 5am"), a repeating task ("every Monday, list overdue payments") or a watch that checks every few minutes and only speaks up when there is something new ("draft a quote whenever a customer asks for prices"). At that time you run the instruction with their access and they get the result in ALRO, by email and in their linked messaging apps. Write the instruction so it makes sense on its own later.',
       inputSchema: z.object({
         title: z.string().describe("A few words"),
         instruction: z.string().describe("What to do, self-contained"),
         schedule: scheduleSchema,
+        team: z.string().nullish().describe("A department of the agent team to do it (finance, sales, operations, ...) when the work fits one"),
       }),
-      execute: async ({ title, instruction, schedule }) => {
+      execute: async ({ title, instruction, schedule, team }) => {
         const nextRunAt = nextRun(schedule, timeZone, opts.now ?? new Date());
         if (!nextRunAt) return { scheduled: false, reason: "That time has already passed." };
-        const [row] = await db.insert(routines).values({ orgId: viewer.orgId, ownerPersonId: viewer.personId, title, instruction, schedule, nextRunAt }).returning({ id: routines.id });
+        const department = team?.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-") || null;
+        const [row] = await db
+          .insert(routines)
+          .values({ orgId: viewer.orgId, ownerPersonId: viewer.personId, title, instruction, schedule, nextRunAt, team: department })
+          .returning({ id: routines.id });
         return { scheduled: true, id: row.id, when: describeSchedule(schedule), firstRun: formatShort(nextRunAt, timeZone) };
       },
     }),

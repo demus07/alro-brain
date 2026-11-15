@@ -9,6 +9,7 @@
  *   4. Agent tools         (queries over the tables above, no tables of their own)
  *   5. Consolidation       rollups
  *   6. Working day         events, meeting_notes, profiles, routines, live tools, messaging channels
+ *   7. Doing the work      approvals, team_agents, procedures, trackers, tracker_rows
  *   +  Ops                 sync_runs, llm_runs
  *
  * Access control
@@ -793,7 +794,9 @@ export type Schedule =
   | { kind: "once"; at: string }
   | { kind: "daily"; time: string }
   | { kind: "weekdays"; time: string }
-  | { kind: "weekly"; weekday: number; time: string };
+  | { kind: "weekly"; weekday: number; time: string }
+  /** A watch: runs every few minutes and only reports when something new needs doing. */
+  | { kind: "every"; minutes: number };
 
 /** A task the agent does on a schedule for one member, with their access: a Monday report, "have this ready by 5am". */
 export const routines = pgTable(
@@ -811,6 +814,10 @@ export const routines = pgTable(
     /** Null once a one-off has run, or while switched off. */
     nextRunAt: timestamp("next_run_at", { withTimezone: true }),
     enabled: boolean("enabled").notNull().default(true),
+    /** Trusted with its actions: what it proposes runs without asking (the owner turns this on once it has earned it). */
+    trusted: boolean("trusted").notNull().default(false),
+    /** A department ("finance") whose lead plans the task and hands parts to its specialists. */
+    team: text("team"),
     lastRunAt: timestamp("last_run_at", { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -880,8 +887,10 @@ export const channelLinks = pgTable(
       .references(() => people.id, { onDelete: "cascade" }),
     /** whatsapp | telegram | slack */
     channel: text("channel").notNull(),
-    /** Phone number, Telegram chat id, Slack user id. */
+    /** Phone number, Telegram chat id, Slack user id, Teams user id. */
     externalUserId: text("external_user_id").notNull(),
+    /** Where to send unprompted messages when the id alone isn't enough (Teams: service URL and conversation id). */
+    address: jsonb("address").$type<Record<string, string>>(),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("channel_links_user_uq").on(t.channel, t.externalUserId), index("channel_links_person_idx").on(t.personId)],
@@ -915,6 +924,159 @@ export const channelMessages = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("channel_messages_person_idx").on(t.personId, t.channel, t.createdAt), uniqueIndex("channel_messages_external_uq").on(t.channel, t.externalId)],
+);
+
+// ---------------------------------------------------------------------------
+// 7. Doing the work
+// ---------------------------------------------------------------------------
+
+/**
+ * Something the agent wants to do in an app (send an email, post a message, add a CRM note).
+ * Nothing runs until the owner approves it here or by replying in a messaging app, unless it
+ * came from a scheduled task they trust.
+ */
+export const approvals = pgTable(
+  "approvals",
+  {
+    id: id(),
+    orgId: orgId(),
+    /** Who decides, and whose account it runs as. */
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    connectionId: uuid("connection_id").references(() => connections.id, { onDelete: "cascade" }),
+    mcpServerId: uuid("mcp_server_id").references(() => mcpServers.id, { onDelete: "cascade" }),
+    /** The action's tool name, e.g. gmail_send_email. */
+    tool: text("tool").notNull(),
+    input: jsonb("input").$type<Record<string, unknown>>().notNull(),
+    summary: text("summary").notNull(),
+    /** The text to read before approving (email body, message); editable. */
+    body: text("body"),
+    /** external | internal */
+    audience: text("audience").notNull(),
+    /** Why the agent proposed it, in a sentence. */
+    reason: text("reason"),
+    /** chat | messaging | routine | meeting | team */
+    origin: text("origin").notNull(),
+    routineId: uuid("routine_id").references(() => routines.id, { onDelete: "set null" }),
+    /** Short code to approve from a messaging app: "yes K7QM". */
+    code: text("code").notNull(),
+    /** pending | running | done | rejected | failed */
+    status: text("status").notNull().default("pending"),
+    result: jsonb("result").$type<{ url?: string; detail?: string }>(),
+    error: text("error"),
+    /** Approved by a person, or by trust in the routine. */
+    approvedBy: text("approved_by"),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("approvals_person_idx").on(t.personId, t.status, t.createdAt), uniqueIndex("approvals_code_uq").on(t.orgId, t.code)],
+);
+
+/**
+ * The agent team: specialists grouped by department (finance, sales, ops...). A department's
+ * lead plans a piece of work and hands parts to its specialists, who work in parallel, each
+ * with only the tools its job needs.
+ */
+export const teamAgents = pgTable(
+  "team_agents",
+  {
+    id: id(),
+    orgId: orgId(),
+    department: text("department").notNull(),
+    name: text("name").notNull(),
+    /** What this specialist does and how, in plain words. */
+    job: text("job").notNull(),
+    /** Tool names or prefixes it may use ("stripe_", "searchMemory"); empty means every read tool. */
+    tools: text("tools").array().notNull().default(sql`'{}'::text[]`),
+    enabled: boolean("enabled").notNull().default(true),
+    createdBy: uuid("created_by").references(() => people.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("team_agents_org_idx").on(t.orgId, t.department)],
+);
+
+/** How a recurring piece of work is done, pulled out of the conversations where people actually did it. */
+export const procedures = pgTable(
+  "procedures",
+  {
+    id: id(),
+    orgId: orgId(),
+    /** Whoever asked for it to be written up; it was written from what they can see. */
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    summary: text("summary").notNull(),
+    steps: jsonb("steps").$type<string[]>().notNull(),
+    /** Who does it today. */
+    owners: text("owners"),
+    /** daily | weekly | monthly | occasional */
+    frequency: text("frequency").notNull(),
+    /** Rough minutes each time. */
+    minutes: integer("minutes"),
+    /** low | medium | high: how much judgment it takes. */
+    judgment: text("judgment").notNull(),
+    /** 0–100: often, long and rule-bound scores high. Hand those to the agent first. */
+    automationScore: integer("automation_score").notNull(),
+    messageIds: uuid("message_ids").array().notNull().default(sql`'{}'::uuid[]`),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("procedures_person_idx").on(t.personId), uniqueIndex("procedures_title_uq").on(t.personId, t.title)],
+);
+
+export interface TrackerColumn {
+  name: string;
+  /** text | number | date */
+  type: "text" | "number" | "date";
+  description?: string;
+}
+
+/**
+ * A running table pulled out of chats and email: a sales log, a receivables list, stock by
+ * grade, how long each truck took. Rows carry the message they came from.
+ */
+export const trackers = pgTable(
+  "trackers",
+  {
+    id: id(),
+    orgId: orgId(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    /** What counts as a row, in plain words. */
+    description: text("description").notNull(),
+    columns: jsonb("columns").$type<TrackerColumn[]>().notNull(),
+    /** Messages that arrived (were stored) after this have not been read for this tracker yet. */
+    scannedUntil: timestamp("scanned_until", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("trackers_person_idx").on(t.personId)],
+);
+
+export const trackerRows = pgTable(
+  "tracker_rows",
+  {
+    id: id(),
+    orgId: orgId(),
+    trackerId: uuid("tracker_id")
+      .notNull()
+      .references(() => trackers.id, { onDelete: "cascade" }),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    values: jsonb("values").$type<Record<string, string | number | null>>().notNull(),
+    messageId: uuid("message_id").references(() => messages.id, { onDelete: "set null" }),
+    /** When it happened (the message's time). */
+    at: timestamp("at", { withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("tracker_rows_tracker_idx").on(t.trackerId, t.at)],
 );
 
 // ---------------------------------------------------------------------------

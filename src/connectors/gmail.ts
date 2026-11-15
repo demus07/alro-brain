@@ -1,6 +1,7 @@
 import { emailsToBatch } from "@/ingest/parsers/email";
 import type { NormalizedBatch } from "@/ingest/types";
 import { ProviderError, type Api } from "./api";
+import { emailAction, rfc822 } from "./email-actions";
 import type { Provider } from "./provider";
 
 const BACKFILL_DAYS = 90;
@@ -62,7 +63,8 @@ export async function fetchGmail(api: Api, cursor: GmailCursor = {}): Promise<{ 
 export const gmail: Provider = {
   id: "gmail",
   scope: "personal",
-  auth: { kind: "oauth", app: "google", scopes: ["https://www.googleapis.com/auth/gmail.readonly"], baseUrl: "https://gmail.googleapis.com/" },
+  // gmail.send only sends: it can't read, change or delete anything. ALRO sends only what the person approved.
+  auth: { kind: "oauth", app: "google", scopes: ["https://www.googleapis.com/auth/gmail.readonly", "https://www.googleapis.com/auth/gmail.send"], baseUrl: "https://gmail.googleapis.com/" },
   async identify(api) {
     const profile = await api<{ emailAddress: string }>("GET", "gmail/v1/users/me/profile");
     return { accountId: profile.emailAddress.toLowerCase(), label: profile.emailAddress.toLowerCase() };
@@ -70,5 +72,11 @@ export const gmail: Provider = {
   async sync(api, cursor) {
     const { batch, cursor: next } = await fetchGmail(api, cursor as GmailCursor | undefined);
     return { ...batch, cursor: next as Record<string, unknown> };
+  },
+  actions: {
+    gmail_send_email: emailAction("Gmail", async (api, input) => {
+      const sent = await api<{ id: string }>("POST", "gmail/v1/users/me/messages/send", { body: { raw: Buffer.from(rfc822(input)).toString("base64url") } });
+      return { url: `https://mail.google.com/mail/#all/${sent.id}`, detail: "Sent from Gmail" };
+    }),
   },
 };

@@ -57,11 +57,20 @@ Use the app's current API docs, and the open-source references if present (`geto
   - `visibility: "org"` only for things everyone in the workspace can see; otherwise `"members"` with
     `memberKeys`.
 - Calendar-like sources return `events` instead of threads (`src/connectors/google.ts`).
-- `tools(api)`: AI SDK `tool()`s named `<id>_<verb>`, read-only, with descriptions that say when to use
-  them and to name the system in the answer. Keep results small.
+- `tools(api, ctx)`: AI SDK `tool()`s named `<id>_<verb>`, read-only, with descriptions that say when to use
+  them and to name the system in the answer. Keep results small. `ctx` has the account id and credentials.
+- `actions`: writes (send, post, add a note or task), keyed `<id>_<verb>`, implementing `ActionDef`
+  (`provider.ts`): a zod `input`, `audience` (external reaches a client/vendor/public), a one-line `summary`,
+  `body`/`withBody` for text the approver may edit, and `run`. They are only ever run after a person approves
+  (`src/approvals/`), so `run` must do exactly one write and never retry. Ask for the narrowest write scope.
+- Keys traded for short-lived tokens (server-to-server apps, client credentials): `postForm` + `mintedBearer`
+  from `api.ts`. A one-time code traded for a refresh token at connect time: `auth.exchange`.
+- Sign-in with an app other than Google/Microsoft: add it to `APPS` in `oauth.ts` first (Xero and QuickBooks are
+  there); callback parameters the API needs later (QuickBooks' `realmId`) go in `callbackParams`.
 
-Shortest complete examples: `slack.ts` (chat), `notion.ts` (versioned docs), `gmail.ts` (mail),
-`google.ts` (calendar and live lookups), `hubspot.ts` (live only).
+Shortest complete examples: `slack.ts` (chat, plus a post action), `notion.ts` (versioned docs), `gmail.ts`
+(mail, plus a send action), `google.ts` (calendar and live lookups), `hubspot.ts` (live only, plus note/task
+actions), `zoom.ts` (minted tokens), `zoho-crm.ts` (`exchange`), `xero.ts` (another sign-in app).
 
 # Wire it in
 

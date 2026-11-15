@@ -7,7 +7,7 @@ import { CHANNELS, type ChannelId } from "@/channels/channels";
 import { getDb } from "@/db/client";
 import { channelLinks } from "@/db/schema";
 import { getViewer } from "@/lib/viewer";
-import { listServers, locked } from "@/tools/mcp";
+import { changesThings, listServers } from "@/tools/mcp";
 import { AddLiveTools, AddProfileNote, LearnStyle, LinkCode } from "./forms";
 import { deleteProfileNote, reloadLiveTools, removeLiveTools, toggleLiveTool, unlinkChannel } from "./more-actions";
 
@@ -45,11 +45,12 @@ export async function LiveTools() {
                             <span className="mono small">{t.name}</span>
                             {t.description && <span className="muted small">{t.description}</span>}
                           </span>
-                          {locked(t) ? (
-                            <span className="tag" title="This tool changes things. Actions with approval aren't built yet.">
-                              changes data
+                          {changesThings(t) && (
+                            <span className="tag" title="This tool changes things. When it's on, each use waits for the asker's approval.">
+                              asks first
                             </span>
-                          ) : mine ? (
+                          )}
+                          {mine ? (
                             <form action={toggleLiveTool} className="actions">
                               <input type="hidden" name="id" value={s.id} />
                               <input type="hidden" name="tool" value={t.name} />
@@ -130,9 +131,10 @@ const ENV: Record<ChannelId, string> = {
   whatsapp: "WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_APP_SECRET, WHATSAPP_VERIFY_TOKEN",
   telegram: "TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET",
   slack: "SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET",
+  teams: "MICROSOFT_BOT_APP_ID, MICROSOFT_BOT_APP_PASSWORD (and MICROSOFT_BOT_TENANT_ID for a single-tenant bot)",
 };
 
-/** Settings → Messaging: ask the agent from WhatsApp, Telegram or Slack. */
+/** Settings → Messaging: ask the agent from WhatsApp, Telegram, Slack or Teams. */
 export async function Messaging() {
   await connection();
   const viewer = await getViewer();
@@ -148,7 +150,7 @@ export async function Messaging() {
               <span className="mark">{c.label.slice(0, 2)}</span>
               <span className="source-text">
                 <span className="source-name">{c.label}</span>
-                <span className="muted small truncate">{!c.configured() ? "Not set up on this server" : link ? `Linked: ${link.externalUserId}` : `Message ${c.where()} with your code`}</span>
+                <span className="muted small truncate">{!c.configured() ? "Not set up on this server" : link ? (c.id === "teams" ? "Linked" : `Linked: ${link.externalUserId}`) : `Message ${c.where()} with your code`}</span>
               </span>
               {!c.configured() ? (
                 <span className="tag" title={`Set ${ENV[c.id]}`}>
@@ -167,6 +169,11 @@ export async function Messaging() {
         })}
       </ul>
       {any && <LinkCode />}
+      {CHANNELS.teams.configured() && (
+        <a className="link small" href="/api/channels/teams/app">
+          Download the ALRO app for Teams (upload it in Teams → Apps → Manage your apps) →
+        </a>
+      )}
       {!transcriptionConfigured() && <p className="muted small">Voice notes need OPENAI_API_KEY for speech-to-text.</p>}
     </div>
   );

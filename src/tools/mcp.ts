@@ -22,8 +22,8 @@ import { deleteSecret, readSecret, saveSecret, sign, verify } from "@/lib/secret
  * Live tools: MCP servers the agent queries at the moment someone asks (a CRM, sheets,
  * accounting, the online store). Nothing is copied into memory. A server is reached with
  * a pasted token, or by signing in when it supports OAuth with dynamic registration.
- * Only tools that read are switched on; tools that change things stay off until ALRO
- * has approvals for actions.
+ * Tools that read are switched on by default. Tools that change things are off until someone
+ * switches them on, and even then each call waits for the asker's approval (src/approvals).
  */
 type ServerRow = typeof mcpServers.$inferSelect;
 
@@ -48,8 +48,20 @@ export function defaultEnabled(t: { name: string; annotations?: { readOnlyHint?:
   return READ_VERBS.test(t.name);
 }
 
-/** Tools the server says change things can't be switched on yet. */
-export const locked = (t: LiveToolInfo) => t.readOnly === false;
+/** Tools that change things (or might: unmarked, without a reading verb). When switched on, every call waits for approval. */
+export const changesThings = (t: LiveToolInfo) => t.readOnly === false || (t.readOnly === null && !READ_VERBS.test(t.name));
+
+/** A switched-on tool that changes things, offered to the agent only as a proposal. */
+export interface WriteTool {
+  /** The agent-facing name, e.g. "stripe_create_refund". */
+  name: string;
+  tool: string;
+  server: string;
+  serverId: string;
+  description?: string;
+  /** The server's JSON Schema for the tool's input. */
+  inputSchema: { type: "object"; properties?: Record<string, unknown>; required?: string[]; [k: string]: unknown };
+}
 
 /** The server's current tools, keeping any on/off choice already made. */
 export function mergeTools(listed: ListToolsResult["tools"], stored: LiveToolInfo[]): LiveToolInfo[] {
@@ -57,7 +69,7 @@ export function mergeTools(listed: ListToolsResult["tools"], stored: LiveToolInf
   return listed.map((t) => {
     const readOnly = t.annotations?.readOnlyHint ?? (t.annotations?.destructiveHint ? false : null);
     const info = { name: t.name, description: t.description?.slice(0, 300), readOnly };
-    return { ...info, enabled: readOnly === false ? false : (before.get(t.name)?.enabled ?? defaultEnabled(t)) };
+    return { ...info, enabled: before.get(t.name)?.enabled ?? defaultEnabled(t) };
   });
 }
 
@@ -227,7 +239,7 @@ export async function removeServer(db: Db, viewer: Viewer, id: string) {
 
 export async function setToolEnabled(db: Db, viewer: Viewer, id: string, tool: string, enabled: boolean) {
   const server = await ownServer(db, viewer, id);
-  const tools = server.tools.map((t) => (t.name === tool && !locked(t) ? { ...t, enabled } : t));
+  const tools = server.tools.map((t) => (t.name === tool ? { ...t, enabled } : t));
   await db.update(mcpServers).set({ tools }).where(eq(mcpServers.id, server.id));
 }
 
@@ -246,14 +258,41 @@ function clip(result: unknown): unknown {
   return { ...result, content };
 }
 
+const agentName = (server: string, tool: string) => `${slug(server)}_${tool}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
+
+/**
+ * Calls one tool on a server, after its proposal was approved. Returns the result as text.
+ */
+export async function callMcpTool(db: Db, server: ServerRow, name: string, input: unknown): Promise<string> {
+  const { client } = await open(db, server, process.env.ALRO_APP_URL ?? "http://localhost:3000");
+  if (!client) throw new Error(`${server.name} needs signing in again`);
+  try {
+    const listed = await client.listTools();
+    const def = listed.tools.find((t) => t.name === name);
+    if (!def) throw new Error(`${server.name} no longer offers ${name}`);
+    const set = client.toolsFromDefinitions({ ...listed, tools: [def] }) as ToolSet;
+    const run = Object.values(set)[0]?.execute as ((input: unknown, options: unknown) => Promise<unknown>) | undefined;
+    if (!run) throw new Error(`${name} can't be called`);
+    const out = clip(await run(input, { toolCallId: "approved", messages: [] })) as { content?: { type: string; text?: string }[]; isError?: boolean };
+    const text = (out.content ?? []).flatMap((p) => (p.type === "text" && p.text ? [p.text] : [])).join("\n").slice(0, 2000);
+    if (out.isError) throw new Error(text || `${name} failed`);
+    return text || "Done";
+  } finally {
+    await client.close();
+  }
+}
+
 /**
  * The switched-on tools of every live-tool server the member can use, ready for the agent.
- * A server that's down is skipped (and marked), never fatal. Call `close` when the answer is done.
+ * Reading tools run directly; tools that change things come back in `writes`, to be offered
+ * only as proposals. A server that's down is skipped (and marked), never fatal. Call `close`
+ * when the answer is done.
  */
-export async function mcpTools(db: Db, viewer: Viewer, origin: string): Promise<{ tools: ToolSet; servers: string[]; close: () => Promise<void> }> {
+export async function mcpTools(db: Db, viewer: Viewer, origin: string): Promise<{ tools: ToolSet; writes: WriteTool[]; servers: string[]; close: () => Promise<void> }> {
   const servers = (await listServers(db, viewer)).filter((s) => s.status === "active" && s.tools.some((t) => t.enabled));
   const clients: MCPClient[] = [];
   const tools: ToolSet = {};
+  const writes: WriteTool[] = [];
   const used: string[] = [];
   for (const server of servers) {
     try {
@@ -263,13 +302,17 @@ export async function mcpTools(db: Db, viewer: Viewer, origin: string): Promise<
         continue;
       }
       clients.push(client);
-      const enabled = new Set(server.tools.filter((t) => t.enabled && !locked(t)).map((t) => t.name));
+      const enabled = new Set(server.tools.filter((t) => t.enabled && !changesThings(t)).map((t) => t.name));
+      const writing = new Set(server.tools.filter((t) => t.enabled && changesThings(t)).map((t) => t.name));
       const listed = await client.listTools();
+      for (const t of listed.tools.filter((t) => writing.has(t.name))) {
+        writes.push({ name: agentName(server.name, t.name), tool: t.name, server: server.name, serverId: server.id, description: t.description, inputSchema: t.inputSchema as WriteTool["inputSchema"] });
+      }
       const set = client.toolsFromDefinitions({ ...listed, tools: listed.tools.filter((t) => enabled.has(t.name)) }) as ToolSet;
       for (const [name, t] of Object.entries(set)) {
         const run = t.execute as ((input: unknown, options: unknown) => unknown) | undefined;
         const clipped = run ? ({ ...t, execute: async (input: unknown, options: unknown) => clip(await run(input, options)) } as typeof t) : t;
-        tools[`${slug(server.name)}_${name}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64)] = clipped;
+        tools[agentName(server.name, name)] = clipped;
       }
       used.push(server.name);
     } catch (e) {
@@ -277,5 +320,5 @@ export async function mcpTools(db: Db, viewer: Viewer, origin: string): Promise<
       await db.update(mcpServers).set({ lastError: (e instanceof Error ? e.message : String(e)).slice(0, 500) }).where(eq(mcpServers.id, server.id));
     }
   }
-  return { tools, servers: used, close: async () => void (await Promise.allSettled(clients.map((c) => c.close()))) };
+  return { tools, writes, servers: used, close: async () => void (await Promise.allSettled(clients.map((c) => c.close()))) };
 }

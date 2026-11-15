@@ -1,9 +1,10 @@
 import { generateText, Output } from "ai";
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { recordRun, type Models } from "@/ai/models";
 import type { Db } from "@/db/client";
-import { meetingNotes, messages, orgs, people, threads } from "@/db/schema";
+import { proposeEmail } from "@/approvals/approvals";
+import { connections, meetingNotes, messages, orgs, people, threadMembers, threads } from "@/db/schema";
 import { formatLocal } from "@/lib/time";
 
 const MAX_CHARS = 30_000;
@@ -42,7 +43,7 @@ export function renderNotes(n: MeetingNotesDraft): string {
 export async function notePending(db: Db, orgId: string, models: Models, limit = 5): Promise<number> {
   const [org] = await db.select({ timezone: orgs.timezone }).from(orgs).where(eq(orgs.id, orgId));
   const pending = await db
-    .select({ id: threads.id, title: threads.title })
+    .select({ id: threads.id, title: threads.title, connectionId: threads.connectionId })
     .from(threads)
     .where(and(eq(threads.orgId, orgId), eq(threads.kind, "meeting"), sql`not exists (select 1 from meeting_notes n where n.thread_id = ${threads.id})`))
     .orderBy(asc(threads.createdAt))
@@ -68,11 +69,47 @@ export async function notePending(db: Db, orgId: string, models: Models, limit =
       prompt: `${thread.title ?? "Meeting"}, ${formatLocal(rows[0].sentAt, org.timezone)}\n\n${transcript}`,
     });
     await recordRun(db, { orgId, stage: "notes", model: models.extract, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens });
-    await db
+    const [saved] = await db
       .insert(meetingNotes)
       .values({ orgId, threadId: thread.id, summary: renderNotes(output), followUp: output.followUp.trim() || null })
-      .onConflictDoNothing();
+      .onConflictDoNothing()
+      .returning({ id: meetingNotes.id });
     written++;
+    if (saved && output.followUp.trim()) await proposeFollowUp(db, orgId, thread, output.followUp.trim()).catch((e) => console.error(`follow-up for ${thread.id} not proposed`, e));
   }
   return written;
+}
+
+/**
+ * The follow-up email goes to whoever connected the meeting's source, if they were in the meeting,
+ * as a proposal from their own mailbox to the other attendees. Nothing is sent until they approve it.
+ */
+async function proposeFollowUp(db: Db, orgId: string, thread: { id: string; title: string | null; connectionId: string | null }, followUp: string) {
+  if (!thread.connectionId) return;
+  const [owner] = await db
+    .select({ personId: connections.ownerPersonId, isMember: people.isMember })
+    .from(connections)
+    .innerJoin(people, eq(people.id, connections.ownerPersonId))
+    .where(eq(connections.id, thread.connectionId));
+  if (!owner?.personId || !owner.isMember) return;
+  // A team-wide recording account (Zoom) sees every meeting: only propose to someone who was in this one.
+  const [present] = await db
+    .select({ personId: threadMembers.personId })
+    .from(threadMembers)
+    .where(and(eq(threadMembers.threadId, thread.id), eq(threadMembers.personId, owner.personId)));
+  if (!present) return;
+  const attendees = await db
+    .select({ email: people.primaryEmail })
+    .from(threadMembers)
+    .innerJoin(people, eq(people.id, threadMembers.personId))
+    .where(and(eq(threadMembers.threadId, thread.id), ne(threadMembers.personId, owner.personId), isNotNull(people.primaryEmail)));
+  const to = [...new Set(attendees.flatMap((a) => (a.email && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(a.email) ? [a.email.toLowerCase()] : [])))];
+  if (!to.length) return;
+  await proposeEmail(
+    db,
+    { orgId, personId: owner.personId },
+    { to, subject: `Notes and next steps: ${thread.title ?? "our call"}`, body: followUp },
+    "Follow-up from the call's notes: decisions and who does what.",
+    { origin: "meeting", notify: true },
+  );
 }

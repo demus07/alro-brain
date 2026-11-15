@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { checkServerUrl, defaultEnabled, mergeTools } from "./mcp";
+import { changesThings, checkServerUrl, defaultEnabled, mergeTools } from "./mcp";
 
 describe("live tools", () => {
   afterEach(() => vi.unstubAllEnvs());
@@ -14,7 +14,7 @@ describe("live tools", () => {
     expect(defaultEnabled({ name: "search_deals", annotations: { readOnlyHint: false } })).toBe(false);
   });
 
-  it("keeps a person's on/off choices, but never enables a tool that changes things", () => {
+  it("keeps a person's on/off choices, including tools that change things (those ask first)", () => {
     const listed = [
       { name: "search_deals", description: "Find deals", inputSchema: { type: "object" as const } },
       { name: "export_report", inputSchema: { type: "object" as const } },
@@ -28,8 +28,15 @@ describe("live tools", () => {
     expect(mergeTools(listed, stored).map((t) => [t.name, t.readOnly, t.enabled])).toEqual([
       ["search_deals", null, false],
       ["export_report", null, true],
-      ["update_deal", false, false],
+      ["update_deal", false, true],
     ]);
+  });
+
+  it("treats tools that say they change things, or might, as needing approval", () => {
+    expect(changesThings({ name: "update_deal", readOnly: false, enabled: true })).toBe(true);
+    expect(changesThings({ name: "export_report", readOnly: null, enabled: true })).toBe(true);
+    expect(changesThings({ name: "search_deals", readOnly: null, enabled: true })).toBe(false);
+    expect(changesThings({ name: "delete_everything", readOnly: true, enabled: true })).toBe(false);
   });
 
   it("only accepts public https servers in production", () => {

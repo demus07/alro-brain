@@ -1,6 +1,7 @@
 import type { NormalizedMessage, NormalizedPerson, NormalizedThread } from "@/ingest/types";
 import { httpApi, ProviderError, type Api } from "./api";
-import type { Fetched, Provider } from "./provider";
+import { z } from "zod";
+import type { ActionDef, Fetched, Provider } from "./provider";
 
 /** First sync reaches back this far. */
 const BACKFILL_DAYS = 90;
@@ -85,6 +86,34 @@ async function gql<T>(api: Api, query: string, variables: Record<string, unknown
   const r = await api<{ data?: T; errors?: { message: string }[] }>("POST", "graphql", { body: { query, variables } });
   if (r.errors?.length || !r.data) throw new Error(`Linear: ${r.errors?.map((e) => e.message).join("; ") || "empty response"}`);
   return r.data;
+}
+
+const issueInput = z.object({
+  team: z.string().describe("The team's key (ENG) or name"),
+  title: z.string().min(1),
+  description: z.string().nullish().describe("Markdown"),
+  assigneeEmail: z.email().nullish(),
+  dueDate: z.iso.date().nullish().describe("YYYY-MM-DD"),
+});
+type IssueInput = z.infer<typeof issueInput>;
+
+export async function createIssue(api: Api, i: IssueInput): Promise<{ url?: string; detail?: string }> {
+  const { teams } = await gql<{ teams: { nodes: { id: string; key: string; name: string }[] } }>(api, `query { teams(first: 250) { nodes { id key name } } }`);
+  const want = i.team.trim().toLowerCase();
+  const team = teams.nodes.find((t) => t.key.toLowerCase() === want || t.name.toLowerCase() === want);
+  if (!team) throw new Error(`No Linear team called ${i.team}. Teams: ${teams.nodes.map((t) => t.key).join(", ")}`);
+  let assigneeId: string | undefined;
+  if (i.assigneeEmail) {
+    const { users } = await gql<{ users: { nodes: { id: string }[] } }>(api, `query($email: String!) { users(filter: { email: { eq: $email } }) { nodes { id } } }`, { email: i.assigneeEmail });
+    assigneeId = users.nodes[0]?.id;
+  }
+  const r = await gql<{ issueCreate: { success: boolean; issue?: { identifier: string; url: string } } }>(
+    api,
+    `mutation($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }`,
+    { input: { teamId: team.id, title: i.title, description: i.description ?? undefined, assigneeId, dueDate: i.dueDate ?? undefined } },
+  );
+  if (!r.issueCreate.success || !r.issueCreate.issue) throw new Error("Linear didn't create the issue");
+  return { url: r.issueCreate.issue.url, detail: `Created ${r.issueCreate.issue.identifier}${i.assigneeEmail && !assigneeId ? ` (no Linear user with ${i.assigneeEmail}, left unassigned)` : ""}` };
 }
 
 /**
@@ -236,7 +265,8 @@ export const linear: Provider = {
   auth: {
     kind: "token",
     fields: [{ name: "token", label: "API key", placeholder: "lin_api_…", secret: true }],
-    setup: "In Linear, open Settings → Security & access → Personal API keys, create a key (Read permission is all it needs) and paste it here. ALRO reads the issues and comments of every team that key's owner can see.",
+    setup:
+      "In Linear, open Settings → Security & access → Personal API keys, create a key with Read permission and paste it here. ALRO reads the issues and comments of every team that key's owner can see. Add Create issues permission if you want ALRO to file issues you approve.",
     docsUrl: "https://linear.app/developers/graphql",
     // Linear takes a personal API key bare, without "Bearer".
     api: (c) => httpApi({ baseUrl: "https://api.linear.app/", headers: () => ({ authorization: c.token }) }),
@@ -251,4 +281,15 @@ export const linear: Provider = {
     }
   },
   sync: (api, cursor, ctx) => fetchLinear(api, cursor as LinearCursor | undefined, ctx.now),
+  actions: {
+    linear_create_issue: {
+      description: "File an issue in Linear: a task with an owner and a due date.",
+      input: issueInput,
+      audience: () => "internal",
+      summary: (i) => `Linear issue in ${i.team}: ${i.title}${i.assigneeEmail ? ` for ${i.assigneeEmail}` : ""}`,
+      body: (i) => i.description ?? "",
+      withBody: (i, description) => ({ ...i, description }),
+      run: createIssue,
+    } satisfies ActionDef<IssueInput>,
+  },
 };

@@ -1,6 +1,7 @@
 import { emailsToBatch } from "@/ingest/parsers/email";
 import type { NormalizedBatch } from "@/ingest/types";
 import { ProviderError, type Api } from "./api";
+import { emailAction } from "./email-actions";
 import type { Provider } from "./provider";
 
 const BACKFILL_DAYS = 90;
@@ -71,7 +72,8 @@ export async function fetchOutlook(api: Api, mailbox: string, cursor: OutlookCur
 export const outlook: Provider = {
   id: "outlook",
   scope: "personal",
-  auth: { kind: "oauth", app: "microsoft", scopes: ["User.Read", "Mail.Read"], baseUrl: "https://graph.microsoft.com/v1.0/" },
+  // Mail.Send only sends as this person; ALRO sends only what they approved.
+  auth: { kind: "oauth", app: "microsoft", scopes: ["User.Read", "Mail.Read", "Mail.Send"], baseUrl: "https://graph.microsoft.com/v1.0/" },
   async identify(api) {
     const me = await api<{ mail?: string | null; userPrincipalName: string }>("GET", "me", { query: { $select: "mail,userPrincipalName" } }).catch((e) => {
       if (e instanceof ProviderError && (e.status === 401 || e.status === 403)) throw new Error("Microsoft didn't allow access to this mailbox. Sign in again and allow ALRO to read your mail.");
@@ -83,5 +85,14 @@ export const outlook: Provider = {
   async sync(api, cursor, ctx) {
     const { batch, cursor: next } = await fetchOutlook(api, ctx.accountId, cursor as OutlookCursor | undefined, ctx.now);
     return { ...batch, cursor: next as Record<string, unknown> };
+  },
+  actions: {
+    outlook_send_email: emailAction("Outlook", async (api, input) => {
+      const recipients = (list?: string[] | null) => (list ?? []).map((address) => ({ emailAddress: { address } }));
+      await api("POST", "me/sendMail", {
+        body: { message: { subject: input.subject, body: { contentType: "Text", content: input.body }, toRecipients: recipients(input.to), ccRecipients: recipients(input.cc) }, saveToSentItems: true },
+      });
+      return { detail: "Sent from Outlook" };
+    }),
   },
 };

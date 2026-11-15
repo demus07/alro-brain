@@ -1,5 +1,6 @@
 import { after } from "next/server";
 import { defaultModels } from "@/ai/models";
+import { fileReader } from "@/ai/read-file";
 import { transcribeAudio } from "@/ai/transcribe";
 import { validWhatsAppSignature, whatsapp, whatsappMedia } from "@/channels/channels";
 import { handleInbound } from "@/channels/handle";
@@ -13,6 +14,8 @@ interface WhatsAppMessage {
   type: string;
   text?: { body: string };
   audio?: { id: string };
+  image?: { id: string; mime_type: string; caption?: string };
+  document?: { id: string; mime_type: string; filename?: string; caption?: string };
 }
 
 /** Meta checks the webhook once with a challenge when you set it up. */
@@ -29,12 +32,21 @@ export async function POST(request: Request) {
   const body = JSON.parse(raw) as { entry?: { changes?: { value?: { messages?: WhatsAppMessage[] } }[] }[] };
   const messages = (body.entry ?? []).flatMap((e) => e.changes ?? []).flatMap((c) => c.value?.messages ?? []);
   after(async () => {
+    const models = defaultModels();
     for (const m of messages) {
-      if (m.type !== "text" && m.type !== "audio") continue;
+      if (!["text", "audio", "image", "document"].includes(m.type)) continue;
+      const media = m.image ?? m.document;
       await handleInbound(
         getDb(),
-        { channel: "whatsapp", from: m.from, id: m.id, text: m.text?.body, audio: m.audio ? () => whatsappMedia(m.audio!.id) : undefined },
-        { models: defaultModels(), transcribe: transcribeAudio, send: (text) => whatsapp.send(m.from, text) },
+        {
+          channel: "whatsapp",
+          from: m.from,
+          id: m.id,
+          text: m.text?.body ?? media?.caption,
+          audio: m.audio ? () => whatsappMedia(m.audio!.id) : undefined,
+          file: media ? { mediaType: media.mime_type, name: m.document?.filename, download: () => whatsappMedia(media.id) } : undefined,
+        },
+        { models, transcribe: transcribeAudio, readFile: fileReader(models), send: (text) => whatsapp.send(m.from, text) },
       );
     }
   });

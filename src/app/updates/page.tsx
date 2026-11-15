@@ -1,6 +1,7 @@
 import { aliasedTable, and, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import type { Metadata } from "next";
 import { connection } from "next/server";
+import Link from "next/link";
 import { Suspense } from "react";
 import { getDb } from "@/db/client";
 import { commitmentEvents, commitments, connections, messages, orgs, people, threads } from "@/db/schema";
@@ -94,6 +95,7 @@ async function Updates() {
   const overdue = needsYou.filter((c) => c.status === "overdue").length;
   const brief = await buildBrief(db, viewer, org.timezone);
   const tiles = [
+    ...(brief.approvals.length ? [{ label: "Waiting for your OK", value: brief.approvals.length, tone: "warn" }] : []),
     { label: "Overdue", value: brief.overdue.length, tone: brief.overdue.length ? "bad" : "" },
     { label: "Due soon", value: brief.dueSoon.length, tone: brief.dueSoon.length ? "warn" : "" },
     { label: "Waiting on you", value: brief.waitingOnYou.length, tone: "" },
@@ -150,6 +152,22 @@ async function Updates() {
       </section>
 
       <section className="column">
+        {brief.approvals.length > 0 && (
+          <>
+            <p className="label center">Waiting for your OK</p>
+            <article className="card">
+              {brief.approvals.map((a) => (
+                <div key={a.code} className="todo">
+                  <span className="truncate">{a.summary}</span>
+                  <span className="mono small muted">{a.code}</span>
+                </div>
+              ))}
+              <Link className="link small" href="/approvals">
+                Review and approve →
+              </Link>
+            </article>
+          </>
+        )}
         <p className="label center">ALRO noticed</p>
         <article className="card">
           <p className="lead">

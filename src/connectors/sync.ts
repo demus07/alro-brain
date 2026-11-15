@@ -13,7 +13,10 @@ import { providerOf } from "./registry";
 /** What ALRO keeps (encrypted) for a connected account. */
 export type StoredCredential =
   | { kind: "token"; values: Record<string, string> }
-  | { kind: "oauth"; app: OAuthApp; accessToken: string; refreshToken?: string; expiresAt: number };
+  | { kind: "oauth"; app: OAuthApp; accessToken: string; refreshToken?: string; expiresAt: number; /** Returned with the sign-in, e.g. QuickBooks' realmId. */ account?: Record<string, string> };
+
+/** What a provider sees as its typed-in credentials: the form's values, or what came back with a sign-in. */
+export const credentialValues = (c: StoredCredential): Record<string, string> => (c.kind === "token" ? c.values : (c.account ?? {}));
 
 export interface SyncOutcome {
   provider: string;
@@ -53,7 +56,7 @@ export async function sessionFor(db: Db, provider: Provider, c: Pick<ConnectionR
   const credential = await readSecret<StoredCredential>(db, "connection", c.id);
   if (!credential) throw new ProviderError("No saved credential. Reconnect this source in Settings.", 401);
   const api = apiFor(provider, credential, (fresh) => saveSecret(db, c.orgId, "connection", c.id, fresh));
-  return { api, credentials: credential.kind === "token" ? credential.values : {} };
+  return { api, credentials: credentialValues(credential) };
 }
 
 /**
@@ -61,11 +64,14 @@ export async function sessionFor(db: Db, provider: Provider, c: Pick<ConnectionR
  * connection and its encrypted credential. Connecting the same account again
  * replaces the credential (that's how a broken connection is repaired).
  */
-export async function connectAccount(db: Db, viewer: Viewer, provider: Provider, credential: StoredCredential): Promise<string> {
+export async function connectAccount(db: Db, viewer: Viewer, provider: Provider, typed: StoredCredential): Promise<string> {
+  // Some apps trade what was typed (a one-time code) for what lasts (a refresh token).
+  const credential: StoredCredential =
+    typed.kind === "token" && provider.auth.kind === "token" && provider.auth.exchange ? { kind: "token", values: await provider.auth.exchange(typed.values) } : typed;
   // A sign-in token refreshed while checking is the one worth saving.
   let latest = credential;
   const api = apiFor(provider, credential, async (fresh) => void (latest = fresh));
-  const { accountId, label } = await provider.identify(api, credential.kind === "token" ? credential.values : {});
+  const { accountId, label } = await provider.identify(api, credentialValues(credential));
   const [existing] = await db
     .select({ id: connections.id })
     .from(connections)

@@ -64,6 +64,13 @@
       "when": 1794700000000,
       "tag": "0008_working_day",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795200000000,
+      "tag": "0009_doing_the_work",
+      "breakpoints": true
     }
   ]
 }

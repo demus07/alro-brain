@@ -3,9 +3,12 @@ import { and, desc, eq, gt } from "drizzle-orm";
 import { openAgent } from "@/agent/answer";
 import { plainAnswer } from "@/agent/plain";
 import { recordRun, type Models } from "@/ai/models";
+import type { FileReader } from "@/ai/read-file";
 import type { Transcriber } from "@/ai/transcribe";
+import { decideFromReply } from "@/approvals/approvals";
 import type { Db } from "@/db/client";
 import { channelMessages, people } from "@/db/schema";
+import { saveNote } from "@/memory/notes";
 import { CHANNELS, type ChannelId } from "./channels";
 import { linkedViewer, redeemLinkCode } from "./links";
 
@@ -22,11 +25,17 @@ export interface Inbound {
   text?: string;
   /** A voice note, downloaded only if needed. */
   audio?: () => Promise<Uint8Array>;
+  /** Kept with the link so ALRO can message them later (Teams' service URL and conversation). */
+  address?: Record<string, string>;
+  /** A photo or document (a weighment slip, an invoice), downloaded only if needed. */
+  file?: { mediaType: string; name?: string; download: () => Promise<Uint8Array> };
 }
 
 export interface InboundDeps {
   models: Models;
   transcribe: Transcriber;
+  /** Reads photos and documents; without it they're declined politely. */
+  readFile?: FileReader;
   send: (text: string) => Promise<void>;
   now?: Date;
 }
@@ -45,7 +54,7 @@ export async function handleInbound(db: Db, msg: Inbound, deps: InboundDeps): Pr
 
   if (!viewer) {
     const code = msg.text?.replace(/\D/g, "");
-    viewer = code?.length === 8 ? await redeemLinkCode(db, msg.channel, msg.from, code, now) : undefined;
+    viewer = code?.length === 8 ? await redeemLinkCode(db, msg.channel, msg.from, code, now, msg.address) : undefined;
     if (!viewer) {
       await deps.send(`I don't know this ${label} account yet. In ALRO, open Settings → Messaging, get a code and send it here.`);
       return "unlinked";
@@ -60,18 +69,45 @@ export async function handleInbound(db: Db, msg: Inbound, deps: InboundDeps): Pr
     await deps.send("This account is no longer a member of an ALRO workspace.");
     return "unlinked";
   }
-  if (!msg.text?.trim() && !msg.audio) return "empty";
+  if (!msg.text?.trim() && !msg.audio && !msg.file) return "empty";
 
   // Recorded first: a redelivered webhook hits the unique id and stops here, before any model call.
   const [stored] = await db
     .insert(channelMessages)
-    .values({ orgId: viewer.orgId, personId: viewer.personId, channel: msg.channel, role: "user", text: msg.text?.trim() || "(voice note)", externalId: msg.id, createdAt: now })
+    .values({ orgId: viewer.orgId, personId: viewer.personId, channel: msg.channel, role: "user", text: msg.text?.trim() || (msg.file ? "(file)" : "(voice note)"), externalId: msg.id, createdAt: now })
     .onConflictDoNothing()
     .returning({ id: channelMessages.id });
   if (!stored) return "duplicate";
 
   try {
     let text = msg.text?.trim() ?? "";
+    // "yes K7QM": a decision on something waiting for approval, not a question.
+    if (text && !msg.file) {
+      const [lastSaid] = await db
+        .select({ text: channelMessages.text })
+        .from(channelMessages)
+        .where(and(eq(channelMessages.personId, viewer.personId), eq(channelMessages.channel, msg.channel), eq(channelMessages.role, "assistant")))
+        .orderBy(desc(channelMessages.createdAt))
+        .limit(1);
+      const decided = await decideFromReply(db, viewer, text, now, lastSaid?.text);
+      if (decided) {
+        await db.insert(channelMessages).values({ orgId: viewer.orgId, personId: viewer.personId, channel: msg.channel, role: "assistant", text: decided });
+        await deps.send(decided);
+        return "answered";
+      }
+    }
+    if (msg.file) {
+      if (!deps.readFile) {
+        await deps.send("I can't read photos or documents here yet. Type what it says, or upload it in ALRO.");
+        return "empty";
+      }
+      const what = msg.file.mediaType.startsWith("image/") ? "photo" : "document";
+      const contents = await deps.readFile({ data: await msg.file.download(), mediaType: msg.file.mediaType, name: msg.file.name });
+      // Kept in their notes, so it's searchable, cited and read into trackers like any message.
+      await saveNote(db, viewer, `${text ? `${text}\n\n` : ""}[${what}${msg.file.name ? `: ${msg.file.name}` : ""}]\n${contents}`, { title: text ? text.slice(0, 80) : `A ${what} sent on ${label}`, now });
+      text = `(sent a ${what}${text ? ` with the message "${text}"` : ""}; it has been saved to my notes) What it shows:\n${contents}\n\nAcknowledge it in a sentence or two: what it is and the key figures. If it relates to something open (a delivery, a payment, a promise), say so.`;
+      await db.update(channelMessages).set({ text: `(${what}) ${msg.text?.trim() ?? ""} ${contents.slice(0, 500)}`.trim() }).where(eq(channelMessages.id, stored.id));
+    }
     if (!text && msg.audio) {
       text = await deps.transcribe(await msg.audio());
       if (!text) {

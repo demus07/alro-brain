@@ -1,7 +1,8 @@
 import { slackExportToBatch } from "@/ingest/parsers/slack-export";
 import type { NormalizedBatch } from "@/ingest/types";
 import { bearer, httpApi, type Api } from "./api";
-import type { Provider } from "./provider";
+import { z } from "zod";
+import type { ActionDef, Provider } from "./provider";
 
 /** First sync reaches back this far. */
 const BACKFILL_DAYS = 90;
@@ -88,6 +89,42 @@ export async function fetchSlack(api: Api, cursor: SlackCursor = {}, now = new D
   return { batch: slackExportToBatch(files, { teamId: team.team_id, domain }), cursor: { latest } };
 }
 
+const slackPostInput = z.object({
+  to: z.string().min(2).describe('"#channel-name" (public channels only), or a person\'s email for a direct message'),
+  text: z.string().min(1),
+});
+type SlackPostInput = z.infer<typeof slackPostInput>;
+
+/** Finds the conversation to post in, then posts. Slack answers errors with `ok: false`, not a status. */
+export async function postSlackMessage(api: Api, input: SlackPostInput): Promise<{ url?: string; detail?: string }> {
+  const call = async <T>(method: "GET" | "POST", path: string, opts: { query?: Record<string, string>; body?: unknown }) => {
+    const r = await api<Page & T>(method, path, opts);
+    if (!r.ok) throw new Error(`Slack ${path}: ${r.error}`);
+    return r;
+  };
+  let channel = input.to.trim();
+  if (channel.includes("@")) {
+    const { user } = await call<{ user: { id: string } }>("GET", "users.lookupByEmail", { query: { email: channel } });
+    channel = (await call<{ channel: { id: string } }>("POST", "conversations.open", { body: { users: user.id } })).channel.id;
+  } else {
+    // A shared connection posts as the app for whoever asks, so only in public channels (or a DM, above):
+    // never into a private channel the asker might not be in.
+    const name = channel.replace(/^#/, "").toLowerCase();
+    let cursor: string | undefined;
+    let found: string | undefined;
+    do {
+      const page = await call<{ channels: { id: string; name: string }[] }>("GET", "conversations.list", { query: { types: "public_channel", limit: "1000", exclude_archived: "true", ...(cursor ? { cursor } : {}) } });
+      found = page.channels.find((c) => c.name === name || c.id.toLowerCase() === name)?.id;
+      cursor = page.response_metadata?.next_cursor || undefined;
+    } while (!found && cursor);
+    if (!found) throw new Error(`No public Slack channel called #${name}. ALRO posts in public channels and direct messages only.`);
+    channel = found;
+  }
+  const posted = await call<{ channel: string; ts: string }>("POST", "chat.postMessage", { body: { channel, text: input.text } });
+  const link = await call<{ permalink?: string }>("GET", "chat.getPermalink", { query: { channel: posted.channel, message_ts: posted.ts } }).catch(() => undefined);
+  return { url: link?.permalink, detail: "Posted in Slack" };
+}
+
 export const slack: Provider = {
   id: "slack",
   scope: "org",
@@ -95,7 +132,7 @@ export const slack: Provider = {
     kind: "token",
     fields: [{ name: "token", label: "Bot token", placeholder: "xoxb-…", secret: true }],
     setup:
-      "Create a Slack app for your workspace, add the bot scopes channels:read, channels:history, groups:read, groups:history, im:read, im:history, mpim:read, mpim:history, users:read and users:read.email, install it, and paste the Bot User OAuth Token. Invite the bot to each channel it should read.",
+      "Create a Slack app for your workspace, add the bot scopes channels:read, channels:history, groups:read, groups:history, im:read, im:history, mpim:read, mpim:history, users:read and users:read.email, install it, and paste the Bot User OAuth Token. Invite the bot to each channel it should read. To let ALRO post messages you approve, also add chat:write and im:write.",
     docsUrl: "https://api.slack.com/apps",
     api: (c) => httpApi({ baseUrl: "https://slack.com/api/", headers: bearer(c.token) }),
   },
@@ -107,5 +144,16 @@ export const slack: Provider = {
   async sync(api, cursor, ctx) {
     const { batch, cursor: next } = await fetchSlack(api, cursor as SlackCursor | undefined, ctx.now);
     return { ...batch, cursor: next as Record<string, unknown> };
+  },
+  actions: {
+    slack_post_message: {
+      description: "Post a message in Slack as the ALRO app: in a public channel (\"#general\") or as a direct message to someone (their email).",
+      input: slackPostInput,
+      audience: () => "internal",
+      summary: (i) => `Slack message to ${i.to}`,
+      body: (i) => i.text,
+      withBody: (i, text) => ({ ...i, text }),
+      run: postSlackMessage,
+    } satisfies ActionDef<SlackPostInput>,
   },
 };

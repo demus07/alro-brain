@@ -9,7 +9,14 @@ export const scheduleSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("daily"), time: z.string().regex(TIME).describe("24-hour local time, e.g. 07:00") }),
   z.object({ kind: z.literal("weekdays"), time: z.string().regex(TIME) }),
   z.object({ kind: z.literal("weekly"), weekday: z.number().int().min(0).max(6).describe("0 Sunday … 6 Saturday"), time: z.string().regex(TIME) }),
+  z.object({
+    kind: z.literal("every"),
+    minutes: z.union([z.literal(15), z.literal(30), z.literal(60), z.literal(120), z.literal(240)]).describe("How often to check, for watching for new things (inquiries, payments)"),
+  }),
 ]);
+
+/** Watches only speak up when there's something to say; a run that finds nothing replies with this. */
+export const NOTHING_NEW = "NOTHING_NEW";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -50,6 +57,7 @@ export function nextRun(schedule: Schedule, timeZone: string, after: Date): Date
     const at = onceInstant(schedule.at, timeZone);
     return at && at > after ? at : null;
   }
+  if (schedule.kind === "every") return new Date(after.getTime() + schedule.minutes * 60_000);
   const [hour, minute] = schedule.time.split(":").map(Number);
   const today = localParts(after, timeZone);
   for (let k = 0; k <= 8; k++) {
@@ -74,5 +82,7 @@ export function describeSchedule(schedule: Schedule): string {
       return `Weekdays at ${schedule.time}`;
     case "weekly":
       return `Every ${DAYS[schedule.weekday]} at ${schedule.time}`;
+    case "every":
+      return schedule.minutes < 60 ? `Every ${schedule.minutes} minutes` : schedule.minutes === 60 ? "Every hour" : `Every ${schedule.minutes / 60} hours`;
   }
 }
