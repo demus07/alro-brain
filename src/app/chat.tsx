@@ -3,7 +3,8 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import type { Source } from "@/agent/tools";
 
 const TOOL_LABELS: Record<string, string> = {
@@ -13,9 +14,17 @@ const TOOL_LABELS: Record<string, string> = {
   commitmentHistory: "Checking what happened",
   lookupEntity: "Looking up facts",
   dailySummaries: "Reading summaries",
+  rememberAboutMe: "Remembering that",
+  saveNote: "Saving a note",
+  scheduleTask: "Scheduling",
+  listScheduledTasks: "Checking your schedule",
+  cancelScheduledTask: "Cancelling",
+  sheets_find: "Looking in Google Sheets",
+  sheets_read: "Reading the sheet",
+  hubspot_search: "Looking in HubSpot",
 };
 
-const EXAMPLES = ["What do I owe people this week?", "Who am I waiting on?", "What changed since yesterday?", "Draft a reminder for my oldest overdue promise"];
+const EXAMPLES = ["What do I owe people this week?", "Who am I waiting on?", "What changed since yesterday?", "Draft a reminder for my oldest overdue promise", "Interview me so you know how I work"];
 
 /** Every cited source in a message's tool results, by ref. */
 function sourcesOf(message: UIMessage): Map<string, Source> {
@@ -190,6 +199,54 @@ function FollowUps({ question, answer, onAsk }: { question: string; answer: stri
 
 const textOf = (m: UIMessage) => m.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join("\n");
 
+/** Hold-to-talk for the composer: records, sends the audio for speech-to-text, and hands back the words. */
+function Mic({ onText, disabled }: { onText: (text: string) => void; disabled: boolean }) {
+  const [state, setState] = useState<"idle" | "recording" | "working">("idle");
+  const [problem, setProblem] = useState<string>();
+  const recorder = useRef<MediaRecorder | null>(null);
+
+  const start = async () => {
+    setProblem(undefined);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const chunks: Blob[] = [];
+      const rec = new MediaRecorder(stream);
+      rec.ondataavailable = (e) => chunks.push(e.data);
+      rec.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        setState("working");
+        try {
+          const res = await fetch("/api/transcribe", { method: "POST", body: new Blob(chunks, { type: rec.mimeType }) });
+          const json = (await res.json()) as { text?: string; error?: string };
+          if (!res.ok) throw new Error(json.error ?? "Couldn't transcribe that.");
+          if (json.text) onText(json.text);
+        } catch (e) {
+          setProblem((e as Error).message);
+        }
+        setState("idle");
+      };
+      recorder.current = rec;
+      rec.start();
+      setState("recording");
+    } catch {
+      setProblem("Microphone access is blocked.");
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      className={`mic${state === "recording" ? " recording" : ""}`}
+      disabled={disabled || state === "working"}
+      title={problem ?? (state === "recording" ? "Stop and transcribe" : "Speak instead of typing")}
+      aria-label={state === "recording" ? "Stop recording" : "Record a voice note"}
+      onClick={() => (state === "recording" ? recorder.current?.stop() : start())}
+    >
+      {state === "working" ? "…" : state === "recording" ? "Stop" : problem ? "Mic off" : "Speak"}
+    </button>
+  );
+}
+
 export function Chat() {
   const { messages, sendMessage, status, error } = useChat({ transport: new DefaultChatTransport({ api: "/api/chat" }) });
   const [input, setInput] = useState("");
@@ -199,6 +256,15 @@ export function Chat() {
     sendMessage({ text });
     setInput("");
   };
+  // A link like /?ask=… (the interview link in Settings) asks once on arrival.
+  const preset = useSearchParams().get("ask");
+  const asked = useRef(false);
+  useEffect(() => {
+    if (!preset || asked.current) return;
+    asked.current = true;
+    sendMessage({ text: preset });
+    window.history.replaceState(null, "", "/");
+  }, [preset, sendMessage]);
 
   return (
     <div className="chat">
@@ -264,6 +330,7 @@ export function Chat() {
             }
           }}
         />
+        <Mic disabled={busy} onText={(text) => setInput((current) => (current ? `${current} ${text}` : text))} />
         <button type="submit" disabled={busy || !input.trim()}>
           {busy ? "Thinking…" : "Ask"}
         </button>

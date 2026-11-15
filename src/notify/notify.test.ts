@@ -1,7 +1,6 @@
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { ProviderError, type Api } from "@/connectors/nango";
-import { transient, withRetries } from "@/connectors/sync";
+import { ProviderError, transient, withRetries, type Api } from "@/connectors/api";
 import type { Db } from "@/db/client";
 import { chunks, commitments, connections, edges, entities, entityMentions, messages, notifications, orgs, people, threadMembers, threads } from "@/db/schema";
 import { createTestDb } from "@/db/test-db";
@@ -87,7 +86,7 @@ describe("delivery", () => {
     vi.stubEnv("RESEND_API_KEY", "");
     const send = vi.fn();
     vi.stubGlobal("fetch", send);
-    expect(await deliverReminders(db, orgId, reminders(), NOW)).toEqual({ emailed: 0, failed: 0 });
+    expect(await deliverReminders(db, orgId, reminders(), NOW)).toEqual({ emailed: 0, messaged: 0, failed: 0 });
     expect(send).not.toHaveBeenCalled();
   });
 
@@ -96,7 +95,7 @@ describe("delivery", () => {
     await db.insert(notifications).values({ orgId, personId: sumedh, kind: "digest:2026-11-05", channel: "in_app" });
     const send = vi.fn(async () => new Response("{}", { status: 200 }));
     vi.stubGlobal("fetch", send);
-    expect(await deliverReminders(db, orgId, reminders(), NOW)).toEqual({ emailed: 1, failed: 0 });
+    expect(await deliverReminders(db, orgId, reminders(), NOW)).toEqual({ emailed: 1, messaged: 0, failed: 0 });
     const body = JSON.parse((send.mock.calls[0] as unknown as [string, { body: string }])[1].body);
     expect(body.to).toEqual(["sumedh@example.com"]);
     expect(body.subject).toContain("1 overdue");
@@ -104,7 +103,7 @@ describe("delivery", () => {
     expect(row.channel).toBe("email");
 
     vi.stubGlobal("fetch", vi.fn(async () => new Response("nope", { status: 500 })));
-    expect(await deliverReminders(db, orgId, reminders(), NOW)).toEqual({ emailed: 0, failed: 1 });
+    expect(await deliverReminders(db, orgId, reminders(), NOW)).toEqual({ emailed: 0, messaged: 0, failed: 1 });
   });
 });
 
@@ -113,7 +112,7 @@ describe("sync retries", () => {
     expect(transient(new ProviderError("x", 429))).toBe(true);
     expect(transient(new ProviderError("x", 503))).toBe(true);
     expect(transient(new ProviderError("x", 401))).toBe(false);
-    expect(transient(new Error("getaddrinfo ENOTFOUND api.nango.dev"))).toBe(true);
+    expect(transient(new Error("getaddrinfo ENOTFOUND slack.com"))).toBe(true);
 
     let calls = 0;
     const flaky: Api = async () => {

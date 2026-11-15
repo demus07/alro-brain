@@ -13,6 +13,7 @@ const ICONS: Record<string, ReactNode> = {
   Search: path("M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4"),
   Graph: path("M6 7a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM18 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM7 22a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM8 5.5l7.8 3M15.7 11l-7.2 6.6M6.2 7l.5 10"),
   Promises: path("M4 12.5l5 5L20 6.5"),
+  Scheduled: path("M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2"),
   Upload: path("M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"),
   Settings: path("M4 7h10M18 7h2M4 17h2M10 17h10M14 4.5v5h4v-5h-4zM6 14.5v5h4v-5H6z"),
   Health: path("M3 12h4l3-7 4 14 3-7h4"),
@@ -24,6 +25,7 @@ const MAIN = [
   { href: "/search", label: "Search" },
   { href: "/graph", label: "Graph" },
   { href: "/commitments", label: "Promises" },
+  { href: "/routines", label: "Scheduled" },
   { href: "/upload", label: "Upload" },
 ];
 

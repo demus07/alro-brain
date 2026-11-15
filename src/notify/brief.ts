@@ -1,8 +1,8 @@
-import { aliasedTable, and, count, desc, eq, gte, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { aliasedTable, and, count, desc, eq, gte, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { commitments, edges, messages, people, threads } from "@/db/schema";
+import { commitments, edges, events, messages, people, threads } from "@/db/schema";
 import { withScope, type Viewer } from "@/db/scope";
-import { formatShort } from "@/lib/time";
+import { formatShort, startOfLocalDay } from "@/lib/time";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const OPEN = ["open", "due_soon", "overdue"] as const;
@@ -15,6 +15,8 @@ export interface BriefPromise {
 }
 
 export interface Brief {
+  /** The rest of today's meetings, from the member's connected calendar. */
+  meetings: { title: string; at: string; with: string[] }[];
   overdue: BriefPromise[];
   dueSoon: BriefPromise[];
   /** Open promises you made to someone: they're waiting on you. */
@@ -62,8 +64,20 @@ export async function buildBrief(db: Db, viewer: Viewer, timeZone: string, now =
     const [{ fresh }] = await tx.select({ fresh: count() }).from(commitments).where(gte(commitments.createdAt, since));
     const [{ changed }] = await tx.select({ changed: count() }).from(edges).where(and(isNotNull(edges.expiredAt), gte(edges.expiredAt, since)));
 
+    const endOfDay = new Date(startOfLocalDay(now, timeZone).getTime() + DAY_MS);
+    const today = await tx
+      .select({ title: events.title, startsAt: events.startsAt, attendees: events.attendees })
+      .from(events)
+      .where(and(eq(events.ownerPersonId, viewer.personId), eq(events.cancelled, false), eq(events.allDay, false), gte(events.startsAt, now), lt(events.startsAt, endOfDay)))
+      .orderBy(events.startsAt);
+
     const item = (c: (typeof mine)[number]): BriefPromise => ({ id: c.id, title: c.title, person: c.person, due: when(c.dueAt, c.dueText) });
     return {
+      meetings: today.map((e) => ({
+        title: e.title,
+        at: new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(e.startsAt),
+        with: e.attendees.filter((a) => a.personId !== viewer.personId).map((a) => a.name ?? a.email ?? "someone"),
+      })),
       overdue: mine.filter((c) => c.status === "overdue").map(item),
       dueSoon: mine.filter((c) => c.status === "due_soon").map(item),
       waitingOnYou: mine.filter((c) => c.status === "open" && c.person).map(item),
@@ -81,6 +95,7 @@ const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 function sectionsOf(b: Brief) {
   const line = (p: BriefPromise, to: "to" | "from") => `${p.title}${p.person ? ` (${to} ${p.person})` : ""}${p.due ? `, ${p.due}` : ""}`;
   return [
+    { title: "Today's meetings", items: b.meetings.map((m) => `${m.at} ${m.title}${m.with.length ? ` (with ${m.with.slice(0, 4).join(", ")}${m.with.length > 4 ? ` +${m.with.length - 4}` : ""})` : ""}`) },
     { title: "Overdue", items: b.overdue.map((p) => line(p, "to")) },
     { title: "Due soon", items: b.dueSoon.map((p) => line(p, "to")) },
     { title: "Waiting on you", items: b.waitingOnYou.slice(0, 8).map((p) => line(p, "to")) },
@@ -92,7 +107,7 @@ function sectionsOf(b: Brief) {
 /** Subject and body of the morning email. */
 export function renderBrief(b: Brief, name: string, appUrl?: string): { subject: string; text: string; html: string } {
   const first = name.split(/\s+/)[0];
-  const top = b.overdue.length ? `${b.overdue.length} overdue` : b.dueSoon.length ? `${b.dueSoon.length} due soon` : `${b.messages} new messages`;
+  const top = b.overdue.length ? `${b.overdue.length} overdue` : b.meetings.length ? `${b.meetings.length} meeting${b.meetings.length === 1 ? "" : "s"} today` : b.dueSoon.length ? `${b.dueSoon.length} due soon` : `${b.messages} new messages`;
   const stats = `${b.messages} messages, ${b.newPromises} new promises, ${b.changedFacts} facts changed in the last day.`;
   const sections = sectionsOf(b);
   const text = [`Morning ${first}.`, stats, ...sections.map((s) => `${s.title}\n${s.items.map((i) => `- ${i}`).join("\n")}`), ...(appUrl ? [`Open ALRO: ${appUrl}/updates`] : [])].join("\n\n");

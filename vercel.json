@@ -6,6 +6,10 @@
       "schedule": "*/15 * * * *"
     },
     {
+      "path": "/api/cron/tick",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/cron/process",
       "schedule": "*/10 * * * *"
     },

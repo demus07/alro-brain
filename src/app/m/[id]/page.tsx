@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { getDb } from "@/db/client";
-import { connections, messages, orgs, people, threads } from "@/db/schema";
+import { connections, meetingNotes, messages, orgs, people, threads } from "@/db/schema";
 import { withScope } from "@/db/scope";
 import { sourceOf } from "@/lib/sources";
 import { formatShort } from "@/lib/time";
@@ -48,7 +48,8 @@ async function Conversation({ id }: { id: string }) {
     const after = await tx.select(row).from(messages).leftJoin(people, eq(people.id, messages.authorPersonId)).where(and(live, gte(messages.sentAt, target.sentAt))).orderBy(asc(messages.sentAt)).limit(AROUND + 1);
     const seen = new Set<string>();
     const around = [...before.reverse(), ...after].filter((m) => !seen.has(m.id) && seen.add(m.id));
-    return { target, around };
+    const [notes] = target.kind === "meeting" ? await tx.select({ summary: meetingNotes.summary, followUp: meetingNotes.followUp }).from(meetingNotes).where(eq(meetingNotes.threadId, target.threadId)) : [];
+    return { target, around, notes };
   });
   // Not there, or not visible to this person: the same answer either way.
   if (!data) notFound();
@@ -73,6 +74,18 @@ async function Conversation({ id }: { id: string }) {
           )}
         </p>
       </div>
+      {data.notes && (
+        <section className="card">
+          <p className="label">Meeting notes</p>
+          <p className="prose">{data.notes.summary.replace(/\*\*/g, "")}</p>
+          {data.notes.followUp && (
+            <details>
+              <summary className="small link">Follow-up draft</summary>
+              <p className="prose small">{data.notes.followUp}</p>
+            </details>
+          )}
+        </section>
+      )}
       <ol className="thread-messages">
         {data.around.map((m) => (
           <li key={m.id} id={m.id === id ? "cited" : undefined} className={m.id === id ? "cited" : undefined}>

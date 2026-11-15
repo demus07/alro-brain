@@ -36,7 +36,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <span className="brand-mark">a</span>
               <span>alro</span>
             </div>
-            <Nav />
+            {/* The nav highlights the current path, which is only known per request on dynamic routes. */}
+            <Suspense fallback={null}>
+              <Nav />
+            </Suspense>
             <div className="sidebar-foot">
               <Suspense fallback={<span className="small muted">…</span>}>
                 <SyncStatus />

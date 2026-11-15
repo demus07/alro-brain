@@ -1,6 +1,7 @@
 import { slackExportToBatch } from "@/ingest/parsers/slack-export";
 import type { NormalizedBatch } from "@/ingest/types";
-import type { Api } from "./nango";
+import { bearer, httpApi, type Api } from "./api";
+import type { Provider } from "./provider";
 
 /** First sync reaches back this far. */
 const BACKFILL_DAYS = 90;
@@ -86,3 +87,25 @@ export async function fetchSlack(api: Api, cursor: SlackCursor = {}, now = new D
   const domain = team.url?.match(/^https:\/\/([^.]+)\.slack\.com/)?.[1];
   return { batch: slackExportToBatch(files, { teamId: team.team_id, domain }), cursor: { latest } };
 }
+
+export const slack: Provider = {
+  id: "slack",
+  scope: "org",
+  auth: {
+    kind: "token",
+    fields: [{ name: "token", label: "Bot token", placeholder: "xoxb-…", secret: true }],
+    setup:
+      "Create a Slack app for your workspace, add the bot scopes channels:read, channels:history, groups:read, groups:history, im:read, im:history, mpim:read, mpim:history, users:read and users:read.email, install it, and paste the Bot User OAuth Token. Invite the bot to each channel it should read.",
+    docsUrl: "https://api.slack.com/apps",
+    api: (c) => httpApi({ baseUrl: "https://slack.com/api/", headers: bearer(c.token) }),
+  },
+  async identify(api) {
+    const r = await api<{ ok: boolean; error?: string; team_id: string; team?: string }>("GET", "auth.test");
+    if (!r.ok) throw new Error(`Slack didn't accept that token (${r.error}).`);
+    return { accountId: r.team_id, label: r.team };
+  },
+  async sync(api, cursor, ctx) {
+    const { batch, cursor: next } = await fetchSlack(api, cursor as SlackCursor | undefined, ctx.now);
+    return { ...batch, cursor: next as Record<string, unknown> };
+  },
+};

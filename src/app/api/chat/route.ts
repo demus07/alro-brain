@@ -1,5 +1,5 @@
 import { convertToModelMessages, createUIMessageStreamResponse, streamText, toUIMessageStream, type UIMessage } from "ai";
-import { agentFor } from "@/agent/answer";
+import { openAgent } from "@/agent/answer";
 import { defaultModels, recordRun } from "@/ai/models";
 import { getDb } from "@/db/client";
 import { getViewer } from "@/lib/viewer";
@@ -11,12 +11,14 @@ export async function POST(request: Request) {
   const { messages }: { messages: UIMessage[] } = await request.json();
   const db = getDb();
   const models = defaultModels();
-  const agent = await agentFor(db, viewer, models);
+  const { agent, close } = await openAgent(db, viewer, models, { origin: new URL(request.url).origin });
 
   const result = streamText({
     ...agent,
     messages: await convertToModelMessages(messages),
+    onError: () => void close(),
     onEnd: async ({ totalUsage }) => {
+      await close();
       await recordRun(db, {
         orgId: viewer.orgId,
         stage: "answer",

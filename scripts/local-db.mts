@@ -2,6 +2,7 @@
  * A local Postgres for development, with pgvector and pg_trgm, no install needed:
  * PGlite (Postgres compiled to WebAssembly) served over the Postgres protocol.
  *   npm run db:local     # then DATABASE_URL=postgres://postgres@127.0.0.1:54329/postgres
+ *   and DATABASE_POOL_MAX=1: it is one session, so connections must not run side by side.
  * Data lives in .data/pg (gitignored). For production use Neon or any Postgres with pgvector.
  */
 import { PGlite } from "@electric-sql/pglite";

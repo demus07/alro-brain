@@ -1,5 +1,6 @@
 import type { NormalizedBatch, NormalizedMessage, NormalizedPerson, NormalizedThread } from "@/ingest/types";
-import type { Api } from "./nango";
+import { bearer, httpApi, type Api } from "./api";
+import type { Provider } from "./provider";
 
 const MAX_PAGES = 200;
 const MAX_BLOCKS = 400;
@@ -120,3 +121,23 @@ export async function fetchNotion(api: Api, connectionId: string, cursor: Notion
     versions,
   };
 }
+
+export const notion: Provider = {
+  id: "notion",
+  scope: "org",
+  auth: {
+    kind: "token",
+    fields: [{ name: "token", label: "Integration secret", placeholder: "ntn_…", secret: true }],
+    setup: "Create an internal integration in Notion, copy its secret, then share the pages or teamspaces ALRO should read with that integration (••• → Connections).",
+    docsUrl: "https://www.notion.so/profile/integrations",
+    api: (c) => httpApi({ baseUrl: "https://api.notion.com/", headers: () => ({ ...bearer(c.token)(), "Notion-Version": NOTION_VERSION }) }),
+  },
+  async identify(api) {
+    const me = await api<{ id: string; name?: string; bot?: { workspace_name?: string } }>("GET", "v1/users/me");
+    return { accountId: `notion:${me.id}`, label: me.bot?.workspace_name ?? me.name };
+  },
+  async sync(api, cursor, ctx) {
+    const { batch, cursor: next, versions } = await fetchNotion(api, ctx.accountId.replace(/^notion:/, ""), cursor as NotionCursor | undefined);
+    return { ...batch, cursor: next as Record<string, unknown>, versions };
+  },
+};

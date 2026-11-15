@@ -38,7 +38,8 @@ export function previousLocalDay(now: Date, timeZone: string): { start: Date; en
   return { start: startOfLocalDay(new Date(end.getTime() - 1), timeZone), end };
 }
 
-function startOfLocalDay(date: Date, timeZone: string): Date {
+/** Local midnight at or before `date`, as an instant. */
+export function startOfLocalDay(date: Date, timeZone: string): Date {
   const p = Object.fromEntries(
     new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" })
       .formatToParts(date)

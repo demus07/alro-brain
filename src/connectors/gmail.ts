@@ -1,6 +1,7 @@
 import { emailsToBatch } from "@/ingest/parsers/email";
 import type { NormalizedBatch } from "@/ingest/types";
-import { ProviderError, type Api } from "./nango";
+import { ProviderError, type Api } from "./api";
+import type { Provider } from "./provider";
 
 const BACKFILL_DAYS = 90;
 const MAX_MESSAGES = 500;
@@ -57,3 +58,17 @@ export async function fetchGmail(api: Api, cursor: GmailCursor = {}): Promise<{ 
   }
   return { batch: emailsToBatch(files, mailbox), cursor: { historyId: profile.historyId }, mailbox };
 }
+
+export const gmail: Provider = {
+  id: "gmail",
+  scope: "personal",
+  auth: { kind: "oauth", app: "google", scopes: ["https://www.googleapis.com/auth/gmail.readonly"], baseUrl: "https://gmail.googleapis.com/" },
+  async identify(api) {
+    const profile = await api<{ emailAddress: string }>("GET", "gmail/v1/users/me/profile");
+    return { accountId: profile.emailAddress.toLowerCase(), label: profile.emailAddress.toLowerCase() };
+  },
+  async sync(api, cursor) {
+    const { batch, cursor: next } = await fetchGmail(api, cursor as GmailCursor | undefined);
+    return { ...batch, cursor: next as Record<string, unknown> };
+  },
+};

@@ -2,48 +2,65 @@
 
 import { and, eq } from "drizzle-orm";
 import { refresh } from "next/cache";
-import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { defaultModels } from "@/ai/models";
-import { createConnectLink } from "@/connectors/nango";
-import { adoptConnections, isLive, LIVE, syncConnection, tagsFor } from "@/connectors/sync";
+import { ProviderError } from "@/connectors/api";
+import { providerOf } from "@/connectors/registry";
+import { connectAccount, syncConnection } from "@/connectors/sync";
 import { getDb } from "@/db/client";
 import { connections } from "@/db/schema";
+import { sourceOf } from "@/lib/sources";
 import { getViewer } from "@/lib/viewer";
 import { forgetConnection } from "@/memory/forget";
 import { runPipeline } from "@/pipeline/run";
 
-/** Opens Nango's connect screen for one source. */
-export async function connectSource(formData: FormData) {
-  const provider = String(formData.get("provider") ?? "");
-  if (!isLive(provider)) throw new Error("Unknown source");
-  const viewer = await getViewer();
-  const link = await createConnectLink({ ...tagsFor(viewer), end_user_email: viewer.email }, [LIVE[provider].integration()]);
-  redirect(link);
+export interface ConnectState {
+  error?: string;
+  ok?: boolean;
 }
 
-/** Imports sources connected in Nango, in the background (a first sync can take minutes), then processes them. */
-export async function importConnected() {
-  const viewer = await getViewer();
-  const db = getDb();
+/** First sync in the background (it can take minutes), then process what arrived. */
+function syncSoon(orgId: string, connectionId: string) {
   after(async () => {
-    const outcomes = await adoptConnections(db, viewer);
-    if (outcomes.some((o) => o.messages)) await runPipeline(db, viewer.orgId, defaultModels());
+    const db = getDb();
+    const [c] = await db.select().from(connections).where(eq(connections.id, connectionId));
+    if (!c || !providerOf(c.provider)?.sync) return;
+    const r = await syncConnection(db, c);
+    if (r.messages) await runPipeline(db, orgId, defaultModels());
   });
-  refresh();
 }
 
-/** Syncs one live connection now, in the background. */
+/** Connects a paste-a-token source: checks the token against the app, stores it encrypted, starts the first sync. */
+export async function connectWithToken(_prev: ConnectState, formData: FormData): Promise<ConnectState> {
+  const provider = providerOf(String(formData.get("provider") ?? ""));
+  if (!provider || provider.auth.kind !== "token") return { error: "Unknown source" };
+  const values: Record<string, string> = {};
+  for (const f of provider.auth.fields) {
+    const v = String(formData.get(f.name) ?? "").trim();
+    if (!v && !f.optional) return { error: `${f.label} is required.` };
+    if (v) values[f.name] = v;
+  }
+  try {
+    const viewer = await getViewer();
+    const id = await connectAccount(getDb(), viewer, provider, { kind: "token", values });
+    syncSoon(viewer.orgId, id);
+  } catch (e) {
+    // Apps word a refused token in many ways; say it once, plainly.
+    const refused = e instanceof ProviderError && (e.status === 401 || e.status === 403 || /auth_failed|unauthori[sz]ed/i.test(e.message));
+    if (refused) return { error: `${sourceOf(provider.id).label} didn't accept that. Check it was copied in full and hasn't expired.` };
+    return { error: e instanceof Error ? e.message : "Couldn't connect." };
+  }
+  refresh();
+  return { ok: true };
+}
+
+/** Syncs one connection now, in the background. */
 export async function syncNow(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const viewer = await getViewer();
-  const db = getDb();
-  const [c] = await db.select().from(connections).where(and(eq(connections.id, id), eq(connections.orgId, viewer.orgId)));
-  if (!c?.nangoConnectionId || !isLive(c.provider)) throw new Error("Not a live connection");
-  after(async () => {
-    const r = await syncConnection(db, viewer.orgId, { provider: c.provider as keyof typeof LIVE, nangoConnectionId: c.nangoConnectionId!, ownerPersonId: c.ownerPersonId ?? undefined, connectionId: c.id, cursor: c.cursor ?? undefined });
-    if (r.messages) await runPipeline(db, viewer.orgId, defaultModels());
-  });
+  const [c] = await getDb().select({ id: connections.id }).from(connections).where(and(eq(connections.id, id), eq(connections.orgId, viewer.orgId)));
+  if (!c) throw new Error("Not found");
+  syncSoon(viewer.orgId, c.id);
   refresh();
 }
 

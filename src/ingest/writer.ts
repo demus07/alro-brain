@@ -12,7 +12,8 @@ export interface WriteResult {
   records?: { upserted: number; changed: number };
 }
 
-const UPLOADER_KEY = "alro:uploader";
+/** Person key for whoever uploaded or dictated a personal source; resolves to `uploaderPersonId`. */
+export const UPLOADER_KEY = "alro:uploader";
 
 /**
  * Saves a normalized batch for one org. Idempotent: re-running the same batch

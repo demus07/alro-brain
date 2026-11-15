@@ -2,11 +2,20 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { defaultModels, modelId } from "@/ai/models";
+import { AboutYou, LiveTools, Messaging } from "./sections";
 import { Sources } from "./sources";
 
 export const metadata: Metadata = { title: "Settings · ALRO" };
 
-export default function SettingsPage() {
+/** What came back from a sign-in round trip. */
+async function Notice({ searchParams }: { searchParams: Promise<{ error?: string; connected?: string }> }) {
+  const { error, connected } = await searchParams;
+  if (error) return <p className="notice error">{error}</p>;
+  if (connected) return <p className="notice">Connected {connected}. The first sync runs in the background.</p>;
+  return null;
+}
+
+export default function SettingsPage({ searchParams }: { searchParams: Promise<{ error?: string; connected?: string }> }) {
   const models = defaultModels();
   const rows = [
     { stage: "Answers questions", model: modelId(models.answer) },
@@ -18,12 +27,15 @@ export default function SettingsPage() {
   return (
     <div className="settings">
       <h1>Settings</h1>
+      <Suspense fallback={null}>
+        <Notice searchParams={searchParams} />
+      </Suspense>
 
       <section className="settings-section">
         <div>
           <h2>Sources</h2>
           <p className="muted small">
-            Where ALRO&apos;s memory comes from. Live connectors are coming; until then, upload exports. Sync status and costs are on{" "}
+            Where ALRO&apos;s memory comes from. Each source is read with a token or sign-in you give it, stored encrypted, and synced every 15 minutes. Sync status and costs are on{" "}
             <Link className="link" href="/connectors">
               Health
             </Link>
@@ -32,6 +44,36 @@ export default function SettingsPage() {
         </div>
         <Suspense fallback={<p className="muted small">Loading sources…</p>}>
           <Sources />
+        </Suspense>
+      </section>
+
+      <section className="settings-section">
+        <div>
+          <h2>Live tools</h2>
+          <p className="muted small">Apps the agent looks things up in at the moment you ask: a CRM, sheets, accounting. Nothing is copied into memory.</p>
+        </div>
+        <Suspense fallback={<p className="muted small">Loading…</p>}>
+          <LiveTools />
+        </Suspense>
+      </section>
+
+      <section className="settings-section">
+        <div>
+          <h2>About you</h2>
+          <p className="muted small">Your personal brain: what you&apos;re working towards, how you decide and how you write. It shapes answers and drafts for you. Only you can see it.</p>
+        </div>
+        <Suspense fallback={<p className="muted small">Loading…</p>}>
+          <AboutYou />
+        </Suspense>
+      </section>
+
+      <section className="settings-section">
+        <div>
+          <h2>Messaging</h2>
+          <p className="muted small">Ask ALRO from the apps you already use, by text or voice note. Briefs, reminders and scheduled results arrive there too.</p>
+        </div>
+        <Suspense fallback={<p className="muted small">Loading…</p>}>
+          <Messaging />
         </Suspense>
       </section>
 

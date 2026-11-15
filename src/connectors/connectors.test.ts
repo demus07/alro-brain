@@ -5,7 +5,7 @@ import { messages, orgs } from "@/db/schema";
 import { createTestDb } from "@/db/test-db";
 import { writeBatch } from "@/ingest/writer";
 import { fetchGmail } from "./gmail";
-import { ProviderError, type Api } from "./nango";
+import { ProviderError, type Api } from "./api";
 import { fetchNotion } from "./notion";
 import { fetchSlack } from "./slack";
 import { retireOldVersions } from "./sync";

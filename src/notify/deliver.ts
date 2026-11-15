@@ -1,4 +1,5 @@
-import { aliasedTable, and, eq, inArray } from "drizzle-orm";
+import { aliasedTable, and, eq, inArray, isNull } from "drizzle-orm";
+import { notifyPerson } from "@/channels/links";
 import type { Db } from "@/db/client";
 import { commitments, notifications, orgs, people } from "@/db/schema";
 import { formatShort } from "@/lib/time";
@@ -9,19 +10,20 @@ import { sendEmail } from "./email";
 const LABEL: Record<string, string> = { due_soon: "Due soon", overdue: "Overdue", overdue_followup: "Still overdue" };
 
 /**
- * Emails what the watcher queued: one brief per person for the daily digest, and otherwise
- * one short reminder listing their promises. Notifications stay as in-app ones when email
- * isn't configured or fails; a failure for one person doesn't stop the rest.
+ * Sends what the watcher queued, by email and in the member's linked messaging apps: one
+ * brief per person for the daily digest, and otherwise one short reminder listing their
+ * promises. Notifications stay as in-app ones when nothing is configured or a send fails;
+ * a failure for one person doesn't stop the rest.
  */
-export async function deliverReminders(db: Db, orgId: string, reminders: Reminder[], now = new Date()): Promise<{ emailed: number; failed: number }> {
+export async function deliverReminders(db: Db, orgId: string, reminders: Reminder[], now = new Date()): Promise<{ emailed: number; messaged: number; failed: number }> {
   const [org] = await db.select({ timezone: orgs.timezone }).from(orgs).where(eq(orgs.id, orgId));
-  const stats = { emailed: 0, failed: 0 };
+  const stats = { emailed: 0, messaged: 0, failed: 0 };
   const appUrl = process.env.ALRO_APP_URL;
 
   for (const personId of new Set(reminders.map((r) => r.personId))) {
     const theirs = reminders.filter((r) => r.personId === personId);
     const [person] = await db.select({ name: people.displayName, email: people.primaryEmail, isMember: people.isMember }).from(people).where(eq(people.id, personId));
-    if (!person?.email || !person.isMember) continue;
+    if (!person?.isMember) continue;
     try {
       const digest = theirs.find((r) => r.kind.startsWith("digest:"));
       let mail: { subject: string; text: string; html: string };
@@ -31,9 +33,18 @@ export async function deliverReminders(db: Db, orgId: string, reminders: Reminde
       } else {
         mail = await reminderMail(db, theirs, org.timezone, person.name);
       }
-      if (!(await sendEmail({ to: person.email, ...mail }))) continue;
-      await db.update(notifications).set({ channel: "email" }).where(and(eq(notifications.orgId, orgId), eq(notifications.personId, personId), inArray(notifications.kind, theirs.map((r) => r.kind))));
-      stats.emailed++;
+      const emailed = person.email ? await sendEmail({ to: person.email, ...mail }) : false;
+      const pinged = await notifyPerson(db, orgId, personId, mail.text, now);
+      if (!emailed && !pinged.length) continue;
+      // Only the reminders delivered just now, not older ones of the same kind.
+      for (const r of theirs) {
+        await db
+          .update(notifications)
+          .set({ channel: emailed ? "email" : pinged[0] })
+          .where(and(eq(notifications.orgId, orgId), eq(notifications.personId, personId), eq(notifications.kind, r.kind), r.commitmentId ? eq(notifications.commitmentId, r.commitmentId) : isNull(notifications.commitmentId)));
+      }
+      if (emailed) stats.emailed++;
+      if (pinged.length) stats.messaged++;
     } catch (e) {
       stats.failed++;
       console.error(`reminder email failed for ${personId}`, e instanceof Error ? e.message : e);

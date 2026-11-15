@@ -6,7 +6,7 @@ import { runPipeline } from "@/pipeline/run";
 
 export const maxDuration = 300;
 
-/** Pulls what's new from every live connector (Slack, Gmail, Notion), then processes it. */
+/** Pulls what's new from every connected source, then processes it. */
 export async function GET(request: Request) {
   const denied = cronUnauthorized(request);
   if (denied) return denied;

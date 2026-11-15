@@ -103,7 +103,7 @@ export async function recordRun(
   db: Db,
   run: {
     orgId: string;
-    stage: "screen" | "extract" | "graph" | "fulfil" | "embed" | "answer" | "rollup";
+    stage: "screen" | "extract" | "graph" | "fulfil" | "embed" | "answer" | "rollup" | "notes" | "routine" | "profile";
     model: LanguageModel | EmbeddingModel;
     inputTokens?: number;
     outputTokens?: number;

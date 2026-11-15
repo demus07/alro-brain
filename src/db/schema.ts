@@ -2,12 +2,13 @@
  * ALRO memory schema.
  *
  * Five layers, all in one Postgres:
- *   0. Tenancy & identity  orgs, people, identities, connections
+ *   0. Tenancy & identity  orgs, people, identities, connections, secrets
  *   1. Evidence log        threads, thread_members, messages, records, chunks
  *   2. Entity graph        entities, entity_aliases, edges (bi-temporal facts)
  *   3. Commitment ledger   commitments, commitment_events, notifications
  *   4. Agent tools         (queries over the tables above, no tables of their own)
  *   5. Consolidation       rollups
+ *   6. Working day         events, meeting_notes, profiles, routines, live tools, messaging channels
  *   +  Ops                 sync_runs, llm_runs
  *
  * Access control
@@ -147,10 +148,10 @@ export const connections = pgTable(
     ownerPersonId: uuid("owner_person_id").references(() => people.id, {
       onDelete: "set null",
     }),
-    /** Nango connection id. Tokens live in Nango, never here. */
-    nangoConnectionId: text("nango_connection_id"),
-    /** Workspace id, mailbox address, CRM instance URL, etc. */
+    /** Workspace id, mailbox address, CRM instance URL, etc. Tokens live in `secrets`, never here. */
     externalAccountId: text("external_account_id"),
+    /** How the account is shown: workspace name, mailbox, site. */
+    label: text("label"),
     /** Data region where the provider has one (Zoho .com/.in/.eu, Salesforce instance). */
     region: text("region"),
     status: connectionStatus("status").notNull().default("active"),
@@ -162,6 +163,25 @@ export const connections = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [index("connections_org_idx").on(t.orgId)],
+);
+
+/**
+ * Encrypted credentials: connector tokens and live-tool sign-ins (AES-256-GCM, key in
+ * ALRO_SECRET_KEY; see src/lib/secrets.ts). The alro_app role cannot read this table.
+ */
+export const secrets = pgTable(
+  "secrets",
+  {
+    id: id(),
+    orgId: orgId(),
+    /** connection | mcp */
+    kind: text("kind").notNull(),
+    /** The connection or live-tool server the secret belongs to. */
+    refId: uuid("ref_id").notNull(),
+    data: text("data").notNull(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("secrets_ref_uq").on(t.kind, t.refId)],
 );
 
 // ---------------------------------------------------------------------------
@@ -669,6 +689,232 @@ export const rollups = pgTable(
     index("rollups_scope_idx").on(t.orgId, t.scopeType, t.scopeId, t.periodEnd),
     index("rollups_acl_idx").using("gin", t.acl),
   ],
+);
+
+// ---------------------------------------------------------------------------
+// 6. Working day: calendar, meeting notes, the personal brain, scheduled tasks,
+//    live tools and messaging channels
+// ---------------------------------------------------------------------------
+
+export interface EventAttendee {
+  email?: string;
+  name?: string;
+  /** Set when the attendee is someone ALRO already knows. */
+  personId?: string;
+}
+
+/** A calendar event on one person's calendar. Private to them (acl 'p:<owner>'). */
+export const events = pgTable(
+  "events",
+  {
+    id: id(),
+    orgId: orgId(),
+    connectionId: uuid("connection_id")
+      .notNull()
+      .references(() => connections.id, { onDelete: "cascade" }),
+    externalId: text("external_id").notNull(),
+    ownerPersonId: uuid("owner_person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description"),
+    location: text("location"),
+    url: text("url"),
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+    allDay: boolean("all_day").notNull().default(false),
+    organizer: text("organizer"),
+    attendees: jsonb("attendees").$type<EventAttendee[]>().notNull().default(sql`'[]'::jsonb`),
+    cancelled: boolean("cancelled").notNull().default(false),
+    acl: acl(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("events_connection_external_uq").on(t.connectionId, t.externalId),
+    index("events_owner_start_idx").on(t.ownerPersonId, t.startsAt),
+    index("events_acl_idx").using("gin", t.acl),
+  ],
+);
+
+/** What a meeting came to: written once per meeting thread, from its transcript. Visible to whoever can see the transcript. */
+export const meetingNotes = pgTable(
+  "meeting_notes",
+  {
+    id: id(),
+    orgId: orgId(),
+    threadId: uuid("thread_id")
+      .notNull()
+      .unique()
+      .references(() => threads.id, { onDelete: "cascade" }),
+    /** Markdown: what was discussed, decisions, who owes what by when. */
+    summary: text("summary").notNull(),
+    /** A follow-up email to the attendees, ready to edit and send. */
+    followUp: text("follow_up"),
+    acl: acl(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("meeting_notes_acl_idx").using("gin", t.acl)],
+);
+
+/** The personal brain: how one member writes and works. Only they can read it. */
+export const profiles = pgTable("profiles", {
+  personId: uuid("person_id")
+    .primaryKey()
+    .references(() => people.id, { onDelete: "cascade" }),
+  orgId: orgId(),
+  /** How they write, learned from their own messages. */
+  style: text("style"),
+  styleAt: timestamp("style_at", { withTimezone: true }),
+  updatedAt: updatedAt(),
+});
+
+/** One thing ALRO knows about a member: a goal, a preference, how they decide. */
+export const profileNotes = pgTable(
+  "profile_notes",
+  {
+    id: id(),
+    orgId: orgId(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    /** goal | preference | decision | about */
+    category: text("category").notNull(),
+    text: text("text").notNull(),
+    /** chat | interview | manual */
+    source: text("source").notNull().default("chat"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("profile_notes_person_idx").on(t.personId, t.createdAt)],
+);
+
+/** When a scheduled task runs. Times are local to the org's time zone. */
+export type Schedule =
+  | { kind: "once"; at: string }
+  | { kind: "daily"; time: string }
+  | { kind: "weekdays"; time: string }
+  | { kind: "weekly"; weekday: number; time: string };
+
+/** A task the agent does on a schedule for one member, with their access: a Monday report, "have this ready by 5am". */
+export const routines = pgTable(
+  "routines",
+  {
+    id: id(),
+    orgId: orgId(),
+    ownerPersonId: uuid("owner_person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    /** What to do, in the owner's words. */
+    instruction: text("instruction").notNull(),
+    schedule: jsonb("schedule").$type<Schedule>().notNull(),
+    /** Null once a one-off has run, or while switched off. */
+    nextRunAt: timestamp("next_run_at", { withTimezone: true }),
+    enabled: boolean("enabled").notNull().default(true),
+    lastRunAt: timestamp("last_run_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("routines_due_idx").on(t.nextRunAt).where(sql`${t.enabled}`), index("routines_owner_idx").on(t.ownerPersonId)],
+);
+
+export const routineRuns = pgTable(
+  "routine_runs",
+  {
+    id: id(),
+    orgId: orgId(),
+    routineId: uuid("routine_id")
+      .notNull()
+      .references(() => routines.id, { onDelete: "cascade" }),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    /** running | ok | error */
+    status: text("status").notNull().default("running"),
+    output: text("output"),
+    error: text("error"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+  },
+  (t) => [index("routine_runs_routine_idx").on(t.routineId, t.startedAt)],
+);
+
+export interface LiveToolInfo {
+  name: string;
+  description?: string;
+  /** What the server says: true reads only, false changes things, null when it doesn't say. */
+  readOnly: boolean | null;
+  enabled: boolean;
+}
+
+/** A live-tool server (MCP): the agent queries the app at the moment someone asks, nothing is stored. */
+export const mcpServers = pgTable(
+  "mcp_servers",
+  {
+    id: id(),
+    orgId: orgId(),
+    scope: connectionScope("scope").notNull(),
+    ownerPersonId: uuid("owner_person_id").references(() => people.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    url: text("url").notNull(),
+    /** none | bearer | oauth */
+    authKind: text("auth_kind").notNull().default("none"),
+    /** active | needs_auth | error */
+    status: text("status").notNull().default("active"),
+    tools: jsonb("tools").$type<LiveToolInfo[]>().notNull().default(sql`'[]'::jsonb`),
+    lastError: text("last_error"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("mcp_servers_org_idx").on(t.orgId)],
+);
+
+/** A member's account in a messaging app, proven with a one-time code, so the agent knows who is asking. */
+export const channelLinks = pgTable(
+  "channel_links",
+  {
+    id: id(),
+    orgId: orgId(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    /** whatsapp | telegram | slack */
+    channel: text("channel").notNull(),
+    /** Phone number, Telegram chat id, Slack user id. */
+    externalUserId: text("external_user_id").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("channel_links_user_uq").on(t.channel, t.externalUserId), index("channel_links_person_idx").on(t.personId)],
+);
+
+/** Short-lived codes a member sends from the messaging app to link it. */
+export const channelLinkCodes = pgTable("channel_link_codes", {
+  code: text("code").primaryKey(),
+  orgId: orgId(),
+  personId: uuid("person_id")
+    .notNull()
+    .references(() => people.id, { onDelete: "cascade" }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});
+
+/** The conversation with the agent in a messaging app, kept so follow-up questions have context. */
+export const channelMessages = pgTable(
+  "channel_messages",
+  {
+    id: id(),
+    orgId: orgId(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    channel: text("channel").notNull(),
+    /** user | assistant */
+    role: text("role").notNull(),
+    text: text("text").notNull(),
+    /** The app's id for an incoming message, so a redelivered webhook is answered once. */
+    externalId: text("external_id"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("channel_messages_person_idx").on(t.personId, t.channel, t.createdAt), uniqueIndex("channel_messages_external_uq").on(t.channel, t.externalId)],
 );
 
 // ---------------------------------------------------------------------------

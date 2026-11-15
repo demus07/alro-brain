@@ -1,44 +1,44 @@
-/* Working styles until the Phase 4 design system: quiet and monochrome, full screen. */
+/* Quiet, full-screen styles. Colours are Flexoki (github.com/kepano/flexoki, MIT): ink on paper. */
 :root {
   /* Brand colours live here: swap these to retheme the app. */
-  --desk: #f3efe6;
-  --window: #faf7f0;
-  --surface: #ffffff;
-  --foreground: #1f1a17;
-  --muted: #7d746b;
-  --border: #e8e2d6;
-  --chip: #f1ece1;
-  --primary: #1f1a17;
-  --on-primary: #faf7f0;
-  --accent: #a3172d;
-  --on-accent: #fff8f0;
-  --accent-soft: #f6e4e2;
-  --danger: #b3261e;
-  --warn: #a8700a;
-  --ok: #2e7d57;
-  --shadow: 0 1px 2px rgb(60 40 20 / 0.05), 0 12px 32px rgb(60 40 20 / 0.08);
-  --radius: 14px;
+  --desk: #f2f0e5; /* base-50 */
+  --window: #fffcf0; /* paper */
+  --surface: #fffcf0; /* paper: cards sit on the page, marked by a hairline */
+  --foreground: #100f0f; /* black */
+  --muted: #6f6e69; /* base-600 */
+  --border: #e6e4d9; /* base-100 */
+  --chip: #f2f0e5; /* base-50 */
+  --primary: #100f0f;
+  --on-primary: #fffcf0;
+  --accent: #af3029; /* red-600 */
+  --on-accent: #fffcf0;
+  --accent-soft: #ffe1d5; /* red-50 */
+  --danger: #af3029; /* red-600 */
+  --warn: #bc5215; /* orange-600 */
+  --ok: #66800b; /* green-600 */
+  --shadow: 0 1px 2px rgb(16 15 15 / 0.04), 0 6px 20px rgb(16 15 15 / 0.05);
+  --radius: 10px;
   --font-display: var(--font-instrument-serif), Georgia, serif;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --desk: #100e0c;
-    --window: #161311;
-    --surface: #1f1b18;
-    --foreground: #f1ebe2;
-    --muted: #9b9188;
-    --border: #2e2925;
-    --chip: #2a2521;
-    --primary: #f1ebe2;
-    --on-primary: #161311;
-    --accent: #ec6a7c;
-    --on-accent: #1a0c0e;
-    --accent-soft: #3a1c21;
-    --danger: #ff8a7a;
-    --warn: #e5b04a;
-    --ok: #62c592;
-    --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px rgb(0 0 0 / 0.4);
+    --desk: #1c1b1a; /* base-950 */
+    --window: #100f0f; /* black */
+    --surface: #1c1b1a; /* base-950 */
+    --foreground: #cecdc3; /* base-200 */
+    --muted: #878580; /* base-500 */
+    --border: #282726; /* base-900 */
+    --chip: #282726; /* base-900 */
+    --primary: #cecdc3;
+    --on-primary: #100f0f;
+    --accent: #d14d41; /* red-400 */
+    --on-accent: #100f0f;
+    --accent-soft: #3e1715; /* red-900 */
+    --danger: #d14d41; /* red-400 */
+    --warn: #da702c; /* orange-400 */
+    --ok: #879a39; /* green-400 */
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 20px rgb(0 0 0 / 0.25);
   }
   html {
     color-scheme: dark;
@@ -155,13 +155,12 @@ a {
 
 .side-nav a:hover {
   color: var(--foreground);
-  background: var(--surface);
 }
 
 .side-nav a[aria-current="page"] {
   color: var(--foreground);
-  background: var(--surface);
-  box-shadow: 0 0 0 1px var(--border);
+  background: var(--border);
+  font-weight: 500;
 }
 
 .side-nav a[aria-current="page"] svg {
@@ -421,6 +420,23 @@ a.link {
   gap: 12px;
 }
 
+/* A feed reads as one list with hairlines, not a stack of boxes. */
+.feed {
+  gap: 0;
+}
+
+.feed .card {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  padding: 14px 4px;
+}
+
+.feed > .label {
+  margin-bottom: 4px;
+}
+
 .todo {
   display: flex;
   flex-direction: column;
@@ -458,7 +474,7 @@ a.link {
 .chat {
   flex: 1;
   width: 100%;
-  max-width: 740px;
+  max-width: 700px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -516,8 +532,9 @@ a.link {
 
 .answer {
   white-space: pre-wrap;
-  line-height: 1.65;
+  line-height: 1.7;
   font-size: 15.5px;
+  max-width: 68ch;
 }
 
 .answer strong {
@@ -574,8 +591,7 @@ a.link {
   flex-direction: column;
   gap: 10px;
   padding: 14px 16px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--chip);
   border-left: 3px solid var(--accent);
   border-radius: var(--radius);
 }
@@ -609,8 +625,7 @@ a.link {
   display: flex;
   flex-direction: column;
   padding: 12px 16px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--chip);
   border-radius: var(--radius);
 }
 
@@ -697,6 +712,7 @@ a.link {
 }
 
 .button-link,
+span.chip-button,
 a.chip-button {
   display: inline-flex;
   align-items: center;
@@ -814,25 +830,26 @@ a.chip-button {
 
 /* ---- Graph ---------------------------------------------------------------- */
 
+/* Flexoki accents: 600s on paper, 400s on black. */
 :root {
-  --t-person: #3f5fbf;
-  --t-company: #1f9d55;
-  --t-product: #c98a00;
-  --t-project: #8a5fbf;
-  --t-deal: #c4321b;
-  --t-topic: #0e9aa7;
-  --t-other: #8a8a8a;
+  --t-person: #205ea6; /* blue */
+  --t-company: #66800b; /* green */
+  --t-product: #ad8301; /* yellow */
+  --t-project: #5e409d; /* purple */
+  --t-deal: #bc5215; /* orange */
+  --t-topic: #24837b; /* cyan */
+  --t-other: #878580; /* base-500 */
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --t-person: #7d9bff;
-    --t-company: #4cc287;
-    --t-product: #e6b13d;
-    --t-project: #b294ff;
-    --t-deal: #ff7a66;
-    --t-topic: #3cc6d0;
-    --t-other: #9a9a9a;
+    --t-person: #4385be;
+    --t-company: #879a39;
+    --t-product: #d0a215;
+    --t-project: #8b7ec8;
+    --t-deal: #da702c;
+    --t-topic: #3aa99f;
+    --t-other: #878580;
   }
 }
 
@@ -1307,4 +1324,117 @@ a.chip-button {
 
 .suggestions.left {
   justify-content: flex-start;
+}
+
+/* ---- Connect forms, live tools, scheduled tasks ---------------------------- */
+
+.connect > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.connect > summary::-webkit-details-marker {
+  display: none;
+}
+
+.connect[open] > summary .chip-button {
+  visibility: hidden;
+}
+
+.connect-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 4px 0 14px 44px;
+  padding: 14px 16px;
+  background: var(--chip);
+  border-radius: var(--radius);
+}
+
+.shell .connect-form label,
+.shell .card label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.shell form.inline-form {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.inline-form input[name="text"] {
+  flex: 1;
+  min-width: 200px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.tool-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tool-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.shell button.chip-button.on {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+.notice {
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--chip);
+}
+
+.prose {
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+.code {
+  font-size: 16px;
+  letter-spacing: 0.12em;
+}
+
+.plain-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: var(--muted);
+}
+
+details.card > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+details.card > summary::-webkit-details-marker {
+  display: none;
+}
+
+.shell .composer button.mic {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+.shell .composer button.mic.recording {
+  color: var(--danger);
+  border-color: var(--danger);
 }

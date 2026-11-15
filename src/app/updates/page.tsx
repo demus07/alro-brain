@@ -10,6 +10,7 @@ import { buildBrief } from "@/notify/brief";
 import { formatShort } from "@/lib/time";
 import { getViewer } from "@/lib/viewer";
 import { setVerdict } from "../commitments/actions";
+import { Meetings } from "./meetings";
 
 export const metadata: Metadata = { title: "Updates · ALRO" };
 
@@ -118,8 +119,9 @@ async function Updates() {
         </p>
       )}
     </div>
+    <Meetings viewer={viewer} timeZone={org.timezone} />
     <div className="split">
-      <section className="column">
+      <section className="column feed">
         <p className="label center">Incoming · all channels</p>
         {incoming.length === 0 && <p className="muted center">No messages yet. Connect a source or upload an export.</p>}
         {incoming.map((m) => {

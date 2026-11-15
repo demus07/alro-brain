@@ -1,11 +1,11 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { commitments, connections, edges, entities, messages, rollups, threads } from "@/db/schema";
+import { commitments, connections, edges, entities, messages, rollups, secrets, threads } from "@/db/schema";
 
 /**
  * Deletes a source and everything derived only from it: its threads, messages and
  * search chunks (by cascade), the promises made in it, facts whose evidence was only
- * there, daily summaries of its threads, and entities nothing else mentions.
+ * there, daily summaries of its threads, entities nothing else mentions, and its saved credential.
  */
 export async function forgetConnection(db: Db, orgId: string, connectionId: string) {
   return db.transaction(async (txRaw) => {
@@ -19,6 +19,7 @@ export async function forgetConnection(db: Db, orgId: string, connectionId: stri
     const facts = msgIds.length ? await tx.delete(edges).where(and(eq(edges.orgId, orgId), sql`${edges.sourceMessageIds} <@ ${ids}::uuid[]`)).returning({ id: edges.id }) : [];
     if (threadIds.length) await tx.delete(rollups).where(and(eq(rollups.orgId, orgId), eq(rollups.scopeType, "thread"), inArray(rollups.scopeId, threadIds)));
     await tx.delete(connections).where(and(eq(connections.orgId, orgId), eq(connections.id, connectionId)));
+    await tx.delete(secrets).where(and(eq(secrets.orgId, orgId), eq(secrets.kind, "connection"), eq(secrets.refId, connectionId)));
     // Entities left with no mentions and no facts.
     const orphans = await tx
       .delete(entities)
