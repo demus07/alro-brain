@@ -1,5 +1,5 @@
 import { slackExportToBatch } from "@/ingest/parsers/slack-export";
-import type { NormalizedBatch } from "@/ingest/types";
+import type { CompleteWindow, NormalizedBatch } from "@/ingest/types";
 import { bearer, httpApi, type Api } from "./api";
 import { z } from "zod";
 import type { ActionDef, Provider } from "./provider";
@@ -9,6 +9,11 @@ const BACKFILL_DAYS = 90;
 /** Each sync re-reads this much before its cursor, so replies to recent threads are picked up. */
 const OVERLAP_DAYS = 7;
 const MAX_PAGES = 20;
+/**
+ * Deletions are only looked for this far back. A free workspace hides messages past 90 days from the API,
+ * and a hidden message must not be mistaken for a deleted one.
+ */
+const DELETION_CHECK_DAYS = 60;
 
 export interface SlackCursor {
   /** Newest message ts seen, per conversation. */
@@ -24,6 +29,11 @@ interface Page {
 /**
  * Fetches what's new in every conversation the connection can read and turns it into
  * the same shape as a Slack export, so the export parser does the mapping.
+ *
+ * Every readable conversation is reported on every sync, quiet ones too, so that what Slack took away
+ * reaches ALRO: a private channel's or DM's member list is the whole list (people no longer on it lose
+ * the thread), and the overlap week is read to the end, so a stored message missing from it was deleted.
+ * Neither is claimed when a list was cut short by the page cap.
  */
 export async function fetchSlack(api: Api, cursor: SlackCursor = {}, now = new Date()): Promise<{ batch: NormalizedBatch; cursor: SlackCursor }> {
   const call = async <T extends Page>(path: string, query: Record<string, string | number | undefined>) => {
@@ -40,16 +50,18 @@ export async function fetchSlack(api: Api, cursor: SlackCursor = {}, now = new D
       next = r.response_metadata?.next_cursor || undefined;
       if (!next) break;
     }
-    return all;
+    // `complete`: read to the last page, not stopped by the cap.
+    return { all, complete: !next };
   };
 
   const team = await call<Page & { team_id: string; url?: string }>("auth.test", {});
   type Conv = { id: string; name?: string; is_channel?: boolean; is_private?: boolean; is_im?: boolean; is_mpim?: boolean; user?: string; members?: string[] };
   type Msg = { ts: string; thread_ts?: string; reply_count?: number; type: string };
   const users = await pages<Page & { members: unknown[] }, unknown>("users.list", { limit: 200 }, (r) => r.members);
-  const convs = await pages<Page & { channels: Conv[] }, Conv>("conversations.list", { types: "public_channel,private_channel,mpim,im", exclude_archived: "true", limit: 200 }, (r) => r.channels);
+  const { all: convs, complete: allListed } = await pages<Page & { channels: Conv[] }, Conv>("conversations.list", { types: "public_channel,private_channel,mpim,im", exclude_archived: "true", limit: 200 }, (r) => r.channels);
 
-  const files = new Map<string, string>([["users.json", JSON.stringify(users)]]);
+  const files = new Map<string, string>([["users.json", JSON.stringify(users.all)]]);
+  const sure = new Map<string, { membersComplete?: boolean; complete?: CompleteWindow }>();
   const groups: Record<"channels" | "groups" | "dms" | "mpims", Conv[]> = { channels: [], groups: [], dms: [], mpims: [] };
   const latest = { ...cursor.latest };
   const floor = (now.getTime() - BACKFILL_DAYS * 86_400_000) / 1000;
@@ -57,8 +69,9 @@ export async function fetchSlack(api: Api, cursor: SlackCursor = {}, now = new D
   for (const c of convs) {
     const since = cursor.latest?.[c.id] ? Number(cursor.latest[c.id]) - OVERLAP_DAYS * 86_400 : floor;
     let history: Msg[];
+    let readToEnd: boolean;
     try {
-      history = await pages<Page & { messages: Msg[] }, Msg>("conversations.history", { channel: c.id, oldest: since.toFixed(6), limit: 200 }, (r) => r.messages);
+      ({ all: history, complete: readToEnd } = await pages<Page & { messages: Msg[] }, Msg>("conversations.history", { channel: c.id, oldest: since.toFixed(6), limit: 200 }, (r) => r.messages));
     } catch (e) {
       // Channels the app isn't in can be listed but not read; skip them.
       if (/not_in_channel|channel_not_found|missing_scope/.test(String(e))) continue;
@@ -67,12 +80,20 @@ export async function fetchSlack(api: Api, cursor: SlackCursor = {}, now = new D
     const replies: Msg[] = [];
     for (const parent of history.filter((m) => (m.reply_count ?? 0) > 0)) {
       const thread = await pages<Page & { messages: Msg[] }, Msg>("conversations.replies", { channel: c.id, ts: parent.ts, limit: 200 }, (r) => r.messages);
-      replies.push(...thread.filter((m) => m.ts !== parent.ts));
+      replies.push(...thread.all.filter((m) => m.ts !== parent.ts));
+      readToEnd &&= thread.complete;
     }
     const all = [...history, ...replies].sort((a, b) => Number(a.ts) - Number(b.ts));
-    if (!all.length && cursor.latest?.[c.id]) continue;
 
-    const members = c.is_im ? [c.user!] : c.is_private || c.is_mpim ? await pages<Page & { members: string[] }, string>("conversations.members", { channel: c.id, limit: 200 }, (r) => r.members) : undefined;
+    const roster = c.is_im ? { all: [c.user!], complete: true } : c.is_private || c.is_mpim ? await pages<Page & { members: string[] }, string>("conversations.members", { channel: c.id, limit: 200 }, (r) => r.members) : undefined;
+    const members = roster?.all;
+    // Slack answers `oldest` exclusively and timestamps are stored to the millisecond, so the stretch starts a millisecond in.
+    const from = new Date(Math.floor(Math.max(since, now.getTime() / 1000 - DELETION_CHECK_DAYS * 86_400) * 1000) + 1);
+    sure.set(c.id, {
+      // Members are matched to people through the user list, so that has to be whole too.
+      membersComplete: roster ? roster.complete && users.complete : undefined,
+      complete: readToEnd ? { from, to: now, repliesUnderParentsOnly: true } : undefined,
+    });
     const conv = { ...c, members };
     const folder = c.is_im ? c.id : (c.name ?? c.id);
     if (c.is_im) groups.dms.push(conv);
@@ -85,8 +106,26 @@ export async function fetchSlack(api: Api, cursor: SlackCursor = {}, now = new D
   }
   for (const [name, list] of Object.entries(groups)) files.set(`${name}.json`, JSON.stringify(list));
 
+  // Conversations read before that Slack no longer lists. Archived ones stay as they were. One the app can't
+  // see at all (deleted, or the app was taken out of a private channel) is lost: nobody's access can be checked.
+  const lostThreads: string[] = [];
+  const listed = new Set(convs.map((c) => c.id));
+  for (const id of allListed ? Object.keys(latest).filter((id) => !listed.has(id)) : []) {
+    try {
+      const info = await call<Page & { channel?: { is_archived?: boolean } }>("conversations.info", { channel: id });
+      if (info.channel?.is_archived) delete latest[id];
+    } catch (e) {
+      if (!/^Error: Slack conversations\.info: /.test(String(e))) throw e;
+      if (!/channel_not_found/.test(String(e))) continue;
+      lostThreads.push(id);
+      delete latest[id];
+    }
+  }
+
   const domain = team.url?.match(/^https:\/\/([^.]+)\.slack\.com/)?.[1];
-  return { batch: slackExportToBatch(files, { teamId: team.team_id, domain }), cursor: { latest } };
+  const batch = slackExportToBatch(files, { teamId: team.team_id, domain });
+  // Only a live read can vouch for these; an uploaded export is a snapshot of some earlier day.
+  return { batch: { ...batch, threads: batch.threads.map((t) => ({ ...t, ...sure.get(t.externalId) })), lostThreads }, cursor: { latest } };
 }
 
 const slackPostInput = z.object({

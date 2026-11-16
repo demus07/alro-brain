@@ -11,6 +11,7 @@ import { buildBrief } from "@/notify/brief";
 import { formatShort } from "@/lib/time";
 import { getViewer } from "@/lib/viewer";
 import { setVerdict } from "../commitments/actions";
+import { NeedsAttention } from "../overview/needs-attention";
 import { Meetings } from "./meetings";
 
 export const metadata: Metadata = { title: "Updates · ALRO" };
@@ -119,6 +120,15 @@ async function Updates() {
         <p className="muted small">
           Busiest in the last day: {brief.active.map((a) => `${a.title} (${a.messages})`).join(", ")}. {brief.newPromises} new promises, {brief.changedFacts} facts changed.
         </p>
+      )}
+      {brief.attention.length > 0 && (
+        <>
+          <p className="label">Needs attention</p>
+          <NeedsAttention items={brief.attention} />
+          <Link className="link small" href="/overview">
+            See the whole company →
+          </Link>
+        </>
       )}
     </div>
     <Meetings viewer={viewer} timeZone={org.timezone} />

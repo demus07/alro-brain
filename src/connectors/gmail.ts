@@ -13,30 +13,60 @@ export interface GmailCursor {
   historyId?: string;
 }
 
+interface HistoryChange {
+  message: { id: string; labelIds?: string[] };
+  labelIds?: string[];
+}
+interface History {
+  messagesAdded?: HistoryChange[];
+  labelsAdded?: HistoryChange[];
+  labelsRemoved?: HistoryChange[];
+}
+
+const notFound = (e: unknown) => {
+  if (e instanceof ProviderError && e.status === 404) return undefined;
+  throw e;
+};
+
 /**
  * New mail since the last sync (Gmail history), or the last 90 days on the first one.
  * Each message is fetched raw and read by the same parser as .eml uploads.
+ *
+ * The same history says what was moved to the bin since: those come back as `deletedMessageIds`, and one
+ * taken out of the bin again is fetched like new mail, which brings it back. Mail deleted for good without
+ * passing through the bin between two syncs can't be matched (Gmail no longer gives its Message-ID) and stays.
  */
 export async function fetchGmail(api: Api, cursor: GmailCursor = {}): Promise<{ batch: NormalizedBatch; cursor: GmailCursor; mailbox: string }> {
   const profile = await api<{ emailAddress: string; historyId: string }>("GET", "gmail/v1/users/me/profile");
   const mailbox = profile.emailAddress.toLowerCase();
 
   let ids: string[] | undefined;
+  const binned = new Set<string>();
   if (cursor.historyId) {
     try {
       ids = [];
       let pageToken: string | undefined;
       do {
-        const r = await api<{ history?: { messagesAdded?: { message: { id: string; labelIds?: string[] } }[] }[]; nextPageToken?: string }>("GET", "gmail/v1/users/me/history", {
-          query: { startHistoryId: cursor.historyId, historyTypes: "messageAdded", maxResults: 500, pageToken },
+        const r = await api<{ history?: History[]; nextPageToken?: string }>("GET", "gmail/v1/users/me/history", {
+          query: { startHistoryId: cursor.historyId, maxResults: 500, pageToken },
         });
-        for (const h of r.history ?? []) for (const a of h.messagesAdded ?? []) if (!a.message.labelIds?.some((l) => SKIP_LABELS.has(l))) ids.push(a.message.id);
+        // In order, so binned-then-restored ends up restored.
+        for (const h of r.history ?? []) {
+          for (const a of h.messagesAdded ?? []) if (!a.message.labelIds?.some((l) => SKIP_LABELS.has(l))) ids.push(a.message.id);
+          for (const a of h.labelsAdded ?? []) if (a.labelIds?.includes("TRASH")) binned.add(a.message.id);
+          for (const a of h.labelsRemoved ?? []) {
+            if (!a.labelIds?.includes("TRASH")) continue;
+            binned.delete(a.message.id);
+            if (!a.message.labelIds?.some((l) => SKIP_LABELS.has(l))) ids.push(a.message.id);
+          }
+        }
         pageToken = r.nextPageToken;
       } while (pageToken && ids.length < MAX_MESSAGES);
     } catch (e) {
       // History older than about a week is gone (404); fall back to a date search.
-      if (!(e instanceof ProviderError && e.status === 404)) throw e;
+      notFound(e);
       ids = undefined;
+      binned.clear();
     }
   }
   if (!ids) {
@@ -53,11 +83,21 @@ export async function fetchGmail(api: Api, cursor: GmailCursor = {}): Promise<{ 
   }
 
   const files: { name: string; content: string }[] = [];
-  for (const id of [...new Set(ids)].slice(0, MAX_MESSAGES)) {
-    const m = await api<{ raw: string }>("GET", `gmail/v1/users/me/messages/${id}`, { query: { format: "raw" } });
-    files.push({ name: `${id}.eml`, content: Buffer.from(m.raw, "base64url").toString("utf8") });
+  for (const id of [...new Set(ids)].filter((id) => !binned.has(id)).slice(0, MAX_MESSAGES)) {
+    // Gone for good since it was listed: nothing to read.
+    const m = await api<{ raw: string }>("GET", `gmail/v1/users/me/messages/${id}`, { query: { format: "raw" } }).catch(notFound);
+    if (m) files.push({ name: `${id}.eml`, content: Buffer.from(m.raw, "base64url").toString("utf8") });
   }
-  return { batch: emailsToBatch(files, mailbox), cursor: { historyId: profile.historyId }, mailbox };
+
+  // Mail is stored under its Message-ID header (see the email parser), which a binned message still has.
+  const deletedMessageIds: string[] = [];
+  for (const id of binned) {
+    const m = await api<{ payload?: { headers?: { name: string; value: string }[] } }>("GET", `gmail/v1/users/me/messages/${id}`, { query: { format: "metadata", metadataHeaders: "Message-ID" } }).catch(notFound);
+    if (!m) continue;
+    const header = m.payload?.headers?.find((h) => h.name.toLowerCase() === "message-id")?.value;
+    deletedMessageIds.push(header?.match(/<[^>]+>/)?.[0] ?? `<${id}.eml>`);
+  }
+  return { batch: { ...emailsToBatch(files, mailbox), deletedMessageIds }, cursor: { historyId: profile.historyId }, mailbox };
 }
 
 export const gmail: Provider = {

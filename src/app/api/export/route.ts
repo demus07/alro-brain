@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { getDb } from "@/db/client";
 import { commitments, connections, edges, entities, messages, people, threads } from "@/db/schema";
 import { withScope } from "@/db/scope";
+import { audit } from "@/lib/audit";
 import { getViewer } from "@/lib/viewer";
 
 /** Everything the asker can see, as one JSON file: sources, conversations, messages, promises and the knowledge graph. */
@@ -10,6 +11,7 @@ export async function GET() {
   // Per request, for whoever is asking: never prerendered at build time.
   await connection();
   const viewer = await getViewer();
+  await audit(getDb(), { orgId: viewer.orgId, personId: viewer.personId, action: "data.export" });
   const data = await withScope(getDb(), viewer, async (tx) => ({
     exportedAt: new Date().toISOString(),
     exportedBy: viewer.email,

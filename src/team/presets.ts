@@ -1,12 +1,14 @@
 /**
  * Ready-made departments for the agent team. Each specialist sees only the tools its job
  * needs (prefixes match every tool of a connected app, e.g. "xero_"). Tools of apps that
- * aren't connected are simply absent. Members can edit or add specialists on the Team page.
+ * aren't connected are simply absent. Admins add departments and specialists on the Team page.
  */
 export interface SpecialistPreset {
   name: string;
   job: string;
   tools: string[];
+  /** Model steps it may take on one task when the usual eight aren't enough (one lookup per customer, then a draft each). */
+  steps?: number;
 }
 
 export interface DepartmentPreset {
@@ -34,6 +36,7 @@ export const DEPARTMENTS: DepartmentPreset[] = [
         name: "Collections",
         job: "Chase overdue payments. Find unpaid invoices past their due date in the accounting and payment tools, biggest first. For each customer, check memory for what they last said about paying (a promised date, a dispute). Draft a short, polite chaser for each that names the invoice number, amount and due date and mentions what they last said, and propose it as an email for approval. Don't chase anyone who disputed the invoice or promised a date that hasn't passed yet: list them separately with why.",
         tools: [...ACCOUNTS, ...MEMORY, ...PROMISES, ...EMAIL],
+        steps: 12,
       },
       {
         name: "Reconciliation",
@@ -56,6 +59,7 @@ export const DEPARTMENTS: DepartmentPreset[] = [
         name: "Quotes",
         job: "When a customer asks for a price or a quote, pull their past orders for the same product or grade (online store, CRM, sheets, emails), the price they last paid and any terms agreed. Draft the quote reply at consistent pricing and propose it as an email for approval. Say what they paid before and where that came from.",
         tools: [...STORE, ...CRM, "sheets_", ...MEMORY, ...EMAIL],
+        steps: 12,
       },
       {
         name: "Pipeline",
@@ -66,6 +70,7 @@ export const DEPARTMENTS: DepartmentPreset[] = [
         name: "Follow-ups",
         job: "Find customer conversations and meetings from the last week that are waiting on us: unanswered questions, promised documents, next steps nobody took. Draft each follow-up and propose it for approval (email, or a CRM note or task).",
         tools: [...CRM, ...MEMORY, ...PROMISES, ...EMAIL],
+        steps: 12,
       },
     ],
   },

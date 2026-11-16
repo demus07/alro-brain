@@ -3,6 +3,7 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { EmbeddingModel, LanguageModel } from "ai";
 import type { Db } from "@/db/client";
 import { EMBEDDING_DIMS, llmRuns } from "@/db/schema";
+import { bump } from "@/platform/usage";
 
 /**
  * The models each pipeline stage uses. Strings are Vercel AI Gateway model ids
@@ -143,4 +144,9 @@ export async function recordRun(
     outputTokens: run.outputTokens ?? 0,
     messageIds: run.messageIds,
   });
+  // The same numbers, added to today's usage for the company's plan limits.
+  await bump(db, run.orgId, "tokens", (run.inputTokens ?? 0) + (run.outputTokens ?? 0));
+  if (run.stage === "answer") await bump(db, run.orgId, "questions");
+  if (run.stage === "team") await bump(db, run.orgId, "team_runs");
+  if (run.stage === "routine") await bump(db, run.orgId, "routine_runs");
 }

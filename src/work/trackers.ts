@@ -1,5 +1,5 @@
 import { generateText, Output } from "ai";
-import { and, asc, desc, eq, gte } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { recordRun, type Models } from "@/ai/models";
 import type { Db } from "@/db/client";
@@ -110,10 +110,19 @@ Add a row only for what a message actually states; leave a value null when it is
       const line = batch[r.line - 1];
       return line && Object.values(r.values).some((v) => v !== null && v !== "") ? [{ orgId: tracker.orgId, trackerId: tracker.id, personId: tracker.personId, values: r.values, messageId: line.id, at: line.at }] : [];
     });
-    if (rows.length) await db.insert(trackerRows).values(rows);
-    added += rows.length;
-    // Saved per batch after the first scan, so a failure part-way doesn't read the same messages twice.
-    if (!first) await db.update(trackers).set({ scannedUntil: batch.at(-1)!.stored, updatedAt: now }).where(eq(trackers.id, tracker.id));
+    // The rows and how far the scan got are saved together, so a failure can't leave one without the other.
+    added += await db.transaction(async (tx) => {
+      // A scan that failed part-way (the first one starts over) reads some messages again: one that
+      // already gave this tracker its rows is never given them twice.
+      const seen = rows.length
+        ? await tx.selectDistinct({ id: trackerRows.messageId }).from(trackerRows).where(and(eq(trackerRows.trackerId, tracker.id), inArray(trackerRows.messageId, [...new Set(rows.map((r) => r.messageId))])))
+        : [];
+      const fresh = rows.filter((r) => !seen.some((s) => s.id === r.messageId));
+      if (fresh.length) await tx.insert(trackerRows).values(fresh);
+      // Saved per batch after the first scan, so a failure part-way doesn't read the same messages twice.
+      if (!first) await tx.update(trackers).set({ scannedUntil: batch.at(-1)!.stored, updatedAt: now }).where(eq(trackers.id, tracker.id));
+      return fresh.length;
+    });
   }
   if (first) {
     const newest = lines.reduce((max, l) => (l.stored > max ? l.stored : max), new Date(0));

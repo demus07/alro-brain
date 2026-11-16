@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, ne, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { messages, people, threads } from "@/db/schema";
 import { withScope, type Viewer } from "@/db/scope";
@@ -41,6 +41,19 @@ export async function visibleMessages(db: Db, viewer: Viewer, opts: { after: Dat
     text: (r.subject ? `${r.subject}: ${r.text}` : r.text).replace(/\s+/g, " ").slice(0, MAX_LINE),
   }));
   return opts.newest ? lines.reverse() : lines;
+}
+
+/** Which of these messages the person can still open: visible to them now, and not deleted in the source. */
+export async function stillVisible(db: Db, viewer: Viewer, ids: string[]): Promise<Set<string>> {
+  const visible = new Set<string>();
+  if (!ids.length) return visible;
+  await withScope(db, viewer, async (tx) => {
+    for (let i = 0; i < ids.length; i += 5000) {
+      const rows = await tx.select({ id: messages.id }).from(messages).where(and(inArray(messages.id, ids.slice(i, i + 5000)), isNull(messages.deletedAt)));
+      for (const r of rows) visible.add(r.id);
+    }
+  });
+  return visible;
 }
 
 /** Lines in batches of about `chars` characters, each line numbered from 1 within its batch. */

@@ -2,6 +2,7 @@ import { aliasedTable, and, count, desc, eq, gte, inArray, isNotNull, isNull, lt
 import type { Db } from "@/db/client";
 import { approvals, commitmentEvents, commitments, edges, events, messages, people, threads } from "@/db/schema";
 import { withScope, type Viewer } from "@/db/scope";
+import { askHref, openInsights } from "@/insights/read";
 import { formatShort, startOfLocalDay } from "@/lib/time";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -14,7 +15,24 @@ export interface BriefPromise {
   due: string | null;
 }
 
+/** Something ALRO noticed that nobody asked about, with the obvious next step. */
+export interface BriefInsight {
+  id: string;
+  kind: string;
+  title: string;
+  detail: string;
+  suggestion: string | null;
+  severity: number;
+  subjectEntityId: string | null;
+  subjectPersonId: string | null;
+}
+
+/** How many insights the brief leads with. */
+const ATTENTION = 5;
+
 export interface Brief {
+  /** What needs attention (only what this person can see the evidence for), most urgent first. */
+  attention: BriefInsight[];
   /** The rest of today's meetings, from the member's connected calendar. */
   meetings: { title: string; at: string; with: string[] }[];
   /** Drafts and actions waiting for their OK. */
@@ -90,8 +108,11 @@ export async function buildBrief(db: Db, viewer: Viewer, timeZone: string, now =
       .where(and(eq(commitmentEvents.toStatus, "overdue"), gte(commitmentEvents.createdAt, since), eq(commitments.status, "overdue")))
       .limit(10);
 
+    const attention = await openInsights(tx as unknown as Db, { limit: ATTENTION });
+
     const item = (c: (typeof mine)[number]): BriefPromise => ({ id: c.id, title: c.title, person: c.person, due: when(c.dueAt, c.dueText) });
     return {
+      attention: attention.map((i) => ({ id: i.id, kind: i.kind, title: i.title, detail: i.detail, suggestion: i.suggestion, severity: i.severity, subjectEntityId: i.subjectEntityId, subjectPersonId: i.subjectPersonId })),
       meetings: today.map((e) => ({
         title: e.title,
         at: new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(e.startsAt),
@@ -113,9 +134,16 @@ export async function buildBrief(db: Db, viewer: Viewer, timeZone: string, now =
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-function sectionsOf(b: Brief) {
+/** A section's lines; `html` replaces the escaped text in the email when a line carries a link. */
+function sectionsOf(b: Brief, appUrl?: string): { title: string; items: string[]; html?: string[] }[] {
   const line = (p: BriefPromise, to: "to" | "from") => `${p.title}${p.person ? ` (${to} ${p.person})` : ""}${p.due ? `, ${p.due}` : ""}`;
   return [
+    {
+      title: "Needs attention",
+      items: b.attention.map((i) => `${i.title}. ${i.detail}${i.suggestion ? ` Next: ${i.suggestion}` : ""}`),
+      // The suggestion opens the agent with it already asked.
+      html: b.attention.map((i) => `<strong>${esc(i.title)}</strong>. ${esc(i.detail)}${i.suggestion ? ` ${appUrl ? `<a href="${esc(appUrl + askHref(i.suggestion))}">${esc(i.suggestion)}</a>` : esc(`Next: ${i.suggestion}`)}` : ""}`),
+    },
     { title: "Waiting for your OK", items: b.approvals.map((a) => `${a.summary} (reply "yes ${a.code}")`) },
     { title: "Slipped since yesterday", items: b.slipped.map((p) => `${p.title}${p.person ? ` (${p.person})` : ""}${p.due ? `, was due ${p.due}` : ""}`) },
     { title: "Today's meetings", items: b.meetings.map((m) => `${m.at} ${m.title}${m.with.length ? ` (with ${m.with.slice(0, 4).join(", ")}${m.with.length > 4 ? ` +${m.with.length - 4}` : ""})` : ""}`) },
@@ -130,13 +158,14 @@ function sectionsOf(b: Brief) {
 /** Subject and body of the morning email. */
 export function renderBrief(b: Brief, name: string, appUrl?: string): { subject: string; text: string; html: string } {
   const first = name.split(/\s+/)[0];
-  const top = b.approvals.length ? `${b.approvals.length} waiting for your OK` : b.overdue.length ? `${b.overdue.length} overdue` : b.meetings.length ? `${b.meetings.length} meeting${b.meetings.length === 1 ? "" : "s"} today` : b.dueSoon.length ? `${b.dueSoon.length} due soon` : `${b.messages} new messages`;
+  const urgent = b.attention.filter((i) => i.severity >= 3).length;
+  const top = b.approvals.length ? `${b.approvals.length} waiting for your OK` : urgent ? `${urgent} to act on today` : b.overdue.length ? `${b.overdue.length} overdue` : b.meetings.length ? `${b.meetings.length} meeting${b.meetings.length === 1 ? "" : "s"} today` : b.dueSoon.length ? `${b.dueSoon.length} due soon` : `${b.messages} new messages`;
   const stats = `${b.messages} messages, ${b.newPromises} new promises, ${b.changedFacts} facts changed in the last day.`;
-  const sections = sectionsOf(b);
+  const sections = sectionsOf(b, appUrl);
   const text = [`Morning ${first}.`, stats, ...sections.map((s) => `${s.title}\n${s.items.map((i) => `- ${i}`).join("\n")}`), ...(appUrl ? [`Open ALRO: ${appUrl}/updates`] : [])].join("\n\n");
   const html = `<div style="font-family:system-ui,sans-serif;font-size:15px;line-height:1.5;color:#171717;max-width:560px">
 <p><strong>Morning ${esc(first)}.</strong> ${esc(stats)}</p>
-${sections.map((s) => `<p style="margin:18px 0 4px;font-weight:600">${esc(s.title)}</p><ul style="margin:0;padding-left:18px">${s.items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>`).join("\n")}
+${sections.map((s) => `<p style="margin:18px 0 4px;font-weight:600">${esc(s.title)}</p><ul style="margin:0;padding-left:18px">${(s.html ?? s.items.map(esc)).map((i) => `<li>${i}</li>`).join("")}</ul>`).join("\n")}
 ${appUrl ? `<p style="margin-top:20px"><a href="${esc(appUrl)}/updates">Open ALRO</a></p>` : ""}
 </div>`;
   return { subject: `Your ALRO brief: ${top}`, text, html };

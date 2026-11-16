@@ -6,6 +6,7 @@ import { routines } from "@/db/schema";
 import type { Viewer } from "@/db/scope";
 import { formatShort } from "@/lib/time";
 import { saveNote } from "@/memory/notes";
+import { withinLimit } from "@/platform/usage";
 import { describeSchedule, nextRun, scheduleSchema } from "@/routines/schedule";
 import { NOTE_CATEGORIES, rememberNote } from "./profile";
 
@@ -47,6 +48,7 @@ export function personalTools(db: Db, viewer: Viewer, timeZone: string, opts: { 
       execute: async ({ title, instruction, schedule, team }) => {
         const nextRunAt = nextRun(schedule, timeZone, opts.now ?? new Date());
         if (!nextRunAt) return { scheduled: false, reason: "That time has already passed." };
+        if (!(await withinLimit(db, viewer.orgId, "routines"))) return { scheduled: false, reason: "The company's plan limit on scheduled tasks is reached. One has to be paused or deleted first." };
         const department = team?.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-") || null;
         const [row] = await db
           .insert(routines)

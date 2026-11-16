@@ -6,9 +6,13 @@ import { providerOf } from "@/connectors/registry";
 import { connectAccount, syncConnection } from "@/connectors/sync";
 import { getDb } from "@/db/client";
 import { connections } from "@/db/schema";
+import { audit } from "@/lib/audit";
 import { verify } from "@/lib/secrets";
+import { sourceOf } from "@/lib/sources";
+import { isAdmin } from "@/platform/roles";
+import { assertWithin } from "@/platform/usage";
 import { getViewer } from "@/lib/viewer";
-import { runPipeline } from "@/pipeline/run";
+import { processAndRepair } from "@/ops/repair";
 
 /** The sign-in app sends the member back here with a code; trade it for tokens and connect the source. */
 export async function GET(request: Request) {
@@ -22,17 +26,20 @@ export async function GET(request: Request) {
 
   const viewer = await getViewer();
   if (viewer.personId !== state.u || viewer.orgId !== state.o) return back({ error: "That sign-in was started by someone else." });
+  if (provider.scope === "org" && !isAdmin(viewer)) return back({ error: "Only an admin can connect a source for the whole team." });
   try {
+    await assertWithin(getDb(), viewer.orgId, ["sources"]);
     const tokens = await exchangeCode(provider.auth.app, code, redirectUri(url.origin));
     const db = getDb();
     const kept = callbackParams(provider.auth.app).flatMap((k) => (url.searchParams.get(k) ? [[k, url.searchParams.get(k)!]] : []));
     const account = kept.length ? Object.fromEntries(kept) : undefined;
     const id = await connectAccount(db, viewer, provider, { kind: "oauth", app: provider.auth.app, ...tokens, account });
+    await audit(db, { orgId: viewer.orgId, personId: viewer.personId, action: "source.connect", target: sourceOf(provider.id).label });
     after(async () => {
       const [c] = await db.select().from(connections).where(eq(connections.id, id));
       if (!c || !provider.sync) return;
       const r = await syncConnection(db, c);
-      if (r.messages) await runPipeline(db, viewer.orgId, defaultModels());
+      if (r.messages) await processAndRepair(db, viewer.orgId, defaultModels());
     });
     return back({ connected: provider.id });
   } catch (e) {

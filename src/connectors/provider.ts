@@ -34,6 +34,10 @@ export interface Fetched {
   threads?: NormalizedThread[];
   messages?: NormalizedMessage[];
   records?: NormalizedRecord[];
+  /** External ids of messages the source says were deleted; they are hidden and dropped from search. */
+  deletedMessageIds?: string[];
+  /** External ids of threads this connection can no longer read at all; they are hidden from everyone until it can again. */
+  lostThreads?: string[];
   /** Calendar events, for calendar sources. */
   events?: NormalizedEvent[];
   cursor: Record<string, unknown>;
@@ -78,6 +82,11 @@ export interface ToolContext {
   accountId: string;
   /** What was typed on the connect form, or what the sign-in returned alongside the token (e.g. QuickBooks' realmId). */
   credentials: Record<string, string>;
+  /**
+   * For actions: the same value (a UUID, the approval's id) every time one approved action is sent.
+   * Where the app supports it, pass it on so sending twice can't do the thing twice.
+   */
+  idempotencyKey?: string;
 }
 
 /**

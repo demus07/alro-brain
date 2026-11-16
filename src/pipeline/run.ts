@@ -7,6 +7,8 @@ import { chunkPending } from "@/memory/chunks";
 import { extractPending, type ExtractStats } from "./extract";
 import { graphPending, type GraphStats } from "./graph";
 import { notePending } from "./meeting-notes";
+import { refreshInsights } from "@/insights/compute";
+import { withinLimit } from "@/platform/usage";
 import { scanTrackers } from "@/work/trackers";
 import { screenPending } from "./screen";
 
@@ -30,7 +32,9 @@ export interface PipelineResult {
  * meetings, then add rows to trackers. Safe to run repeatedly; each
  * stage only picks up what the previous runs haven't done.
  */
-export async function runPipeline(db: Db, orgId: string, models: Models): Promise<PipelineResult | { skipped: "already running" }> {
+export async function runPipeline(db: Db, orgId: string, models: Models): Promise<PipelineResult | { skipped: "already running" | "over today's usage limit" }> {
+  // Reading every message is the biggest model cost: it waits for tomorrow once the plan's allowance is used.
+  if (!(await withinLimit(db, orgId, "tokensPerDay"))) return { skipped: "over today's usage limit" };
   const holder = randomUUID();
   const expiresAt = new Date(Date.now() + LEASE_MS);
   // Take the lease if it's free or expired; otherwise another run is busy with this org.
@@ -47,6 +51,8 @@ export async function runPipeline(db: Db, orgId: string, models: Models): Promis
     const extraction = await extractPending(db, orgId, models);
     const notes = await notePending(db, orgId, models);
     const trackerRows = await scanTrackers(db, orgId, models);
+    // What deserves attention is recomputed from the fresh memory, so a reply that just arrived settles its insight.
+    await refreshInsights(db, orgId, new Date()).catch((e) => console.error(`insights for ${orgId} failed`, e instanceof Error ? e.message : e));
     return { chunks, graph, screened, extraction, notes, trackerRows };
   } finally {
     await db.delete(pipelineLeases).where(and(eq(pipelineLeases.orgId, orgId), eq(pipelineLeases.holder, holder)));

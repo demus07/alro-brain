@@ -66,6 +66,57 @@ describe("Slack", () => {
     const oldest = Number(calls.find((c) => c.path === "conversations.history" && c.query.channel === "C1")!.query.oldest);
     expect(oldest).toBeCloseTo(Number(ts("2026-10-25T10:05:00Z")), 0);
   });
+
+  it("vouches for member lists and for the stretch it re-read, and reports who left", async () => {
+    const { api } = fakeApi({
+      ...routes,
+      "users.list": () => ({ ok: true, members: [{ id: "U1", name: "sumedh", real_name: "Sumedh Kudav", deleted: false }, { id: "U2", name: "jash", real_name: "Jash Doshi", deleted: true }] }),
+      "conversations.history": (q: Record<string, unknown>) =>
+        q.channel === "C2" ? { ok: true, messages: [{ type: "message", subtype: "tombstone", user: "USLACKBOT", text: "This message was deleted.", ts: ts("2026-11-01T09:00:00Z") }] } : { ok: true, messages: [] },
+    });
+    const { batch } = await fetchSlack(api, { latest: { C1: ts("2026-11-01T10:05:00Z"), C2: ts("2026-11-01T09:00:00Z") } }, NOW);
+    // Quiet conversations are reported too, so a change in who is in them still arrives.
+    expect(batch.threads.map((t) => [t.title, t.membersComplete])).toEqual([
+      ["#general", undefined],
+      ["#secret", true],
+      ["Jash Doshi", true],
+    ]);
+    // The week before the cursor was read to the end: a stored message from it that isn't here was deleted.
+    expect(batch.threads[0].complete).toEqual({ from: new Date(Date.parse("2026-10-25T10:05:00Z") + 1), to: NOW, repliesUnderParentsOnly: true });
+    expect(batch.messages.map((m) => [m.externalId, m.deleted])).toEqual([[`C2:${ts("2026-11-01T09:00:00Z")}`, true]]);
+    expect(batch.people.map((p) => [p.displayName, p.deactivated])).toEqual([
+      ["Sumedh Kudav", false],
+      ["Jash Doshi", true],
+    ]);
+    expect(batch.lostThreads).toEqual([]);
+  });
+
+  it("claims nothing when a list was cut short by the page cap", async () => {
+    const endless = { response_metadata: { next_cursor: "more" } };
+    const { api } = fakeApi({
+      ...routes,
+      "conversations.history": (q: Record<string, unknown>) => (q.channel === "C1" ? { ok: true, messages: [], ...endless } : { ok: true, messages: [] }),
+      "conversations.members": () => ({ ok: true, members: ["U1"], ...endless }),
+    });
+    const { batch } = await fetchSlack(api, {}, NOW);
+    const by = (title: string) => batch.threads.find((t) => t.title === title)!;
+    expect(by("#general").complete).toBeUndefined();
+    expect(by("#secret").membersComplete).toBe(false);
+    // The DM was read to the end, and its one member needs no paging.
+    expect([by("Jash Doshi").membersComplete, by("Jash Doshi").complete?.to]).toEqual([true, NOW]);
+  });
+
+  it("reports a conversation it can no longer see as lost, and leaves an archived one as it was", async () => {
+    const { api, calls } = fakeApi({
+      ...routes,
+      "conversations.info": (q: Record<string, unknown>) => (q.channel === "GONE" ? { ok: false, error: "channel_not_found" } : q.channel === "SHUT" ? { ok: true, channel: { id: "SHUT", is_archived: true } } : { ok: false, error: "ratelimited" }),
+    });
+    const { batch, cursor } = await fetchSlack(api, { latest: { C1: ts("2026-11-01T10:05:00Z"), GONE: "1.000000", SHUT: "2.000000", ODD: "3.000000" } }, NOW);
+    expect(batch.lostThreads).toEqual(["GONE"]);
+    // Asked once: the lost and the archived conversations leave the cursor; one Slack wouldn't answer for is asked again next time.
+    expect(Object.keys(cursor.latest!).sort()).toEqual(["C1", "D1", "ODD"]);
+    expect(calls.filter((c) => c.path === "conversations.info").map((c) => c.query.channel)).toEqual(["GONE", "SHUT", "ODD"]);
+  });
 });
 
 describe("Gmail", () => {
@@ -101,6 +152,27 @@ describe("Gmail", () => {
     });
     await fetchGmail(expired.api, { historyId: "1" });
     expect(String(expired.calls.find((c) => c.path === "gmail/v1/users/me/messages")!.query.q)).toContain("newer_than:8d");
+  });
+
+  it("reports mail moved to the bin, and reads again what was taken back out", async () => {
+    const { api, calls } = fakeApi({
+      "gmail/v1/users/me/profile": () => ({ emailAddress: "s@example.com", historyId: "960" }),
+      "gmail/v1/users/me/history": () => ({
+        history: [
+          { labelsAdded: [{ message: { id: "binned" }, labelIds: ["TRASH"] }, { message: { id: "starred" }, labelIds: ["STARRED"] }] },
+          { labelsAdded: [{ message: { id: "restored" }, labelIds: ["TRASH"] }] },
+          { labelsRemoved: [{ message: { id: "restored", labelIds: ["INBOX"] }, labelIds: ["TRASH"] }] },
+          { labelsAdded: [{ message: { id: "purged" }, labelIds: ["TRASH"] }] },
+        ],
+      }),
+      "gmail/v1/users/me/messages/binned": () => ({ payload: { headers: [{ name: "Message-Id", value: "<binned@example.com>" }] } }),
+      "gmail/v1/users/me/messages/restored": () => ({ raw: raw("restored", "Back again") }),
+      // "purged" was deleted for good before this sync: Gmail no longer has it.
+    });
+    const { batch } = await fetchGmail(api, { historyId: "950" });
+    expect(batch.deletedMessageIds).toEqual(["<binned@example.com>"]);
+    expect(batch.messages.map((m) => [m.externalId, m.subject])).toEqual([["<restored@example.com>", "Back again"]]);
+    expect(calls.find((c) => c.path === "gmail/v1/users/me/messages/binned")!.query).toEqual({ format: "metadata", metadataHeaders: "Message-ID" });
   });
 });
 

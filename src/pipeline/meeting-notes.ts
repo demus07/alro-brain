@@ -62,12 +62,20 @@ export async function notePending(db: Db, orgId: string, models: Models, limit =
     // Long meetings: the opening and the closing carry the agenda and the decisions.
     const transcript = full.length > MAX_CHARS ? `${full.slice(0, MAX_CHARS / 2)}\n[...]\n${full.slice(-MAX_CHARS / 2)}` : full;
 
-    const { output, usage } = await generateText({
-      model: models.extract,
-      instructions: NOTES_INSTRUCTIONS,
-      output: Output.object({ schema: notesSchema }),
-      prompt: `${thread.title ?? "Meeting"}, ${formatLocal(rows[0].sentAt, org.timezone)}\n\n${transcript}`,
-    });
+    let result;
+    try {
+      result = await generateText({
+        model: models.extract,
+        instructions: NOTES_INSTRUCTIONS,
+        output: Output.object({ schema: notesSchema }),
+        prompt: `${thread.title ?? "Meeting"}, ${formatLocal(rows[0].sentAt, org.timezone)}\n\n${transcript}`,
+      });
+    } catch (e) {
+      // Nothing was saved, so the next run writes these notes; the other meetings and the stages after this one carry on.
+      console.error(`notes for meeting ${thread.id} failed`, e instanceof Error ? e.message : e);
+      continue;
+    }
+    const { output, usage } = result;
     await recordRun(db, { orgId, stage: "notes", model: models.extract, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens });
     const [saved] = await db
       .insert(meetingNotes)

@@ -8,6 +8,7 @@ import { defaultModels } from "@/ai/models";
 import { getDb } from "@/db/client";
 import { trackers } from "@/db/schema";
 import { getViewer } from "@/lib/viewer";
+import { assertWithin, LimitError } from "@/platform/usage";
 import { createTracker, scanTracker, TRACKER_PRESETS } from "@/work/trackers";
 
 export interface TrackerState {
@@ -36,6 +37,7 @@ export async function createFromPreset(formData: FormData) {
   const viewer = await getViewer();
   const preset = TRACKER_PRESETS.find((p) => p.name === formData.get("preset"));
   if (!preset) throw new Error("Unknown tracker");
+  await assertWithin(getDb(), viewer.orgId, ["trackers"]);
   const t = await createTracker(getDb(), viewer, preset);
   await startScan(t.id);
   redirect(`/trackers/${t.id}`);
@@ -50,8 +52,10 @@ export async function createCustom(_prev: TrackerState, formData: FormData): Pro
   if (!columns.length || columns.some((c) => !c.name)) return { error: "List at least one column, one per line." };
   let id: string;
   try {
+    await assertWithin(getDb(), viewer.orgId, ["trackers"]);
     id = (await createTracker(getDb(), viewer, { name, description, columns })).id;
-  } catch {
+  } catch (e) {
+    if (e instanceof LimitError) return { error: e.message };
     return { error: "Check the columns: up to 12, each with a name." };
   }
   await startScan(id);

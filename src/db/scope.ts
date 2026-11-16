@@ -1,16 +1,18 @@
 import { and, eq, sql } from "drizzle-orm";
 import type { Db } from "./client";
-import { threadMembers } from "./schema";
+import { people, threadMembers } from "./schema";
 
-export type Principal = "org" | `p:${string}` | `t:${string}`;
+export type Principal = "org" | `p:${string}` | `t:${string}` | `d:${string}`;
 
 export interface Viewer {
   orgId: string;
   personId: string;
 }
 
-/** Everything a person may see: the org, themselves, and each members-only thread they belong to. */
+/** Everything a person may see: the org, their department, themselves, and each members-only thread they belong to. */
 export async function principalsFor(db: Db, viewer: Viewer): Promise<Principal[]> {
+  const [person] = await db.select({ department: people.department }).from(people).where(and(eq(people.id, viewer.personId), eq(people.orgId, viewer.orgId)));
+  const department: Principal[] = person?.department && DEPARTMENT.test(person.department) ? [`d:${person.department}`] : [];
   const rows = await db
     .select({ threadId: threadMembers.threadId })
     .from(threadMembers)
@@ -20,7 +22,7 @@ export async function principalsFor(db: Db, viewer: Viewer): Promise<Principal[]
         eq(threadMembers.personId, viewer.personId),
       ),
     );
-  return ["org", `p:${viewer.personId}`, ...rows.map((r) => `t:${r.threadId}` as const)];
+  return ["org", ...department, `p:${viewer.personId}`, ...rows.map((r) => `t:${r.threadId}` as const)];
 }
 
 /** ACL for a derived row: visible to anyone who can see any of its evidence, plus extra principals (e.g. the owner). */
@@ -51,10 +53,14 @@ export async function withScope<T>(
   });
 }
 
+/** A department is a short lowercase slug, so it can be a principal without quoting. */
+export const DEPARTMENT = /^[a-z0-9][a-z0-9-]{0,39}$/;
+export const departmentSlug = (name: string) => name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+
 function toPgArray(values: readonly string[]): string {
-  // Principals are 'org' or a prefix plus a UUID, so no quoting is needed; reject anything else.
+  // Principals are 'org', a prefix plus a UUID, or a department slug, so no quoting is needed; reject anything else.
   for (const v of values) {
-    if (!/^(org|[pt]:[0-9a-f-]{36})$/.test(v)) throw new Error(`Invalid principal: ${v}`);
+    if (!/^(org|[pt]:[0-9a-f-]{36}|d:[a-z0-9][a-z0-9-]{0,39})$/.test(v)) throw new Error(`Invalid principal: ${v}`);
   }
   return `{${values.join(",")}}`;
 }

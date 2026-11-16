@@ -71,6 +71,20 @@
       "when": 1795200000000,
       "tag": "0009_doing_the_work",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795300000000,
+      "tag": "0010_platform",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1795400000000,
+      "tag": "0011_guardrails",
+      "breakpoints": true
     }
   ]
 }

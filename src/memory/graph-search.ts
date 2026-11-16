@@ -1,12 +1,14 @@
 import { sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { rowsOf } from "./search";
+import { RANKING, rowsOf } from "./search";
 
 export interface GraphEntity {
   id: string;
   name: string;
   type: string;
   summary: string | null;
+  /** The question names it or is close to it in meaning. The other seeds are only the nearest there were. */
+  matched: boolean;
 }
 
 export interface GraphFact {
@@ -37,6 +39,8 @@ const CHUNKS = 20;
 /** Chunks per thread ranked ahead of the rest, so several sources get a say. */
 const PER_THREAD = 3;
 const RRF_K = 60;
+/** Cosine distance under which a seed entity counts as what the question is about. */
+const MATCHED_DISTANCE = 0.5;
 
 /**
  * Local graph search (as in LightRAG / Microsoft GraphRAG's local search):
@@ -44,6 +48,8 @@ const RRF_K = 60;
  *   2. seed facts: relations whose sentence is closest to the question;
  *   3. expand one hop from the seed entities, keeping the facts most relevant to the question;
  *   4. the conversations those entities are mentioned in and those facts were read from.
+ * Facts come back closest to the question first, a current or well-confirmed one ahead of a
+ * historical or shaky one of similar relevance (see RANKING in search.ts).
  * Run it inside withScope(): row-level security hides entities, facts and chunks the asker can't see.
  */
 export async function searchGraph(tx: Db, query: { text: string; embedding: number[] }): Promise<GraphContext> {
@@ -73,10 +79,13 @@ export async function searchGraph(tx: Db, query: { text: string; embedding: numb
       fused as (
         select id, sum(1.0 / (${RRF_K} + rank)) as score from (select * from vec union all select * from named) r group by id
       )
-      select e.id, e.name, e.type, e.summary from fused f join entities e on e.id = f.id
+      select e.id, e.name, e.type, e.summary,
+             (e.id in (select id from named) or coalesce((e.name_embedding <=> ${vector}::halfvec) < ${MATCHED_DISTANCE}, false)) as matched
+      from fused f join entities e on e.id = f.id
       order by f.score desc limit ${SEED_ENTITIES}
     `),
   ) as GraphEntity[];
+  for (const e of entityRows) e.matched = e.matched === true || (e.matched as unknown) === "t";
   const seedIds = entityRows.map((e) => e.id);
   const seedArray = sql`${`{${seedIds.join(",")}}`}::uuid[]`;
 
@@ -105,7 +114,10 @@ export async function searchGraph(tx: Db, query: { text: string; embedding: numb
       join edges g on g.id = p.id
       join entities s on s.id = g.source_entity_id
       join entities t on t.id = g.target_entity_id
-      order by p.distance asc, g.valid_from desc nulls last
+      order by p.distance
+        + case when g.expired_at is null then 0 else ${RANKING.historicalPenalty}::float8 end
+        - ${RANKING.confidence}::float8 * (coalesce(g.confidence, 0.7) - 0.7) asc,
+        g.valid_from desc nulls last
     `),
   ) as (GraphFact & { chunkId: string | null })[];
 

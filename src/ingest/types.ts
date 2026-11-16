@@ -12,6 +12,8 @@ export interface NormalizedPerson {
   email?: string;
   /** E.164, e.g. +919820011223. */
   phone?: string;
+  /** What the source says about the account: true when it was deactivated or deleted (the person left), false when it's active. Unset when the source doesn't say. */
+  deactivated?: boolean;
 }
 
 export type ThreadKind =
@@ -34,7 +36,23 @@ export interface NormalizedThread {
   visibility: "org" | "members";
   /** Person keys of everyone who can see it in the source. */
   memberKeys: string[];
+  /**
+   * True only when `memberKeys` is the source's whole, current member list, read to the end (a private
+   * channel's members, a chat's roster): the writer then removes anyone no longer on it. Leave unset for
+   * partial lists (an email's participants, a meeting's attendees), which only ever grow.
+   */
+  membersComplete?: boolean;
+  /** Set only when the thread was read to the end for a stretch of time: stored messages from then that the batch lacks were deleted in the source. */
+  complete?: CompleteWindow;
   metadata?: Record<string, unknown>;
+}
+
+/** "The batch holds every message of this thread sent from `from` to `to` (inclusive) that still exists in the source." */
+export interface CompleteWindow {
+  from: Date;
+  to: Date;
+  /** Replies were only read under parents sent in the window (Slack reads replies parent by parent), so replies to older messages are left alone. */
+  repliesUnderParentsOnly?: boolean;
 }
 
 export type MessageKind = "chat" | "email" | "transcript" | "note" | "record_change" | "calendar_event";
@@ -81,4 +99,12 @@ export interface NormalizedBatch {
   threads: NormalizedThread[];
   messages: NormalizedMessage[];
   records?: NormalizedRecord[];
+  /** External ids of messages the source says were deleted (as do messages sent with `deleted: true`). */
+  deletedMessageIds?: string[];
+  /**
+   * External ids of threads the connection can no longer read at all (deleted in the source, or the connected
+   * account was taken out of them). Nobody can be shown to still have access, so they are hidden from everyone
+   * until a later sync reads them again.
+   */
+  lostThreads?: string[];
 }

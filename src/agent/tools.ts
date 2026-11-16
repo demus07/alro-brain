@@ -6,6 +6,7 @@ import type { Db } from "@/db/client";
 import { commitmentEvents, commitments, edges, entities, entityAliases, messages, people, rollups, threads } from "@/db/schema";
 import { withScope, type Viewer } from "@/db/scope";
 import { formatShort } from "@/lib/time";
+import { factCards, type FactCard } from "@/memory/facts";
 import { embedQuery, recall } from "@/memory/search";
 
 /** Something an answer can cite as [S1], [S2], ... The UI renders these as links. */
@@ -34,11 +35,28 @@ export function agentTools(db: Db, viewer: Viewer, models: Models, timeZone: str
   const when = (d: Date) => formatShort(d, timeZone);
   const owner = aliasedTable(people, "owner");
   const counterparty = aliasedTable(people, "counterparty");
+  /** A fact with how far to trust it. `source` turns an evidence message into a citation, when the asker can see it. */
+  const describe = <S>(f: FactCard, source: (messageId: string | null) => S) => ({
+    fact: f.fact,
+    current: f.current,
+    confidence: f.current ? f.confidence : undefined,
+    verifiedByAPerson: f.verified || undefined,
+    saidBy: f.saidBy ?? undefined,
+    validFrom: f.validFrom ? when(f.validFrom) : undefined,
+    validTo: f.validTo ? when(f.validTo) : undefined,
+    lastConfirmed: f.lastConfirmedAt ? when(f.lastConfirmedAt) : undefined,
+    mayBeOutdated: f.mayBeOutdated || undefined,
+    disputedWith: f.disputedWith.length
+      ? f.disputedWith.map((o) => ({ fact: o.fact, saidBy: o.saidBy ?? undefined, validFrom: o.validFrom ? when(o.validFrom) : undefined, source: source(o.messageId) }))
+      : undefined,
+    source: source(f.messageId),
+  });
+  const evidenceIds = (cards: FactCard[]) => [...new Set(cards.flatMap((f) => [f.messageId, ...f.disputedWith.map((o) => o.messageId)]).filter((id): id is string => !!id))];
 
   return {
     searchMemory: tool({
       description:
-        "Search everything the user can see (chats, emails, meeting transcripts, CRM changes) by meaning, keywords and the knowledge graph. Returns the people, things and facts the question is about (from the graph), the best-matching conversation excerpts, and 'elsewhere': excerpts from other conversations and sources about the same things, often where the detail is. All with sources to cite.",
+        "Search everything the user can see (chats, emails, meeting transcripts, CRM changes) by meaning, keywords and the knowledge graph. Returns the people, things and facts the question is about (from the graph), the best-matching conversation excerpts, and 'elsewhere': excerpts from other conversations and sources about the same things, often where the detail is. All with sources to cite. Each fact says if it is current, how sure it is (confirmed, likely, uncertain), who said it and when, disputedWith (other current statements that contradict it: nothing is settled) and mayBeOutdated (nobody has repeated it for a long time).",
       inputSchema: z.object({
         query: z.string().describe("What to look for, in natural language"),
         since: z.string().nullish().describe("Only after this date, ISO 8601"),
@@ -46,9 +64,12 @@ export function agentTools(db: Db, viewer: Viewer, models: Models, timeZone: str
         limit: z.number().int().min(1).max(15).nullish(),
       }),
       execute: async ({ query, since, until, limit }) => {
-        const { hits, related, graph, evidence } = await scoped(async (tx) => {
+        const { hits, related, graph, facts, evidence } = await scoped(async (tx) => {
           const found = await recall(tx, models, query, { since: date(since), until: date(until), limit: limit ?? 8 });
-          const ids = [...new Set(found.graph.facts.flatMap((f) => (f.messageId ? [f.messageId] : [])))];
+          const cards = found.graph.facts.length ? await factCards(tx, inArray(edges.id, found.graph.facts.map((f) => f.id)), new Date()) : [];
+          // Most relevant first, as the graph ranked them.
+          const facts = found.graph.facts.flatMap((f) => cards.filter((c) => c.id === f.id));
+          const ids = evidenceIds(facts);
           const evidence = ids.length
             ? await tx
                 .select({ id: messages.id, sentAt: messages.sentAt, url: messages.url, text: messages.text, thread: threads.title, kind: threads.kind, author: people.displayName })
@@ -57,7 +78,7 @@ export function agentTools(db: Db, viewer: Viewer, models: Models, timeZone: str
                 .leftJoin(people, eq(people.id, messages.authorPersonId))
                 .where(inArray(messages.id, ids))
             : [];
-          return { ...found, evidence: new Map(evidence.map((m) => [m.id, m])) };
+          return { ...found, facts, evidence: new Map(evidence.map((m) => [m.id, m])) };
         });
         // One citation per evidence message, shared by every fact it supports.
         const cited = new Map<string, Source>();
@@ -71,13 +92,7 @@ export function agentTools(db: Db, viewer: Viewer, models: Models, timeZone: str
         };
         return {
           entities: graph.entities.map((e) => ({ name: e.name, type: e.type, summary: e.summary ?? undefined })),
-          facts: graph.facts.map((f) => ({
-            fact: f.fact,
-            current: f.current,
-            validFrom: f.validFrom ? when(f.validFrom) : undefined,
-            validTo: f.validTo ? when(f.validTo) : undefined,
-            source: citeMessage(f.messageId),
-          })),
+          facts: facts.map((f) => describe(f, citeMessage)),
           sources: [...cited.values()],
           results: hits.map((h) =>
             cite({
@@ -293,7 +308,7 @@ export function agentTools(db: Db, viewer: Viewer, models: Models, timeZone: str
 
     lookupEntity: tool({
       description:
-        "Look up a company, person, deal, project or product: what is true about it now, how that changed over time, and what it's connected to (up to 3 hops).",
+        "Look up a company, person, deal, project or product: what is true about it now, how that changed over time, and what it's connected to (up to 3 hops). Each fact says how sure it is (confirmed, likely, uncertain), who said it and when, disputedWith (other current statements that contradict it: nothing is settled) and mayBeOutdated.",
       inputSchema: z.object({
         name: z.string(),
         includeHistory: z.boolean().nullish().describe("Also return facts that are no longer true"),
@@ -329,10 +344,10 @@ export function agentTools(db: Db, viewer: Viewer, models: Models, timeZone: str
           // Breadth-first over current facts, up to `hops` away. RLS hides edges from unseen sources.
           const seen = new Set([entity.id]);
           let frontier = [entity.id];
-          const facts: { fact: string; relation: string; validFrom: Date | null; validTo: Date | null; current: boolean; hop: number; messageId: string }[] = [];
+          const hopOf = new Map<string, number>();
           for (let hop = 1; hop <= (hops ?? 1) && frontier.length; hop++) {
             const rows = await tx
-              .select()
+              .select({ id: edges.id, sourceEntityId: edges.sourceEntityId, targetEntityId: edges.targetEntityId })
               .from(edges)
               .where(
                 and(
@@ -344,7 +359,7 @@ export function agentTools(db: Db, viewer: Viewer, models: Models, timeZone: str
               .limit(60);
             const nextFrontier: string[] = [];
             for (const e of rows) {
-              facts.push({ fact: e.fact, relation: e.relation, validFrom: e.validFrom, validTo: e.validTo, current: !e.expiredAt, hop, messageId: e.sourceMessageIds[0] });
+              if (!hopOf.has(e.id)) hopOf.set(e.id, hop);
               for (const id of [e.sourceEntityId, e.targetEntityId]) {
                 if (!seen.has(id)) {
                   seen.add(id);
@@ -355,31 +370,29 @@ export function agentTools(db: Db, viewer: Viewer, models: Models, timeZone: str
             frontier = nextFrontier;
           }
 
-          const evidence = facts.length
+          // Oldest first within each hop, each with how far to trust it.
+          const facts = hopOf.size ? (await factCards(tx, inArray(edges.id, [...hopOf.keys()]), new Date())).sort((a, b) => hopOf.get(a.id)! - hopOf.get(b.id)!) : [];
+          const ids = evidenceIds(facts);
+          const evidence = ids.length
             ? await tx
                 .select({ id: messages.id, sentAt: messages.sentAt, url: messages.url, text: messages.text, thread: threads.title, kind: threads.kind, author: people.displayName })
                 .from(messages)
                 .innerJoin(threads, eq(threads.id, messages.threadId))
                 .leftJoin(people, eq(people.id, messages.authorPersonId))
-                .where(inArray(messages.id, [...new Set(facts.map((f) => f.messageId))]))
+                .where(inArray(messages.id, ids))
             : [];
           const byId = new Map(evidence.map((m) => [m.id, m]));
+          // One citation per evidence message, however many facts and disputes point at it.
+          const cited = new Map<string, Source>();
+          const citeMessage = (id: string | null) => {
+            const m = id ? byId.get(id) : undefined;
+            if (!m) return undefined;
+            if (!cited.has(m.id)) cited.set(m.id, cite({ thread: m.thread ?? "Untitled", kind: m.kind, at: when(m.sentAt), author: m.author ?? undefined, text: m.text, url: m.url ?? undefined, messageId: m.id }));
+            return cited.get(m.id);
+          };
           return {
             entity: { name: entity.name, type: entity.type, summary: entity.summary },
-            facts: [...new Set(facts)].map((f) => {
-              const m = byId.get(f.messageId);
-              return {
-                fact: f.fact,
-                relation: f.relation,
-                current: f.current,
-                hop: f.hop,
-                validFrom: f.validFrom ? when(f.validFrom) : undefined,
-                validTo: f.validTo ? when(f.validTo) : undefined,
-                source: m
-                  ? cite({ thread: m.thread ?? "Untitled", kind: m.kind, at: when(m.sentAt), author: m.author ?? undefined, text: m.text, url: m.url ?? undefined, messageId: m.id })
-                  : undefined,
-              };
-            }),
+            facts: facts.map((f) => ({ ...describe(f, citeMessage), relation: f.relation, hop: hopOf.get(f.id) })),
           };
         }),
     }),

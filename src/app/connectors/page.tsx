@@ -8,6 +8,8 @@ import { chunks, connections, llmRuns, messages, orgs, people, syncRuns } from "
 import { withScope } from "@/db/scope";
 import { formatShort } from "@/lib/time";
 import { getViewer } from "@/lib/viewer";
+import { sourceOf } from "@/lib/sources";
+import { Ops } from "./ops";
 import { Pipeline } from "./pipeline";
 
 export const metadata: Metadata = { title: "Health · ALRO" };
@@ -20,11 +22,14 @@ export default function ConnectorsPage() {
     <>
       <h1>Health</h1>
       <p className="muted">
-        Where ALRO&apos;s memory comes from and whether it&apos;s up to date. Live connectors (Slack, Gmail, CRM, WhatsApp Business) aren&apos;t built
-        yet; until then, <Link className="link" href="/upload">upload exports</Link>.
+        Where ALRO&apos;s memory comes from, whether it&apos;s up to date, and what is failing behind the scenes. Connect sources in{" "}
+        <Link className="link" href="/settings">Settings</Link> or <Link className="link" href="/upload">upload exports</Link>.
       </p>
       <Suspense fallback={<p className="muted">Loading…</p>}>
         <Pipeline />
+      </Suspense>
+      <Suspense fallback={<p className="muted">Loading…</p>}>
+        <Ops />
       </Suspense>
       <Suspense fallback={<p className="muted">Loading…</p>}>
         <Health />
@@ -127,27 +132,31 @@ async function Health() {
                 {sources.map((s) => {
                   const run = lastRun.get(s.id);
                   const upload = s.provider.startsWith("upload:") || run?.kind === "upload";
+                  // What's wrong and what to do about it, per connection.
                   const health =
-                    s.status === "error" || run?.status === "error"
-                      ? { text: "Error", cls: "error" }
-                      : s.status === "revoked"
-                        ? { text: "Disconnected", cls: "error" }
-                        : s.stale && !upload
-                          ? { text: "Stale", cls: "error" }
-                          : { text: upload ? "Uploaded" : "OK", cls: "" };
+                    s.status === "error"
+                      ? { text: "Needs reconnecting", dot: "bad", cls: "error", hint: "Reconnect it in Settings → Sources." }
+                      : run?.status === "error" || s.lastError
+                        ? { text: "Last sync failed", dot: "bad", cls: "error", hint: upload ? undefined : "It is tried again every 15 minutes." }
+                        : s.status === "revoked"
+                          ? { text: "Disconnected", dot: "bad", cls: "error", hint: undefined }
+                          : s.stale && !upload
+                            ? { text: "Not synced in a day", dot: "stale", cls: "error", hint: undefined }
+                            : { text: upload ? "Uploaded" : "Working", dot: upload ? "upload" : "ok", cls: "", hint: undefined };
                   return (
                     <tr key={s.id}>
                       <td>
-                        <strong>{s.provider}</strong>
+                        <strong>{sourceOf(s.provider).label}</strong>
                         <div className="muted" style={{ fontSize: 13 }}>
                           {s.account ?? ""} · {s.scope === "personal" ? `personal (${s.owner ?? "?"})` : "whole org"}
                         </div>
                       </td>
                       <td className={health.cls}>
-                        {health.text}
+                        <span className={`dot ${health.dot}`} /> {health.text}
                         {(s.lastError || run?.error) && (
                           <div style={{ fontSize: 13 }}>{s.lastError ?? run?.error}</div>
                         )}
+                        {health.hint && <div className="muted small">{health.hint}</div>}
                       </td>
                       <td>{when(s.lastSyncedAt)}</td>
                       <td>{messageCount.get(s.id) ?? 0}</td>

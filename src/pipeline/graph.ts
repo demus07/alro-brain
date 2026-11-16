@@ -5,6 +5,7 @@ import { recordRun, type Models } from "@/ai/models";
 import type { Db } from "@/db/client";
 import { chunks, edges, entities, entityAliases, entityMentions, messages, people, threadMembers, threads } from "@/db/schema";
 import { unionAcl } from "@/db/scope";
+import { confirmFact, confirmsField, trustFields, writeFact, type TrustFields } from "@/memory/facts";
 import { rowsOf } from "@/memory/search";
 import { findOrCreateEntity, mentionedEntities, squashedSql, type Person } from "./extract";
 
@@ -29,8 +30,10 @@ RELATIONS: how two of those entities are connected according to the excerpt.
 - relation: snake_case (works_on, proposed, decided, prefers, owns, client_of, uses, competes_with, part_of, priced_at, status_is, responsible_for, considering).
 - fact: one self-contained sentence a reader understands without the excerpt, with names and dates.
 - evidence: the message label (M1, M2, ...) that shows it.
-- If a relation replaces a CURRENT FACT (F1, F2, ...), e.g. a changed decision, price, owner or status, list it in invalidates.
-- Skip relations already in CURRENT FACTS unchanged.
+- stance: how it was said. firm (stated as fact), confirmed (explicitly confirmed, agreed or signed off), tentative (a guess, a maybe, or second-hand: "I think", "apparently", "they might"), question (only asked, not stated).
+- If a relation replaces a CURRENT FACT (F1, F2, ...) because things changed, e.g. a new decision, price, owner or status, list it in invalidates.
+- If it contradicts a CURRENT FACT without being presented as a change (someone gives a different number or version of the same thing), list that fact in conflictsWith instead: both are kept until one is confirmed.
+- Don't write relations already in CURRENT FACTS unchanged. When a message restates or confirms one, add it to confirms (the F label and the message label).
 
 Messages may mix English and Hindi (Hinglish); write descriptions and facts in English. Return empty lists for small talk.`;
 
@@ -51,10 +54,17 @@ export const graphSchema = z.object({
       fact: z.string(),
       evidence: z.string().describe("Message label, e.g. M3"),
       invalidates: z.array(z.string()).describe("F labels this relation replaces"),
+      ...trustFields,
     }),
   ),
+  confirms: confirmsField,
 });
-export type GraphExtraction = z.infer<typeof graphSchema>;
+type Parsed = z.infer<typeof graphSchema>;
+/** A model's answer. The trust fields (stance, conflictsWith, confirms) may be left out; they default when parsed. */
+export type GraphExtraction = Pick<Parsed, "entities"> & {
+  relations: (Omit<Parsed["relations"][number], keyof TrustFields> & Partial<TrustFields>)[];
+  confirms?: Parsed["confirms"];
+};
 
 export interface GraphStats {
   chunks: number;
@@ -73,8 +83,9 @@ interface PendingChunk {
 
 /**
  * Reads every chunk not yet in the graph and adds what it says: entities with
- * descriptions, where each is mentioned, and relations between them. Old facts
- * a new one contradicts are expired, not deleted (see edges). Safe to rerun.
+ * descriptions, where each is mentioned, and relations between them. A fact a new
+ * one replaces is expired, not deleted; one it only contradicts stays, in dispute
+ * (see src/memory/facts.ts). Safe to rerun.
  */
 export async function graphPending(db: Db, orgId: string, models: Models, opts: { maxChunks?: number } = {}): Promise<GraphStats> {
   const stats: GraphStats = { chunks: 0, failed: 0, entities: 0, relations: 0 };
@@ -99,9 +110,17 @@ export async function graphPending(db: Db, orgId: string, models: Models, opts: 
         continue;
       }
       await recordRun(db, { orgId, stage: "graph", model: models.graph, inputTokens: answer.value.usage.inputTokens, outputTokens: answer.value.usage.outputTokens, messageIds: p.chunk.messageIds });
-      const touched = await apply(db, orgId, models, p, answer.value.output, stats);
-      for (const id of touched) grown.add(id);
-      stats.chunks++;
+      try {
+        const touched = await apply(db, orgId, models, p, answer.value.output, stats);
+        for (const id of touched) grown.add(id);
+        stats.chunks++;
+      } catch (e) {
+        // One chunk failing mustn't stop the rest of the pass (and every later stage). Its writes are a single
+        // transaction, so nothing half-written is left: the chunk stays pending and the next run reads it again.
+        // If only the embedding after the writes failed, the chunk is done and embedMissing (src/ops/repair.ts) fills it in.
+        stats.failed++;
+        console.error(`graph write failed for chunk ${p.chunk.id}`, e instanceof Error ? e.message : e);
+      }
     }
   }
   for (const id of await mergeDuplicates(db, orgId)) grown.add(id);
@@ -156,7 +175,9 @@ export async function mergeEntities(db: Db, orgId: string, keep: string, dupes: 
       on conflict do nothing`);
     const aliases = others.map((o) => o.name).filter((n) => n !== survivor.name);
     if (aliases.length) await tx.insert(entityAliases).values(aliases.map((alias) => ({ orgId, entityId: keep, alias }))).onConflictDoNothing();
-    const summary = [survivor.summary, ...others.map((o) => o.summary)].filter(Boolean).join(" ");
+    // The fullest description leads; the others add only what it doesn't already say.
+    const notes = [survivor.summary, ...others.map((o) => o.summary)].filter((n): n is string => !!n).sort((a, b) => b.length - a.length);
+    const summary = notes.filter((n, i) => !notes.slice(0, i).some((longer) => longer.includes(n))).join(" ");
     await tx
       .update(entities)
       .set({ acl: unionAcl(...rows.map((r) => r.acl)), summary: summary || null, personId: survivor.personId ?? others.find((o) => o.personId)?.personId })
@@ -173,8 +194,8 @@ async function read(models: Models, prompt: string) {
 interface Prepared {
   chunk: PendingChunk;
   prompt: string;
-  /** M1, M2, ... → message id */
-  labels: Map<string, string>;
+  /** M1, M2, ... → the message, with who wrote it */
+  labels: Map<string, { id: string; sentAt: Date; authorPersonId: string | null }>;
   directory: Person[];
   current: { id: string }[];
 }
@@ -211,7 +232,7 @@ async function prepare(db: Db, orgId: string, chunk: PendingChunk): Promise<Prep
     : [];
   const current = knownRows.length
     ? await db
-        .select({ id: edges.id, fact: edges.fact })
+        .select({ id: edges.id, fact: edges.fact, disputeGroup: edges.disputeGroup })
         .from(edges)
         .where(and(eq(edges.orgId, orgId), isNull(edges.expiredAt), or(inArray(edges.sourceEntityId, knownRows.map((e) => e.id)), inArray(edges.targetEntityId, knownRows.map((e) => e.id)))))
         .orderBy(desc(edges.createdAt))
@@ -220,7 +241,7 @@ async function prepare(db: Db, orgId: string, chunk: PendingChunk): Promise<Prep
 
   // One part of a long pasted message: its text is the chunk, not the whole message.
   const single = msgs.length === 1;
-  const labels = new Map(msgs.map((m, i) => [`M${i + 1}`, m.id]));
+  const labels = new Map(msgs.map((m, i) => [`M${i + 1}`, { id: m.id, sentAt: m.sentAt, authorPersonId: m.authorPersonId }]));
   const body = single
     ? `M1 ${msgs[0].author ?? "Unknown"}: ${chunk.text.split("\n").slice(1).join("\n")}`
     : msgs
@@ -231,14 +252,14 @@ async function prepare(db: Db, orgId: string, chunk: PendingChunk): Promise<Prep
     `CONVERSATION: ${thread?.title ?? "Untitled"} (${thread?.kind ?? "chat"})`,
     `PEOPLE: ${directory.map((p) => p.displayName).join("; ") || "(unknown)"}`,
     `KNOWN ENTITIES:\n${knownRows.map((e) => `- ${e.name} (${e.type})${e.summary ? `: ${e.summary.slice(0, 160)}` : ""}`).join("\n") || "(none)"}`,
-    `CURRENT FACTS:\n${current.map((f, i) => `F${i + 1}. ${f.fact}`).join("\n") || "(none)"}`,
+    `CURRENT FACTS:\n${current.map((f, i) => `F${i + 1}. ${f.fact}${f.disputeGroup ? " (disputed, not settled)" : ""}`).join("\n") || "(none)"}`,
     `MESSAGES:\n${body}`,
   ].join("\n\n");
   return { chunk, prompt, labels, directory, current };
 }
 
 /** Writes one chunk's entities, mentions and relations. Returns the entities whose description grew. */
-async function apply(db: Db, orgId: string, models: Models, p: Prepared, out: GraphExtraction, stats: GraphStats): Promise<string[]> {
+async function apply(db: Db, orgId: string, models: Models, p: Prepared, out: Parsed, stats: GraphStats): Promise<string[]> {
   const newEdges: { id: string; text: string }[] = [];
   const touched = new Set<string>();
   await db.transaction(async (txRaw) => {
@@ -266,46 +287,39 @@ async function apply(db: Db, orgId: string, models: Models, p: Prepared, out: Gr
       touched.add(id);
     }
 
+    const currentFacts = (labels: string[]) => labels.map((l) => (/^F\d+$/.test(l.trim()) ? p.current[Number(l.trim().slice(1)) - 1]?.id : undefined)).filter((id): id is string => !!id);
     for (const r of out.relations) {
       if (!usefulName(r.source) || !usefulName(r.target) || r.source.trim().toLowerCase() === r.target.trim().toLowerCase()) continue;
       const sourceId = await entityFor(r.source);
       const targetId = await entityFor(r.target);
       const relation = r.relation.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "related_to";
-      const replaced = r.invalidates.map((l) => (/^F\d+$/.test(l.trim()) ? p.current[Number(l.trim().slice(1)) - 1]?.id : undefined)).filter((id): id is string => !!id);
+      // Restated, it confirms the fact it repeats; different, it replaces or disputes it (see writeFact).
+      // Chunks are read in parallel, so the model can't always see the older fact: writeFact also checks the same connection.
       const evidence = p.labels.get(r.evidence.trim());
-      const [validFrom] = evidence ? await tx.select({ at: messages.sentAt }).from(messages).where(eq(messages.id, evidence)) : [];
-      // The same connection again: identical, it adds nothing (a thread's last chunk is rebuilt as it grows).
-      // Different, the later evidence wins. Chunks are read in parallel, so the model can't always see the older fact.
-      const same = await tx
-        .select({ id: edges.id, fact: edges.fact, validFrom: edges.validFrom })
-        .from(edges)
-        .where(and(eq(edges.sourceEntityId, sourceId), eq(edges.targetEntityId, targetId), eq(edges.relation, relation), isNull(edges.expiredAt)));
-      if (same.some((e) => sameFact(e.fact, r.fact))) continue;
-      const at = validFrom?.at;
-      if (at && same.some((e) => e.validFrom && e.validFrom > at)) continue;
-      replaced.push(...same.map((e) => e.id));
-      const [edge] = await tx
-        .insert(edges)
-        .values({
-          orgId,
-          sourceEntityId: sourceId,
-          targetEntityId: targetId,
-          relation,
-          fact: r.fact,
-          validFrom: validFrom?.at,
-          sourceMessageIds: evidence ? [evidence] : p.chunk.messageIds,
-          sourceChunkId: p.chunk.id,
-          acl: p.chunk.acl,
-        })
-        .returning({ id: edges.id });
-      newEdges.push({ id: edge.id, text: r.fact });
+      const written = await writeFact(tx, {
+        orgId,
+        sourceEntityId: sourceId,
+        targetEntityId: targetId,
+        relation,
+        fact: r.fact,
+        validFrom: evidence?.sentAt,
+        saidAt: evidence?.sentAt,
+        messageIds: evidence ? [evidence.id] : p.chunk.messageIds,
+        sourceChunkId: p.chunk.id,
+        acl: p.chunk.acl,
+        stance: r.stance,
+        speakerId: evidence?.authorPersonId,
+        replaces: currentFacts(r.invalidates),
+        conflicts: currentFacts(r.conflictsWith),
+      });
+      if (written.outcome !== "added") continue;
+      newEdges.push({ id: written.id, text: r.fact });
       stats.relations++;
-      if (replaced.length) {
-        await tx
-          .update(edges)
-          .set({ validTo: validFrom?.at ?? new Date(), expiredAt: new Date(), invalidatedBy: edge.id })
-          .where(and(inArray(edges.id, replaced), isNull(edges.expiredAt)));
-      }
+    }
+    for (const c of out.confirms) {
+      const [factId] = currentFacts([c.fact]);
+      const evidence = p.labels.get(c.evidence.trim());
+      if (factId && evidence) await confirmFact(tx, orgId, factId, { messageId: evidence.id, at: evidence.sentAt, stance: "firm", speakerId: evidence.authorPersonId });
     }
     await tx.update(chunks).set({ graphedAt: new Date() }).where(eq(chunks.id, p.chunk.id));
   });
@@ -321,8 +335,6 @@ async function apply(db: Db, orgId: string, models: Models, p: Prepared, out: Gr
 /** Placeholders models emit for unnamed people and things ("Speaker 1", "Unknown", "User") aren't entities. */
 const PLACEHOLDER = /^(speaker|participant|person|user|caller|unknown|someone|anonymous|you|me)\s*\d*$/i;
 export const usefulName = (name: string) => name.trim().length >= 2 && !PLACEHOLDER.test(name.trim());
-
-const sameFact = (a: string, b: string) => a.trim().toLowerCase().replace(/\s+/g, " ") === b.trim().toLowerCase().replace(/\s+/g, " ");
 
 /** Adds a new description to an entity's running summary, unless it's already there. */
 async function appendDescription(db: Db, entityId: string, description: string) {

@@ -84,9 +84,11 @@ describe("Teams", () => {
     const found = await teams.sync!(api, undefined, ctx);
 
     expect(found.threads).toEqual([
-      { externalId: ONE, kind: "dm", title: "Jash Doshi", url: "https://teams.microsoft.com/l/chat/one", visibility: "members", memberKeys: ["teams:u1", "teams:u2"], metadata: { chatType: "oneOnOne" } },
-      { externalId: GROUP, kind: "group_dm", title: "Launch crew", url: "https://teams.microsoft.com/l/chat/group", visibility: "members", memberKeys: ["teams:u1", "teams:u2", "teams:u3"], metadata: { chatType: "group" } },
+      { externalId: ONE, kind: "dm", title: "Jash Doshi", url: "https://teams.microsoft.com/l/chat/one", visibility: "members", memberKeys: ["teams:u1", "teams:u2"], membersComplete: true, metadata: { chatType: "oneOnOne" } },
+      { externalId: GROUP, kind: "group_dm", title: "Launch crew", url: "https://teams.microsoft.com/l/chat/group", visibility: "members", memberKeys: ["teams:u1", "teams:u2", "teams:u3"], membersComplete: true, metadata: { chatType: "group" } },
     ]);
+    // Graph keeps a deleted message in the list; it is passed on so a stored copy is retired.
+    expect(found.deletedMessageIds).toEqual([`${ONE}:1002`]);
     expect(found.messages!.map((m) => [m.threadExternalId, m.externalId, m.kind, m.authorKey, m.text, m.sentAt.toISOString()])).toEqual([
       [ONE, `${ONE}:1001`, "chat", "teams:u1", "Can you send the deck?", "2026-11-01T10:00:00.000Z"],
       [ONE, `${ONE}:1003`, "chat", "teams:u2", "Deck is ready & sent.", "2026-11-01T10:05:00.500Z"],
@@ -115,8 +117,25 @@ describe("Teams", () => {
     const found = await teams.sync!(api, { latest: { [ONE]: "2026-11-01T10:05:00.5Z" } }, ctx);
     expect(calls.find((c) => c.path === messagesOf(ONE))!.query.$filter).toBe("lastModifiedDateTime gt 2026-11-01T10:00:00.500Z");
     expect(calls.find((c) => c.path === messagesOf(GROUP))!.query.$filter).toBe("lastModifiedDateTime gt 2026-08-04T12:00:00.000Z");
-    expect(found.threads!.map((t) => t.externalId)).toEqual([GROUP]);
+    // The quiet chat is still reported, with who is in it now, so someone removed from it loses it.
+    expect(found.threads!.map((t) => [t.externalId, t.membersComplete])).toEqual([
+      [ONE, true],
+      [GROUP, true],
+    ]);
+    expect(found.messages!.every((m) => m.threadExternalId === GROUP)).toBe(true);
     expect((found.cursor.latest as Record<string, string>)[ONE]).toBe("2026-11-01T10:05:00.5Z");
+  });
+
+  it("reads a big chat's members on their own, and vouches for the list only when it is whole", async () => {
+    const crowd = Array.from({ length: 25 }, (_, i) => member(`c${i}`, `Person ${i}`));
+    const big = { ...routes, "me/chats": () => ({ value: [{ id: GROUP, topic: "Launch crew", chatType: "group", members: crowd }] }) };
+    const whole = fakeApi({ ...big, [`me/chats/${encodeURIComponent(GROUP)}/members`]: () => ({ value: [...crowd, sumedh] }) });
+    const [thread] = (await teams.sync!(whole.api, undefined, ctx)).threads!;
+    expect([thread.memberKeys.length, thread.membersComplete]).toEqual([26, true]);
+
+    // The members call is refused: the short list from the chat list stands, and nobody is removed on its word.
+    const [unsure] = (await teams.sync!(fakeApi(big).api, undefined, ctx)).threads!;
+    expect([unsure.memberKeys.length, unsure.membersComplete]).toEqual([25, false]);
   });
 
   it("stops opening chats once a sync has 2000 messages, leaving the rest for the next one", async () => {
@@ -196,9 +215,10 @@ describe("Teams", () => {
           url: "https://teams.microsoft.com/l/channel/general",
           visibility: "members",
           memberKeys: ["teams:u1", "teams:u2", "teams:u3"],
+          membersComplete: true,
           metadata: { teamId: TEAM, membershipType: "standard" },
         },
-        { externalId: LEADS, kind: "channel", title: "Launch / Leads", url: undefined, visibility: "members", memberKeys: ["teams:u1", "teams:u2"], metadata: { teamId: TEAM, membershipType: "private" } },
+        { externalId: LEADS, kind: "channel", title: "Launch / Leads", url: undefined, visibility: "members", memberKeys: ["teams:u1", "teams:u2"], membersComplete: true, metadata: { teamId: TEAM, membershipType: "private" } },
       ]);
       expect(found.messages!.map((m) => [m.threadExternalId, m.externalId, m.authorKey, m.text, m.subject, m.replyToExternalId])).toEqual([
         [GENERAL, `${GENERAL}:p1`, "teams:u3", "Launch checklist", "Launch", undefined],
@@ -224,7 +244,39 @@ describe("Teams", () => {
         [`${GENERAL}:r2`, `${GENERAL}:p1`],
         [`${GENERAL}:r3`, `${GENERAL}:p1`],
       ]);
-      expect(found.threads!.map((t) => t.externalId)).toEqual([GENERAL]);
+      // The quiet private channel is still reported with its current members.
+      expect(found.threads!.map((t) => [t.externalId, t.memberKeys])).toEqual([
+        [GENERAL, ["teams:u1", "teams:u2", "teams:u3"]],
+        [LEADS, ["teams:u1", "teams:u2"]],
+      ]);
+      expect(found.lostThreads).toEqual([]);
+    });
+
+    it("reports deleted posts, and channels the person can no longer reach", async () => {
+      const GONE = "19:gone@thread.tacv2";
+      const cursor = { latest: {}, channels: { [GENERAL]: "2026-10-01T09:00:00Z", [LEADS]: "2026-10-01T09:00:00Z", [GONE]: "2026-10-01T09:00:00Z" } };
+      const { api } = fakeApi({
+        ...channelRoutes,
+        [`${channelPath(GENERAL)}/messages`]: () => ({
+          value: [{ ...message("p1", "2026-10-30T09:00:00Z", "u3", "<p>Launch checklist</p>"), replies: [{ ...reply("r1", "2026-10-30T10:00:00Z", "u1", ""), deletedDateTime: "2026-10-31T10:00:00Z", lastModifiedDateTime: "2026-10-31T10:00:00Z" }] }],
+        }),
+        // Taken out of the private channel: refused, while the rest of the team still reads fine.
+        [`${channelPath(LEADS)}/messages`]: () => {
+          throw new ProviderError("403 Forbidden", 403);
+        },
+      });
+      const found = await teamsChannels.sync!(api, cursor, ctx);
+      expect(found.deletedMessageIds).toEqual([`${GENERAL}:r1`]);
+      // GONE is no longer listed in any team; LEADS is listed but closed to this person.
+      expect(found.lostThreads).toEqual([GONE, LEADS]);
+      expect(Object.keys(found.cursor.channels as object).sort()).toEqual([GENERAL, LEADS].sort());
+
+      // Everything refused (consent withdrawn) proves nothing about any one channel.
+      const refuseAll = () => {
+        throw new ProviderError("403 Forbidden", 403);
+      };
+      const none = fakeApi({ ...channelRoutes, [`${channelPath(GENERAL)}/messages`]: refuseAll, [`${channelPath(LEADS)}/messages`]: refuseAll, [`${channelPath(PARTNER)}/messages`]: refuseAll });
+      expect((await teamsChannels.sync!(none.api, { latest: {}, channels: { [GENERAL]: "2026-10-01T09:00:00Z", [LEADS]: "2026-10-01T09:00:00Z" } }, ctx)).lostThreads).toEqual([]);
     });
 
     it("skips channels it isn't allowed to read, and chats are a separate source", async () => {

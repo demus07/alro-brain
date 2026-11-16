@@ -38,8 +38,10 @@ export async function runRoutine(db: Db, routine: Routine, models: Models, now =
       const specialists = routine.team ? (await loadTeam(db, routine.orgId)).get(routine.team) : undefined;
       if (specialists?.length) {
         // A department's task: its lead hands parts to the specialists, who work in parallel.
-        const run = await runDepartment({ department: routine.team!, specialists, task: prompt, tools: agent.tools, model: models.answer, instructions: agent.instructions });
+        const run = await runDepartment(db, viewer, { department: routine.team!, specialists, task: prompt, tools: agent.tools, model: models.answer, instructions: agent.instructions, routineId: routine.id });
         await recordRun(db, { orgId: routine.orgId, stage: "team", model: models.answer, inputTokens: run.inputTokens, outputTokens: run.outputTokens });
+        // The lead failed and no specialist reported anything: that is a failed run, not a result to deliver.
+        if (run.status === "error" && !run.reports.some((r) => r.status === "ok")) throw new Error(run.error ?? "The team couldn't do this");
         output = plainAnswer(run.answer, run.sources);
       } else {
         const result = await generateText({ ...agent, prompt });

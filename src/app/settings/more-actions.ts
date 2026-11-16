@@ -2,14 +2,16 @@
 
 import { and, eq } from "drizzle-orm";
 import { refresh } from "next/cache";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { forgetNote, learnStyle, NOTE_CATEGORIES, rememberNote, type NoteCategory } from "@/agent/profile";
 import { defaultModels } from "@/ai/models";
 import { createLinkCode } from "@/channels/links";
 import { getDb } from "@/db/client";
 import { channelLinks } from "@/db/schema";
+import { audit } from "@/lib/audit";
+import { appOrigin } from "@/lib/origin";
 import { getViewer } from "@/lib/viewer";
+import { isAdmin } from "@/platform/roles";
 import { addServer, refreshServer, listServers, removeServer, setToolEnabled } from "@/tools/mcp";
 
 export interface FormState {
@@ -17,10 +19,7 @@ export interface FormState {
   ok?: string;
 }
 
-async function origin(): Promise<string> {
-  const h = await headers();
-  return process.env.ALRO_APP_URL ?? `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`;
-}
+const origin = appOrigin;
 
 // ---- Live tools -------------------------------------------------------------
 
@@ -31,12 +30,11 @@ export async function addLiveTools(_prev: FormState, formData: FormData): Promis
   let signIn: string | undefined;
   try {
     const viewer = await getViewer();
-    ({ signIn } = await addServer(
-      getDb(),
-      viewer,
-      { name: String(formData.get("name") ?? ""), url, token: String(formData.get("token") ?? "").trim() || undefined, scope: formData.get("scope") === "personal" ? "personal" : "org" },
-      await origin(),
-    ));
+    const scope = formData.get("scope") === "personal" ? "personal" : "org";
+    // Tools the whole team's agent can call are an admin's decision.
+    if (scope === "org" && !isAdmin(viewer)) return { error: "Only an admin can add a live-tool server for the whole team. Choose \"Only me\" to add it for yourself." };
+    ({ signIn } = await addServer(getDb(), viewer, { name: String(formData.get("name") ?? ""), url, token: String(formData.get("token") ?? "").trim() || undefined, scope }, await origin()));
+    await audit(getDb(), { orgId: viewer.orgId, personId: viewer.personId, action: "source.connect", target: `live tools at ${new URL(url).host}`, detail: { scope } });
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Couldn't add that server." };
   }

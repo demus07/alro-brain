@@ -6,7 +6,8 @@ import { uploadToBatches, type UploadOptions } from "@/ingest/upload";
 import { writeBatch, type WriteResult } from "@/ingest/writer";
 import { getViewer } from "@/lib/viewer";
 import { saveNote } from "@/memory/notes";
-import { runPipeline } from "@/pipeline/run";
+import { purgeRevoked } from "@/memory/revoke";
+import { processAndRepair } from "@/ops/repair";
 
 export const maxDuration = 300;
 
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
     }
   }
   if (!files.length) {
-    after(() => runPipeline(db, viewer.orgId, models).catch((e) => console.error("pipeline after upload failed", e)));
+    after(() => processAndRepair(db, viewer.orgId, models).catch((e) => console.error("pipeline after upload failed", e)));
     return Response.json({ results });
   }
 
@@ -73,10 +74,15 @@ export async function POST(request: Request) {
     return Response.json({ error: (e as Error).message }, { status: 400 });
   }
 
+  let revoked = 0;
   for (const batch of batches) {
-    results.push({ provider: batch.connection.provider, ...(await writeBatch(db, viewer.orgId, batch, "upload", viewer.personId)) });
+    const written = await writeBatch(db, viewer.orgId, batch, "upload", viewer.personId);
+    revoked += written.revoked.members + written.revoked.threads + written.revoked.messages;
+    results.push({ provider: batch.connection.provider, ...written });
   }
+  // A re-upload can show that someone left a conversation: copies of its text they held go too.
+  if (revoked) await purgeRevoked(db, viewer.orgId);
   // Make the upload searchable now rather than at the next scheduled run.
-  after(() => runPipeline(db, viewer.orgId, models).catch((e) => console.error("pipeline after upload failed", e)));
+  after(() => processAndRepair(db, viewer.orgId, models).catch((e) => console.error("pipeline after upload failed", e)));
   return Response.json({ results });
 }

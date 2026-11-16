@@ -1,7 +1,7 @@
 import type { NormalizedMessage, NormalizedPerson, NormalizedThread } from "@/ingest/types";
 import { httpApi, ProviderError, type Api } from "./api";
 import { z } from "zod";
-import type { ActionDef, Fetched, Provider } from "./provider";
+import type { ActionDef, Fetched, Provider, ToolContext } from "./provider";
 
 /** First sync reaches back this far. */
 const BACKFILL_DAYS = 90;
@@ -97,7 +97,12 @@ const issueInput = z.object({
 });
 type IssueInput = z.infer<typeof issueInput>;
 
-export async function createIssue(api: Api, i: IssueInput): Promise<{ url?: string; detail?: string }> {
+/**
+ * Files the issue. Linear lets the caller choose the new issue's id, so the approval's id is
+ * used: if the same approved action is ever sent twice, the second create is refused and the
+ * issue made the first time is returned instead of a duplicate.
+ */
+export async function createIssue(api: Api, i: IssueInput, ctx?: Pick<ToolContext, "idempotencyKey">): Promise<{ url?: string; detail?: string }> {
   const { teams } = await gql<{ teams: { nodes: { id: string; key: string; name: string }[] } }>(api, `query { teams(first: 250) { nodes { id key name } } }`);
   const want = i.team.trim().toLowerCase();
   const team = teams.nodes.find((t) => t.key.toLowerCase() === want || t.name.toLowerCase() === want);
@@ -107,11 +112,17 @@ export async function createIssue(api: Api, i: IssueInput): Promise<{ url?: stri
     const { users } = await gql<{ users: { nodes: { id: string }[] } }>(api, `query($email: String!) { users(filter: { email: { eq: $email } }) { nodes { id } } }`, { email: i.assigneeEmail });
     assigneeId = users.nodes[0]?.id;
   }
+  const id = ctx?.idempotencyKey;
   const r = await gql<{ issueCreate: { success: boolean; issue?: { identifier: string; url: string } } }>(
     api,
     `mutation($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }`,
-    { input: { teamId: team.id, title: i.title, description: i.description ?? undefined, assigneeId, dueDate: i.dueDate ?? undefined } },
-  );
+    { input: { id, teamId: team.id, title: i.title, description: i.description ?? undefined, assigneeId, dueDate: i.dueDate ?? undefined } },
+  ).catch(async (e) => {
+    // Refused because an earlier send already made it? Then that issue is the result.
+    const made = id && !(e instanceof ProviderError) ? await gql<{ issue?: { identifier: string; url: string } }>(api, `query($id: String!) { issue(id: $id) { identifier url } }`, { id }).catch(() => undefined) : undefined;
+    if (!made?.issue) throw e;
+    return { issueCreate: { success: true, issue: made.issue } };
+  });
   if (!r.issueCreate.success || !r.issueCreate.issue) throw new Error("Linear didn't create the issue");
   return { url: r.issueCreate.issue.url, detail: `Created ${r.issueCreate.issue.identifier}${i.assigneeEmail && !assigneeId ? ` (no Linear user with ${i.assigneeEmail}, left unassigned)` : ""}` };
 }

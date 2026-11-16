@@ -16,6 +16,9 @@ const MAX_CHANNEL_MESSAGES = 2000;
 const MAX_CHANNEL_PAGES = 10;
 const MAX_REPLY_PAGES = 5;
 const MAX_TEAMS = 100;
+/** Listing chats with their members gives at most this many members each; a bigger chat's members are read on their own. */
+const EXPANDED_MEMBERS = 25;
+const MAX_MEMBER_PAGES = 10;
 
 export interface TeamsCursor {
   /** Newest lastModifiedDateTime seen, per chat. */
@@ -90,7 +93,8 @@ export function htmlToText(html: string): string {
     .trim();
 }
 
-async function pages<T>(api: Api, path: string, query: Record<string, string | number>, maxPages: number): Promise<T[]> {
+/** Every page up to the cap. `complete` is false when the cap stopped it short of the end. */
+async function readPages<T>(api: Api, path: string, query: Record<string, string | number>, maxPages: number): Promise<{ all: T[]; complete: boolean }> {
   const all: T[] = [];
   let next: string | undefined = path;
   let q: Record<string, string | number> | undefined = query;
@@ -101,10 +105,13 @@ async function pages<T>(api: Api, path: string, query: Record<string, string | n
     next = r["@odata.nextLink"];
     q = undefined;
   }
-  return all;
+  return { all, complete: !next };
 }
+const pages = async <T>(api: Api, path: string, query: Record<string, string | number>, maxPages: number) => (await readPages<T>(api, path, query, maxPages)).all;
 
 const readable = (m: ChatMessage) => m.messageType === "message" && !m.deletedDateTime;
+/** Graph keeps a deleted message in the list, with the time it was deleted. */
+const deletedInTeams = (m: ChatMessage) => m.messageType === "message" && !!m.deletedDateTime;
 const plainText = (m: ChatMessage) => (m.body?.contentType === "html" ? htmlToText(m.body.content ?? "") : (m.body?.content ?? "")).trim();
 const sharedFiles = (m: ChatMessage) => (m.attachments ?? []).filter((a) => a.contentType === "reference" && a.name).map((a) => ({ name: a.name!, url: a.contentUrl ?? undefined }));
 const changedAt = (m: ChatMessage) => m.lastModifiedDateTime ?? m.createdDateTime;
@@ -116,6 +123,10 @@ const refused = (e: unknown) => e instanceof ProviderError && (e.status === 403 
  * One thread per chat or channel, visible to its members. Channels need permissions an admin consents to
  * for the whole organisation; a connection whose token lacks them (one made before they were added)
  * skips channels and still syncs chats.
+ *
+ * A chat or channel read before is reported again on every sync with its current members, even when
+ * nothing new was said, so someone removed from it loses it in ALRO too. Messages deleted in Teams
+ * come back as `deletedMessageIds`.
  */
 export async function fetchTeams(
   api: Api,
@@ -124,7 +135,7 @@ export async function fetchTeams(
   now = new Date(),
   /** Which half to read: the two are separate sources because channels need an admin's consent. */
   read: { chats?: boolean; channels?: boolean } = {},
-): Promise<{ people: NormalizedPerson[]; threads: NormalizedThread[]; messages: NormalizedMessage[]; cursor: TeamsCursor }> {
+): Promise<{ people: NormalizedPerson[]; threads: NormalizedThread[]; messages: NormalizedMessage[]; deletedMessageIds: string[]; lostThreads: string[]; cursor: TeamsCursor }> {
   const chats = read.chats === false ? [] : await pages<Chat>(api, "me/chats", { $expand: "members", $top: 50 }, MAX_CHAT_PAGES);
   const floor = now.getTime() - BACKFILL_DAYS * 86_400_000;
   const latest = { ...cursor.latest };
@@ -138,6 +149,7 @@ export async function fetchTeams(
 
   const threads: NormalizedThread[] = [];
   const messages: NormalizedMessage[] = [];
+  const deletedMessageIds: string[] = [];
   for (const chat of chats) {
     if (messages.length >= MAX_MESSAGES) break;
     const since = new Date(latest[chat.id] ? Date.parse(latest[chat.id]) - OVERLAP_MS : floor).toISOString();
@@ -159,15 +171,18 @@ export async function fetchTeams(
       const changed = m.lastModifiedDateTime ?? m.createdDateTime;
       if (!latest[chat.id] || Date.parse(changed) > Date.parse(latest[chat.id])) latest[chat.id] = changed;
     }
+    deletedMessageIds.push(...found.filter(deletedInTeams).map((m) => `${chat.id}:${m.id}`));
 
     const written = found
       .filter(readable)
       .map((m) => ({ m, text: plainText(m) }))
       .filter((x) => x.text)
       .sort((a, b) => Date.parse(a.m.createdDateTime) - Date.parse(b.m.createdDateTime));
-    if (!written.length) continue;
+    // A chat read before is reported even when quiet, so a change in who is in it still arrives.
+    if (!written.length && !cursor.latest?.[chat.id]) continue;
 
-    const members = (chat.members ?? []).filter((m) => m.userId);
+    const roster = await chatMembers(api, chat);
+    const members = roster.all.filter((m) => m.userId);
     const others = members.filter((m) => m.email?.toLowerCase() !== self).map((m) => m.displayName || m.email);
     threads.push({
       externalId: chat.id,
@@ -176,6 +191,7 @@ export async function fetchTeams(
       url: chat.webUrl ?? undefined,
       visibility: "members",
       memberKeys: members.map((m) => personKey(m.userId!, m.displayName, m.email)),
+      membersComplete: roster.complete,
       metadata: { chatType: chat.chatType },
     });
     for (const { m, text } of written) {
@@ -195,8 +211,24 @@ export async function fetchTeams(
   }
 
   const channels = { ...cursor.channels };
-  if (read.channels !== false) await fetchChannels(api, channels, floor, personKey, threads, messages);
-  return { people: [...people.values()], threads, messages, cursor: Object.keys(channels).length ? { latest, channels } : { latest } };
+  const lostThreads = read.channels === false ? [] : await fetchChannels(api, channels, floor, personKey, threads, messages, deletedMessageIds);
+  return { people: [...people.values()], threads, messages, deletedMessageIds, lostThreads, cursor: Object.keys(channels).length ? { latest, channels } : { latest } };
+}
+
+/**
+ * A chat's members and whether that is all of them. The chat list carries each chat's members but cuts
+ * long lists short, so a big chat's are read on their own; if that is refused the short list stands,
+ * marked incomplete, and nobody is removed on its word.
+ */
+async function chatMembers(api: Api, chat: Chat): Promise<{ all: Member[]; complete: boolean }> {
+  const listed = chat.members ?? [];
+  if (listed.length < EXPANDED_MEMBERS) return { all: listed, complete: listed.length > 0 };
+  try {
+    return await readPages<Member>(api, `me/chats/${encodeURIComponent(chat.id)}/members`, {}, MAX_MEMBER_PAGES);
+  } catch (e) {
+    if (refused(e)) return { all: listed, complete: false };
+    throw e;
+  }
 }
 
 /**
@@ -211,6 +243,10 @@ export async function fetchTeams(
  * A channel is never "org": Graph has no flag for an org-wide team, and an org-wide team's member list
  * is everyone anyway. A channel whose members can't be read is skipped, and its cursor isn't moved, so
  * it is read in full once access is granted.
+ *
+ * Returns the channels read before that the person has lost: no longer listed in any team they are in
+ * (deleted, or they left), or refused while other channels still read fine (taken out of a private one).
+ * Nothing is called lost when a listing was cut short or everything was refused (consent withdrawn).
  */
 async function fetchChannels(
   api: Api,
@@ -219,19 +255,26 @@ async function fetchChannels(
   personKey: (id: string, name?: string | null, email?: string | null) => string,
   threads: NormalizedThread[],
   messages: NormalizedMessage[],
-) {
+  deletedMessageIds: string[],
+): Promise<string[]> {
   let teams: Team[];
+  let allListed: boolean;
   try {
-    teams = await pages<Team>(api, "me/joinedTeams", {}, 5);
+    ({ all: teams, complete: allListed } = await readPages<Team>(api, "me/joinedTeams", {}, 5));
   } catch (e) {
-    if (refused(e)) return;
+    if (refused(e)) return [];
     throw e;
   }
+  allListed &&= teams.length <= MAX_TEAMS;
+  const known = Object.keys(cursor);
+  const listed = new Set<string>();
+  const turnedAway: string[] = [];
+  let read = 0;
   let budget = MAX_CHANNEL_MESSAGES;
-  const teamMembers = new Map<string, Member[] | undefined>();
+  const teamMembers = new Map<string, { all: Member[]; complete: boolean } | undefined>();
   const membersOf = async (path: string) => {
     try {
-      return await pages<Member>(api, path, { $top: 999 }, 10);
+      return await readPages<Member>(api, path, { $top: 999 }, MAX_MEMBER_PAGES);
     } catch (e) {
       if (refused(e)) return undefined;
       throw e;
@@ -239,14 +282,21 @@ async function fetchChannels(
   };
 
   for (const team of teams.slice(0, MAX_TEAMS)) {
-    if (budget <= 0) break;
+    if (budget <= 0) {
+      allListed = false;
+      break;
+    }
     let channels: Channel[];
     try {
-      channels = await pages<Channel>(api, `teams/${encodeURIComponent(team.id)}/channels`, {}, 5);
+      const found = await readPages<Channel>(api, `teams/${encodeURIComponent(team.id)}/channels`, {}, 5);
+      channels = found.all;
+      allListed &&= found.complete;
     } catch (e) {
-      if (refused(e)) continue;
-      throw e;
+      if (!refused(e)) throw e;
+      allListed = false;
+      continue;
     }
+    for (const channel of channels) listed.add(channel.id);
     for (const channel of channels) {
       if (budget <= 0) break;
       const base = `teams/${encodeURIComponent(team.id)}/channels/${encodeURIComponent(channel.id)}`;
@@ -275,25 +325,30 @@ async function fetchChannels(
         }
       } catch (e) {
         // Without the admin-consented permission, or a channel the person was removed from.
-        if (refused(e)) continue;
-        throw e;
+        if (!refused(e)) throw e;
+        if (cursor[channel.id]) turnedAway.push(channel.id);
+        continue;
       }
+      read++;
 
       const latest = posts.flatMap((p) => [p, ...(p.replies ?? [])]).reduce((max, m) => (!max || Date.parse(changedAt(m)) > Date.parse(max) ? changedAt(m) : max), cursor[channel.id] as string | undefined);
       const written: { m: ChatMessage & { subject?: string | null; webUrl?: string | null }; root: string; text: string }[] = [];
+      const deleted: string[] = [];
       for (const post of posts) {
         for (const m of [post, ...(post.replies ?? [])]) {
+          if (deletedInTeams(m)) deleted.push(`${channel.id}:${m.id}`);
           const text = readable(m) && Date.parse(changedAt(m)) > since ? plainText(m) : "";
           if (text) written.push({ m, root: post.id, text });
         }
       }
-      if (!written.length) {
+      // A channel read before is reported even when quiet, so a change in who is in it still arrives.
+      if (!written.length && !cursor[channel.id]) {
         if (latest) cursor[channel.id] = latest;
         continue;
       }
 
       const shared = channel.membershipType === "private" || channel.membershipType === "shared";
-      let members: Member[] | undefined;
+      let members: { all: Member[]; complete: boolean } | undefined;
       if (shared) members = await membersOf(`${base}/members`);
       else {
         if (!teamMembers.has(team.id)) teamMembers.set(team.id, await membersOf(`teams/${encodeURIComponent(team.id)}/members`));
@@ -301,6 +356,7 @@ async function fetchChannels(
       }
       if (!members) continue;
       if (latest) cursor[channel.id] = latest;
+      deletedMessageIds.push(...deleted);
 
       threads.push({
         externalId: channel.id,
@@ -308,7 +364,8 @@ async function fetchChannels(
         title: `${team.displayName ?? "Team"} / ${channel.displayName ?? "Channel"}`,
         url: channel.webUrl ?? undefined,
         visibility: "members",
-        memberKeys: members.filter((m) => m.userId).map((m) => personKey(m.userId!, m.displayName, m.email)),
+        memberKeys: members.all.filter((m) => m.userId).map((m) => personKey(m.userId!, m.displayName, m.email)),
+        membersComplete: members.complete,
         metadata: { teamId: team.id, membershipType: channel.membershipType ?? "standard" },
       });
       written.sort((a, b) => Date.parse(a.m.createdDateTime) - Date.parse(b.m.createdDateTime));
@@ -332,6 +389,10 @@ async function fetchChannels(
       budget -= written.length;
     }
   }
+
+  const unlisted = allListed ? known.filter((id) => !listed.has(id)) : [];
+  for (const id of unlisted) delete cursor[id];
+  return [...unlisted, ...(read ? turnedAway : [])];
 }
 
 async function identifyTeams(api: Api) {

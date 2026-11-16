@@ -1,10 +1,8 @@
+import { randomUUID } from "node:crypto";
 import { after } from "next/server";
-import { defaultModels } from "@/ai/models";
-import { fileReader } from "@/ai/read-file";
-import { transcribeAudio } from "@/ai/transcribe";
-import { slackDm, slackFile, validSlackSignature } from "@/channels/channels";
-import { handleInbound } from "@/channels/handle";
+import { slackDm, validSlackSignature } from "@/channels/channels";
 import { getDb } from "@/db/client";
+import { liveWebhookDeps, processWebhook, storeWebhook } from "@/ops/webhooks";
 
 export const maxDuration = 120;
 
@@ -23,7 +21,12 @@ interface SlackEvent {
   };
 }
 
-/** Direct messages to the ALRO Slack app (Events API, `message.im`). */
+/**
+ * Direct messages to the ALRO Slack app (Events API, `message.im`). The event is stored first
+ * under Slack's event id (Slack redelivers anything not acknowledged within 3 seconds; a
+ * redelivery is acknowledged and ignored) and answered after the 200. One that fails is
+ * replayed by the tick.
+ */
 export async function POST(request: Request) {
   const raw = await request.text();
   if (!slackDm.configured() || !validSlackSignature(raw, request.headers.get("x-slack-request-timestamp"), request.headers.get("x-slack-signature"))) {
@@ -35,16 +38,10 @@ export async function POST(request: Request) {
   // Only a person's own direct message: never the bot's replies, edits or channel chatter.
   const shared = e?.subtype === "file_share" ? e.files?.find((f) => f.url_private_download) : undefined;
   if (e?.type === "message" && e.channel_type === "im" && e.user && !e.bot_id && (!e.subtype || shared) && (e.text || shared)) {
-    const from = e.user;
-    const file = shared ? { mediaType: shared.mimetype ?? "application/octet-stream", name: shared.name, download: () => slackFile(shared.url_private_download!) } : undefined;
-    const models = defaultModels();
-    after(() =>
-      handleInbound(
-        getDb(),
-        { channel: "slack", from, id: body.event_id, text: e.text || undefined, file },
-        { models, transcribe: transcribeAudio, readFile: fileReader(models), send: (text) => slackDm.send(from, text) },
-      ),
-    );
+    const file = shared ? { ref: shared.url_private_download!, mediaType: shared.mimetype ?? "application/octet-stream", name: shared.name } : undefined;
+    const db = getDb();
+    const event = await storeWebhook(db, "slack", body.event_id ?? randomUUID(), { from: e.user, text: e.text || undefined, file });
+    if (event) after(() => processWebhook(db, event, liveWebhookDeps()));
   }
   return Response.json({ ok: true });
 }

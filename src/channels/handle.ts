@@ -9,6 +9,8 @@ import { decideFromReply } from "@/approvals/approvals";
 import type { Db } from "@/db/client";
 import { channelMessages, people } from "@/db/schema";
 import { saveNote } from "@/memory/notes";
+import { LimitError } from "@/platform/usage";
+import { errorText, log } from "@/ops/log";
 import { CHANNELS, type ChannelId } from "./channels";
 import { linkedViewer, redeemLinkCode } from "./links";
 
@@ -29,6 +31,8 @@ export interface Inbound {
   address?: Record<string, string>;
   /** A photo or document (a weighment slip, an invoice), downloaded only if needed. */
   file?: { mediaType: string; name?: string; download: () => Promise<Uint8Array> };
+  /** A stored event being handled again after it failed: the message recorded the first time is reused instead of counting as a duplicate. */
+  replay?: boolean;
 }
 
 export interface InboundDeps {
@@ -38,6 +42,8 @@ export interface InboundDeps {
   readFile?: FileReader;
   send: (text: string) => Promise<void>;
   now?: Date;
+  /** Let a failure reach the caller, which keeps the event and replays it, instead of telling the person to try again. */
+  rethrow?: boolean;
 }
 
 export type InboundOutcome = "answered" | "linked" | "unlinked" | "duplicate" | "empty" | "error";
@@ -72,11 +78,13 @@ export async function handleInbound(db: Db, msg: Inbound, deps: InboundDeps): Pr
   if (!msg.text?.trim() && !msg.audio && !msg.file) return "empty";
 
   // Recorded first: a redelivered webhook hits the unique id and stops here, before any model call.
-  const [stored] = await db
+  const [fresh] = await db
     .insert(channelMessages)
     .values({ orgId: viewer.orgId, personId: viewer.personId, channel: msg.channel, role: "user", text: msg.text?.trim() || (msg.file ? "(file)" : "(voice note)"), externalId: msg.id, createdAt: now })
     .onConflictDoNothing()
-    .returning({ id: channelMessages.id });
+    .returning({ id: channelMessages.id, text: channelMessages.text });
+  // A replay picks up the row its failed first attempt left behind.
+  const [stored] = fresh || !msg.replay || !msg.id ? [fresh] : await db.select({ id: channelMessages.id, text: channelMessages.text }).from(channelMessages).where(and(eq(channelMessages.channel, msg.channel), eq(channelMessages.externalId, msg.id), eq(channelMessages.personId, viewer.personId)));
   if (!stored) return "duplicate";
 
   try {
@@ -104,7 +112,10 @@ export async function handleInbound(db: Db, msg: Inbound, deps: InboundDeps): Pr
       const what = msg.file.mediaType.startsWith("image/") ? "photo" : "document";
       const contents = await deps.readFile({ data: await msg.file.download(), mediaType: msg.file.mediaType, name: msg.file.name });
       // Kept in their notes, so it's searchable, cited and read into trackers like any message.
-      await saveNote(db, viewer, `${text ? `${text}\n\n` : ""}[${what}${msg.file.name ? `: ${msg.file.name}` : ""}]\n${contents}`, { title: text ? text.slice(0, 80) : `A ${what} sent on ${label}`, now });
+      // The row's text is rewritten right after the note is saved, so a replay can tell it already was.
+      if (!stored.text.startsWith(`(${what})`)) {
+        await saveNote(db, viewer, `${text ? `${text}\n\n` : ""}[${what}${msg.file.name ? `: ${msg.file.name}` : ""}]\n${contents}`, { title: text ? text.slice(0, 80) : `A ${what} sent on ${label}`, now });
+      }
       text = `(sent a ${what}${text ? ` with the message "${text}"` : ""}; it has been saved to my notes) What it shows:\n${contents}\n\nAcknowledge it in a sentence or two: what it is and the key figures. If it relates to something open (a delivery, a payment, a promise), say so.`;
       await db.update(channelMessages).set({ text: `(${what}) ${msg.text?.trim() ?? ""} ${contents.slice(0, 500)}`.trim() }).where(eq(channelMessages.id, stored.id));
     }
@@ -141,7 +152,13 @@ export async function handleInbound(db: Db, msg: Inbound, deps: InboundDeps): Pr
     await deps.send(reply);
     return "answered";
   } catch (e) {
-    console.error(`${msg.channel} message from ${viewer.personId} failed`, e);
+    // Over the plan's daily limit: say so plainly, and don't queue a retry that would hit the same limit.
+    if (e instanceof LimitError) {
+      await deps.send(e.message).catch(() => undefined);
+      return "answered";
+    }
+    log.error("channel.message_failed", { channel: msg.channel, personId: viewer.personId, replay: msg.replay, error: errorText(e) });
+    if (deps.rethrow) throw e;
     await deps.send("Something went wrong on my side. Try again in a minute.").catch(() => undefined);
     return "error";
   }

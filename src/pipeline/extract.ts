@@ -17,6 +17,7 @@ import {
 } from "@/db/schema";
 import { unionAcl } from "@/db/scope";
 import { formatLocal } from "@/lib/time";
+import { confirmFact, confirmsField, trustFields, writeFact, type TrustFields } from "@/memory/facts";
 import { applyUpdate, type UpdateKind } from "./fulfil";
 
 /** New (flagged) messages per model call, and earlier messages shown for context. */
@@ -60,8 +61,10 @@ ENTITIES AND FACTS
 Entities: people, companies, deals, projects, products and topics that matter to the business.
 Facts: one relation between two entities, as a sentence. Use snake_case relations (prices_at, customer_of, in_scope_of, decided, owns, status_is, uses).
 Only facts likely to matter later: prices, decisions, customer or deal status, scope, ownership, vendors, metrics.
-When a new fact replaces a CURRENT FACT (F1, F2, ...), e.g. a new price, a changed status, a dropped feature, list it in invalidates.
-Skip facts that are already in CURRENT FACTS unchanged.
+stance: how it was said. firm (stated as fact), confirmed (explicitly confirmed, agreed or signed off), tentative (a guess, a maybe, or second-hand: "I think", "apparently"), question (only asked).
+When a new fact replaces a CURRENT FACT (F1, F2, ...) because things changed, e.g. a new price, a changed status, a dropped feature, list it in invalidates.
+When it contradicts a CURRENT FACT without being presented as a change (someone gives a different number or version of the same thing), list that fact in conflictsWith instead: both are kept until one is confirmed.
+Don't write facts that are already in CURRENT FACTS unchanged. When a * message restates or confirms one, add it to confirms (the F label and the message label).
 
 Messages may mix English and Hindi (Hinglish). Return empty lists when there is nothing to extract.`;
 
@@ -110,10 +113,17 @@ export const extractionSchema = z.object({
       message: ref,
       validFrom: z.string().nullable().describe("When it became true, ISO 8601, if different from the message time"),
       invalidates: z.array(z.string()).describe("F labels this fact replaces"),
+      ...trustFields,
     }),
   ),
+  confirms: confirmsField,
 });
-export type Extraction = z.infer<typeof extractionSchema>;
+type Parsed = z.infer<typeof extractionSchema>;
+/** A model's answer. The trust fields (stance, conflictsWith, confirms) may be left out; they default when parsed. */
+export type Extraction = Omit<Parsed, "facts" | "confirms"> & {
+  facts: (Omit<Parsed["facts"][number], keyof TrustFields> & Partial<TrustFields>)[];
+  confirms?: Parsed["confirms"];
+};
 
 interface WindowMessage {
   id: string;
@@ -248,7 +258,7 @@ async function extractWindow(
   const known = await mentionedEntities(db, orgId, windowText);
   const current = known.length
     ? await db
-        .select({ id: edges.id, fact: edges.fact, relation: edges.relation, validFrom: edges.validFrom })
+        .select({ id: edges.id, fact: edges.fact, disputeGroup: edges.disputeGroup })
         .from(edges)
         .where(
           and(
@@ -275,7 +285,7 @@ async function extractWindow(
         )
         .join("\n") || "(none)"
     }`,
-    `CURRENT FACTS:\n${current.map((f, i) => `F${i + 1}. ${f.fact}`).join("\n") || "(none)"}`,
+    `CURRENT FACTS:\n${current.map((f, i) => `F${i + 1}. ${f.fact}${f.disputeGroup ? " (disputed, not settled)" : ""}`).join("\n") || "(none)"}`,
     `MESSAGES:\n${window
       .map((m, i) => {
         const text = m.text.length > MAX_MESSAGE_CHARS ? `${m.text.slice(0, MAX_MESSAGE_CHARS)}…` : m.text;
@@ -420,7 +430,7 @@ async function extractWindow(
     }
 
     const entityIds = new Map<string, string>();
-    const entityFor = async (name: string, type: Extraction["entities"][number]["type"], aliases: string[], acl: string[]) => {
+    const entityFor = async (name: string, type: Parsed["entities"][number]["type"], aliases: string[], acl: string[]) => {
       const key = name.trim().toLowerCase();
       if (!entityIds.has(key)) {
         const { id, isNew } = await findOrCreateEntity(tx, orgId, { name: name.trim(), type, aliases }, acl, directory);
@@ -432,6 +442,7 @@ async function extractWindow(
     const windowAcl = unionAcl(...window.filter((m) => targets.has(m.id)).map((m) => m.acl));
     for (const e of output.entities) await entityFor(e.name, e.type, e.aliases, windowAcl);
 
+    const currentFacts = (labels: string[]) => labels.map((l) => (/^F\d+$/.test(l.trim()) ? current[Number(l.trim().slice(1)) - 1]?.id : undefined)).filter((id): id is string => !!id);
     for (const f of output.facts) {
       const m = target(f.message);
       if (!m || !f.source.trim() || !f.target.trim()) {
@@ -441,30 +452,30 @@ async function extractWindow(
       const typeOf = (n: string) => output.entities.find((e) => e.name.trim().toLowerCase() === n.trim().toLowerCase())?.type ?? "other";
       const sourceId = await entityFor(f.source, typeOf(f.source), [], m.acl);
       const targetId = await entityFor(f.target, typeOf(f.target), [], m.acl);
-      const validFrom = parseDate(f.validFrom) ?? m.sentAt;
-      const [edge] = await tx
-        .insert(edges)
-        .values({
-          orgId,
-          sourceEntityId: sourceId,
-          targetEntityId: targetId,
-          relation: f.relation.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_"),
-          fact: f.fact,
-          validFrom,
-          sourceMessageIds: [m.id],
-          acl: m.acl,
-        })
-        .returning({ id: edges.id });
-      newEmbeddings.push({ table: "edges", id: edge.id, text: f.fact });
+      // Restated, it confirms the fact it repeats; different, it replaces or disputes it (see writeFact).
+      const written = await writeFact(tx, {
+        orgId,
+        sourceEntityId: sourceId,
+        targetEntityId: targetId,
+        relation: f.relation.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_"),
+        fact: f.fact,
+        validFrom: parseDate(f.validFrom) ?? m.sentAt,
+        saidAt: m.sentAt,
+        messageIds: [m.id],
+        acl: m.acl,
+        stance: f.stance,
+        speakerId: m.authorPersonId,
+        replaces: currentFacts(f.invalidates),
+        conflicts: currentFacts(f.conflictsWith),
+      });
+      if (written.outcome !== "added") continue;
+      newEmbeddings.push({ table: "edges", id: written.id, text: f.fact });
       stats.facts++;
-
-      const replaced = f.invalidates.map((l) => (/^F\d+$/.test(l) ? current[Number(l.slice(1)) - 1]?.id : undefined)).filter((id): id is string => !!id);
-      if (replaced.length) {
-        await tx
-          .update(edges)
-          .set({ validTo: validFrom, expiredAt: new Date(), invalidatedBy: edge.id })
-          .where(and(inArray(edges.id, replaced), isNull(edges.expiredAt)));
-      }
+    }
+    for (const c of output.confirms) {
+      const [factId] = currentFacts([c.fact]);
+      const m = target(c.evidence);
+      if (factId && m) await confirmFact(tx, orgId, factId, { messageId: m.id, at: m.sentAt, stance: "firm", speakerId: m.authorPersonId });
     }
 
     await tx.update(messages).set({ extractedAt: new Date() }).where(inArray(messages.id, [...targets]));
@@ -510,7 +521,7 @@ export async function mentionedEntities(db: Db, orgId: string, lowerText: string
 export async function findOrCreateEntity(
   db: Db,
   orgId: string,
-  e: { name: string; type: Extraction["entities"][number]["type"]; aliases: string[] },
+  e: { name: string; type: Parsed["entities"][number]["type"]; aliases: string[] },
   acl: string[],
   directory: Person[],
 ): Promise<{ id: string; isNew: boolean }> {

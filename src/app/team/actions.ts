@@ -1,11 +1,13 @@
 "use server";
 
-import { and, eq, sql } from "drizzle-orm";
 import { refresh } from "next/cache";
 import { getDb } from "@/db/client";
-import { teamAgents } from "@/db/schema";
 import { getViewer } from "@/lib/viewer";
-import { addDepartment } from "@/team/team";
+import * as team from "@/team/manage";
+
+export interface TeamState {
+  error?: string;
+}
 
 const toolList = (raw: FormDataEntryValue | null) =>
   String(raw ?? "")
@@ -13,49 +15,41 @@ const toolList = (raw: FormDataEntryValue | null) =>
     .map((t) => t.trim())
     .filter(Boolean);
 
+const field = (formData: FormData, name: string) => String(formData.get(name) ?? "");
+
+/** Runs a change to the team (who may make it is decided in @/team/manage) and hands a refusal back to the form as a message. */
+async function change(fn: () => Promise<void>): Promise<TeamState> {
+  try {
+    await fn();
+  } catch (e) {
+    if (e instanceof team.TeamError) return { error: e.message };
+    throw e;
+  }
+  refresh();
+  return {};
+}
+
 export async function addPreset(formData: FormData) {
-  const viewer = await getViewer();
-  await addDepartment(getDb(), viewer, String(formData.get("department") ?? ""));
+  await team.addDepartment(getDb(), await getViewer(), field(formData, "department"));
   refresh();
 }
 
-export async function addSpecialist(formData: FormData) {
+export async function addSpecialist(_prev: TeamState, formData: FormData): Promise<TeamState> {
   const viewer = await getViewer();
-  const department = String(formData.get("department") ?? "").trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-");
-  const name = String(formData.get("name") ?? "").trim();
-  const job = String(formData.get("job") ?? "").trim();
-  if (!department || !name || !job) throw new Error("Department, name and job are needed");
-  await getDb().insert(teamAgents).values({ orgId: viewer.orgId, department, name, job, tools: toolList(formData.get("tools")), createdBy: viewer.personId });
-  refresh();
+  return change(() => team.addSpecialist(getDb(), viewer, { department: field(formData, "department"), name: field(formData, "name"), job: field(formData, "job"), tools: toolList(formData.get("tools")) }));
 }
 
-/**
- * Specialists run with the access of whoever asks them, so a job description is a set of
- * instructions to everyone's agent: only the member who added it can change it.
- */
-const theirs = (id: FormDataEntryValue | null, viewer: { orgId: string; personId: string }) =>
-  and(eq(teamAgents.id, String(id ?? "")), eq(teamAgents.orgId, viewer.orgId), eq(teamAgents.createdBy, viewer.personId));
-
-export async function updateSpecialist(formData: FormData) {
+export async function updateSpecialist(_prev: TeamState, formData: FormData): Promise<TeamState> {
   const viewer = await getViewer();
-  await getDb()
-    .update(teamAgents)
-    .set({ name: String(formData.get("name") ?? "").trim(), job: String(formData.get("job") ?? "").trim(), tools: toolList(formData.get("tools")) })
-    .where(theirs(formData.get("id"), viewer));
-  refresh();
+  return change(() => team.updateSpecialist(getDb(), viewer, field(formData, "id"), { name: field(formData, "name"), job: field(formData, "job"), tools: toolList(formData.get("tools")) }));
 }
 
 export async function toggleSpecialist(formData: FormData) {
-  const viewer = await getViewer();
-  await getDb()
-    .update(teamAgents)
-    .set({ enabled: sql`not ${teamAgents.enabled}` })
-    .where(theirs(formData.get("id"), viewer));
+  await team.toggleSpecialist(getDb(), await getViewer(), field(formData, "id"));
   refresh();
 }
 
 export async function removeSpecialist(formData: FormData) {
-  const viewer = await getViewer();
-  await getDb().delete(teamAgents).where(theirs(formData.get("id"), viewer));
+  await team.removeSpecialist(getDb(), await getViewer(), field(formData, "id"));
   refresh();
 }

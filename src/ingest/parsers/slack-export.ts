@@ -73,6 +73,8 @@ export function slackExportToBatch(files: ExportFiles, workspace: { teamId: stri
       displayName: nameOf(u.id),
       email: u.profile?.email?.toLowerCase(),
       phone: u.profile?.phone || undefined,
+      // Slack marks a deactivated account `deleted`.
+      deactivated: u.deleted,
     }));
 
   const conversations: { conv: SlackConversation; folder: string; kind: ThreadKind; visibility: "org" | "members" }[] = [
@@ -116,6 +118,8 @@ export function slackExportToBatch(files: ExportFiles, workspace: { teamId: stri
           attachments: m.files?.map((f) => ({ name: f.name ?? "file", mimeType: f.mimetype, url: f.url_private, size: f.size })),
           url: base ? `${base}/${conv.id}/p${m.ts.replace(".", "")}` : undefined,
           editedAt: m.edited ? new Date(Number(m.edited.ts) * 1000) : undefined,
+          // A deleted message that had replies stays as a "tombstone" so the replies keep their place.
+          deleted: m.subtype === "tombstone" || undefined,
           raw: m,
         });
       }

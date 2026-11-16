@@ -1,10 +1,7 @@
 import { after } from "next/server";
-import { defaultModels } from "@/ai/models";
-import { fileReader } from "@/ai/read-file";
-import { transcribeAudio } from "@/ai/transcribe";
-import { validWhatsAppSignature, whatsapp, whatsappMedia } from "@/channels/channels";
-import { handleInbound } from "@/channels/handle";
+import { validWhatsAppSignature, whatsapp } from "@/channels/channels";
 import { getDb } from "@/db/client";
+import { liveWebhookDeps, processWebhook, storeWebhook, type WebhookEvent } from "@/ops/webhooks";
 
 export const maxDuration = 120;
 
@@ -25,30 +22,34 @@ export async function GET(request: Request) {
   return ok ? new Response(q.get("hub.challenge") ?? "") : new Response("Forbidden", { status: 403 });
 }
 
-/** Incoming WhatsApp messages. Answered after the 200, since Meta retries anything slow. */
+/**
+ * Incoming WhatsApp messages. Each is stored first (a redelivery of one already stored is
+ * acknowledged and ignored), then answered after the 200, since Meta retries anything slow.
+ * One that fails is replayed by the tick; media is fetched again by its id.
+ */
 export async function POST(request: Request) {
   const raw = await request.text();
   if (!whatsapp.configured() || !validWhatsAppSignature(raw, request.headers.get("x-hub-signature-256"))) return new Response("Forbidden", { status: 403 });
   const body = JSON.parse(raw) as { entry?: { changes?: { value?: { messages?: WhatsAppMessage[] } }[] }[] };
   const messages = (body.entry ?? []).flatMap((e) => e.changes ?? []).flatMap((c) => c.value?.messages ?? []);
-  after(async () => {
-    const models = defaultModels();
-    for (const m of messages) {
-      if (!["text", "audio", "image", "document"].includes(m.type)) continue;
-      const media = m.image ?? m.document;
-      await handleInbound(
-        getDb(),
-        {
-          channel: "whatsapp",
-          from: m.from,
-          id: m.id,
-          text: m.text?.body ?? media?.caption,
-          audio: m.audio ? () => whatsappMedia(m.audio!.id) : undefined,
-          file: media ? { mediaType: media.mime_type, name: m.document?.filename, download: () => whatsappMedia(media.id) } : undefined,
-        },
-        { models, transcribe: transcribeAudio, readFile: fileReader(models), send: (text) => whatsapp.send(m.from, text) },
-      );
-    }
-  });
+  const db = getDb();
+  const stored: WebhookEvent[] = [];
+  for (const m of messages) {
+    if (!["text", "audio", "image", "document"].includes(m.type)) continue;
+    const media = m.image ?? m.document;
+    const event = await storeWebhook(db, "whatsapp", m.id, {
+      from: m.from,
+      text: m.text?.body ?? media?.caption,
+      audio: m.audio?.id,
+      file: media ? { ref: media.id, mediaType: media.mime_type, name: m.document?.filename } : undefined,
+    });
+    if (event) stored.push(event);
+  }
+  if (stored.length) {
+    after(async () => {
+      const deps = liveWebhookDeps();
+      for (const event of stored) await processWebhook(db, event, deps);
+    });
+  }
   return Response.json({ ok: true });
 }

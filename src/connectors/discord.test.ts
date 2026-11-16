@@ -88,12 +88,57 @@ describe("Discord", () => {
 
   it("asks only for what's new, and skips channels with nothing newer", async () => {
     const { api: a, calls } = api();
-    const r = await fetchDiscord(a, G, { after: { "301": M1, "302": S1, [T1]: T1M }, archivedAt: NOW.toISOString() }, NOW);
+    const r = await fetchDiscord(a, G, { after: { "301": M1, "302": S1, [T1]: T1M }, archivedAt: NOW.toISOString(), rereadAt: NOW.toISOString() }, NOW);
     expect(calls.find((c) => c.path === "channels/301/messages")!.query.after).toBe(M1);
     expect(calls.some((c) => c.path === "channels/302/messages" || c.path === `channels/${T1}/messages`)).toBe(false);
     expect(calls.some((c) => c.path.includes("archived"))).toBe(false);
-    expect(r.messages.map((m) => m.text)).toEqual(["works for me @Sumedh Kudav"]);
+    // The channel with something new is also read back from its cursor, which re-sends what is still there.
+    expect(r.messages.map((m) => m.text)).toEqual(["Pricing call at 5", "works for me @Sumedh Kudav"]);
     expect(r.cursor.after!["301"]).toBe(M2);
+  });
+
+  it("reports every channel read before with its audience now, and the stretch it re-read to the end", async () => {
+    const { api: a, calls } = api();
+    const r = await fetchDiscord(a, G, { after: { "301": M2, "302": S1, [T1]: T1M }, archivedAt: NOW.toISOString() }, NOW);
+    // Nothing new anywhere, yet every channel comes back: #founders with its whole member list.
+    expect(r.threads.map((t) => [t.title, t.visibility, t.membersComplete, [...t.memberKeys].sort()])).toEqual([
+      ["#general", "org", undefined, []],
+      ["#founders", "members", true, ["discord:201", "discord:202"]],
+      ["#general › pricing", "org", undefined, []],
+    ]);
+    expect(calls.find((c) => c.path === "channels/301/messages")!.query).toEqual({ before: (BigInt(M2) + BigInt(1)).toString(), limit: 100 });
+    // A short page reaches the start of the channel: the week before the cursor was read whole.
+    expect(r.threads[0].complete).toEqual({ from: new Date(Date.parse("2026-11-01T10:05:00Z") - 7 * 86_400_000), to: new Date("2026-11-01T10:05:00Z") });
+    expect(r.messages.filter((m) => m.threadExternalId === "301").map((m) => m.text)).toEqual(["Pricing call at 5", "works for me @Sumedh Kudav"]);
+    expect(r.cursor.rereadAt).toBe(NOW.toISOString());
+  });
+
+  it("claims nothing was deleted when a re-read comes back empty or stops at the page cap", async () => {
+    // Without Read Message History Discord answers with an empty list rather than an error.
+    const empty = fakeApi({ ...base(true), "channels/301/messages": () => [] });
+    const none = await fetchDiscord(empty.api, G, { after: { "301": M2 }, archivedAt: NOW.toISOString() }, NOW);
+    expect(none.threads.find((t) => t.externalId === "301")).toMatchObject({ title: "#general", complete: undefined });
+
+    // A busy channel: two full pages don't reach a week back, so only the part actually read is vouched for.
+    const start = Date.parse("2026-11-01T10:05:00Z");
+    const busy = fakeApi({
+      ...base(true),
+      "channels/301/messages": (q: Record<string, unknown>) => {
+        const before = Number((BigInt(String(q.before)) >> BigInt(22)) + BigInt(1420070400000));
+        return Array.from({ length: 100 }, (_, i) => msg(snowflakeAt(before - (i + 1) * 60_000), JASH, `line ${i}`));
+      },
+    });
+    const part = await fetchDiscord(busy.api, G, { after: { "301": M2 }, archivedAt: NOW.toISOString() }, NOW);
+    // 200 messages a minute apart were read; the stretch starts a second after the oldest of them.
+    expect(part.threads[0].complete).toEqual({ from: new Date(start - 200 * 60_000 + 1000), to: new Date(start) });
+    expect(part.messages.filter((m) => m.threadExternalId === "301")).toHaveLength(200);
+  });
+
+  it("hides a channel read before once its audience can't be worked out", async () => {
+    const { api: a } = api(false);
+    const r = await fetchDiscord(a, G, { after: { "302": at("2026-10-01T00:00:00Z") }, archivedAt: NOW.toISOString(), rereadAt: NOW.toISOString() }, NOW);
+    expect(r.threads.find((t) => t.externalId === "302")).toMatchObject({ visibility: "members", memberKeys: [], membersComplete: true });
+    expect(r.messages.some((m) => m.threadExternalId === "302")).toBe(false);
   });
 
   it("skips restricted channels when the member list can't be read, rather than guessing", async () => {

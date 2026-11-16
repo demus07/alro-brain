@@ -1,18 +1,18 @@
+import { randomUUID } from "node:crypto";
 import { after } from "next/server";
-import { defaultModels } from "@/ai/models";
-import { fileReader } from "@/ai/read-file";
-import { transcribeAudio } from "@/ai/transcribe";
 import { teamsBot } from "@/channels/channels";
-import { handleInbound } from "@/channels/handle";
-import { rememberAddress } from "@/channels/links";
-import { teamsAttachment, teamsText, verifyTeamsRequest, type TeamsActivity } from "@/channels/teams-bot";
+import { teamsText, verifyTeamsRequest, type TeamsActivity } from "@/channels/teams-bot";
 import { getDb } from "@/db/client";
+import { liveWebhookDeps, processWebhook, storeWebhook } from "@/ops/webhooks";
 
 export const maxDuration = 120;
 
 /**
  * Messages to the ALRO bot in Teams (Bot Framework). Only one-to-one chats: in a group chat or
  * channel the bot would answer with one member's access for everyone to read.
+ * The message is stored first (a redelivery is acknowledged and ignored) and answered after
+ * the 200. One that fails is replayed by the tick; a Teams file link only lasts a few
+ * minutes, so if it has expired by then the sender is asked once to send the file again.
  */
 export async function POST(request: Request) {
   if (!teamsBot.configured()) return new Response("Forbidden", { status: 403 });
@@ -26,21 +26,15 @@ export async function POST(request: Request) {
   const att = activity.attachments?.find((a) => a.contentType === "application/vnd.microsoft.teams.file.download.info" || a.contentType.startsWith("image/"));
   const file = att
     ? {
+        // Only what's needed to download it again.
+        ref: { contentType: att.contentType, contentUrl: att.contentUrl, name: att.name, content: att.content && { downloadUrl: att.content.downloadUrl, fileType: att.content.fileType } },
         mediaType: att.contentType.startsWith("image/") ? att.contentType : fileType(att.content?.fileType ?? att.name ?? ""),
         name: att.name,
-        download: () => teamsAttachment(att),
       }
     : undefined;
-  const models = defaultModels();
-  after(async () => {
-    const db = getDb();
-    await rememberAddress(db, "teams", from, address);
-    await handleInbound(
-      db,
-      { channel: "teams", from, id: activity.id ? `${activity.conversation!.id}:${activity.id}` : undefined, text: teamsText(activity) || undefined, file, address },
-      { models, transcribe: transcribeAudio, readFile: fileReader(models), send: (text) => teamsBot.send(from, text, address) },
-    );
-  });
+  const db = getDb();
+  const event = await storeWebhook(db, "teams", activity.id ? `${activity.conversation.id}:${activity.id}` : randomUUID(), { from, text: teamsText(activity) || undefined, file, address });
+  if (event) after(() => processWebhook(db, event, liveWebhookDeps()));
   return new Response(null, { status: 200 });
 }
 

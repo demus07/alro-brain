@@ -6,8 +6,11 @@ import { Suspense } from "react";
 import { getDb } from "@/db/client";
 import { teamAgents } from "@/db/schema";
 import { getViewer } from "@/lib/viewer";
+import { canAdd, canChange } from "@/team/manage";
 import { departmentLabel, departmentOf, DEPARTMENTS } from "@/team/presets";
-import { addPreset, addSpecialist, removeSpecialist, toggleSpecialist, updateSpecialist } from "./actions";
+import { addPreset } from "./actions";
+import { EditSpecialist, NewSpecialist } from "./forms";
+import { Workspace } from "./workspace";
 
 export const metadata: Metadata = { title: "Team · ALRO" };
 
@@ -24,8 +27,17 @@ export default function TeamPage() {
     <>
       <h1>Team</h1>
       <p className="muted">
-        Departments of agents. Each lead plans the work and hands parts to its specialists, who work at the same time, each with only the tools its job needs. They work with the access of whoever asks, and anything they want to send waits in Approvals.
+        Departments of agents. Each lead plans the work and hands parts to its specialists, who work at the same time, each with only the tools its job needs. The lead checks their reports against each other and says so when a part is missing or two of them disagree. They work with the access of whoever asks, and anything they want to send waits in Approvals.
       </p>
+      <div className="card-head">
+        <p className="label truncate">What the team is doing</p>
+        <Link className="link small" href="/team/runs">
+          All runs →
+        </Link>
+      </div>
+      <Suspense fallback={<p className="muted small">Loading…</p>}>
+        <Workspace limit={3} />
+      </Suspense>
       <Suspense fallback={<p className="muted">Loading…</p>}>
         <Team />
       </Suspense>
@@ -36,13 +48,15 @@ export default function TeamPage() {
 async function Team() {
   await connection();
   const viewer = await getViewer();
-  const rows = await getDb().select().from(teamAgents).where(eq(teamAgents.orgId, viewer.orgId)).orderBy(asc(teamAgents.department), asc(teamAgents.createdAt));
+  const db = getDb();
+  const [rows, mayAdd] = await Promise.all([db.select().from(teamAgents).where(eq(teamAgents.orgId, viewer.orgId)).orderBy(asc(teamAgents.department), asc(teamAgents.createdAt)), canAdd(db, viewer)]);
   const departments = [...new Set(rows.map((r) => r.department))];
   const missing = DEPARTMENTS.filter((d) => !departments.includes(d.id));
   return (
     <div className="split">
       <section className="column">
-        {departments.length === 0 && <p className="muted">No agent team yet. Add a department to start.</p>}
+        <p className="label">Departments</p>
+        {departments.length === 0 && <p className="muted">{mayAdd ? "No agent team yet. Add a department to start." : "No agent team yet. An admin can add one."}</p>}
         {departments.map((d) => (
           <article key={d} className="card">
             <header className="card-head">
@@ -68,35 +82,12 @@ async function Team() {
                         </span>
                         {!r.enabled && <span className="tag">off</span>}
                       </summary>
-                      {r.createdBy !== viewer.personId ? (
-                        <p className="muted small connect-form">
-                          Added by someone else: only they can change it. Tools: {r.tools.length ? r.tools.join(", ") : "memory only"}
-                        </p>
+                      {canChange(viewer, r) ? (
+                        <EditSpecialist specialist={{ id: r.id, name: r.name, job: r.job, tools: r.tools, enabled: r.enabled }} />
                       ) : (
-                      <form action={updateSpecialist} className="connect-form">
-                        <input type="hidden" name="id" value={r.id} />
-                        <label className="small">
-                          Name
-                          <input name="name" defaultValue={r.name} required />
-                        </label>
-                        <label className="small">
-                          Job
-                          <textarea name="job" defaultValue={r.job} rows={5} required />
-                        </label>
-                        <label className="small">
-                          Tools it may use (names or prefixes like stripe_; empty means company memory only)
-                          <input name="tools" defaultValue={r.tools.join(", ")} className="mono" />
-                        </label>
-                        <div className="row">
-                          <button>Save</button>
-                          <button formAction={toggleSpecialist} className="ghost">
-                            {r.enabled ? "Switch off" : "Switch on"}
-                          </button>
-                          <button formAction={removeSpecialist} className="ghost">
-                            Remove
-                          </button>
-                        </div>
-                      </form>
+                        <p className="muted small connect-form">
+                          Only an admin or whoever added it can change this specialist. Tools: {r.tools.length ? r.tools.join(", ") : "company memory only"}
+                        </p>
                       )}
                     </details>
                   </li>
@@ -106,7 +97,8 @@ async function Team() {
         ))}
       </section>
       <section className="column">
-        {missing.length > 0 && (
+        {!mayAdd && <p className="muted small">Specialists run with the access of whoever asks them, so only an admin can add departments or specialists.</p>}
+        {mayAdd && missing.length > 0 && (
           <article className="card">
             <h2>Add a department</h2>
             <p className="muted small">Ready-made specialists you can edit afterwards.</p>
@@ -129,31 +121,7 @@ async function Team() {
             </ul>
           </article>
         )}
-        <form action={addSpecialist} className="card">
-          <h2>New specialist</h2>
-          <label className="small">
-            Department
-            <input name="department" list="departments" placeholder="finance" required />
-            <datalist id="departments">
-              {[...new Set([...departments, ...DEPARTMENTS.map((d) => d.id)])].map((d) => (
-                <option key={d} value={d} />
-              ))}
-            </datalist>
-          </label>
-          <label className="small">
-            Name
-            <input name="name" placeholder="Payment matcher" required />
-          </label>
-          <label className="small">
-            Job
-            <textarea name="job" rows={4} placeholder="Match each payment received this week to its invoice and list what doesn't match." required />
-          </label>
-          <label className="small">
-            Tools (optional)
-            <input name="tools" placeholder="xero_, searchMemory" className="mono" />
-          </label>
-          <button>Add specialist</button>
-        </form>
+        {mayAdd && <NewSpecialist departments={[...new Set([...departments, ...DEPARTMENTS.map((d) => d.id)])]} />}
       </section>
     </div>
   );

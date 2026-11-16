@@ -14,7 +14,9 @@
     "fixtures:load": "tsx --env-file=.env.local scripts/load-fixtures.mts",
     "eval": "tsx scripts/eval.mts",
     "eval:answers": "tsx --env-file=.env.local scripts/eval-answers.mts",
-    "db:local": "tsx scripts/local-db.mts"
+    "db:local": "tsx scripts/local-db.mts",
+    "auth:invite": "tsx scripts/invite.mts",
+    "secrets:rotate": "tsx scripts/rotate-secrets.mts"
   },
   "dependencies": {
     "@ai-sdk/mcp": "2.0.74",

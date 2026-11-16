@@ -24,6 +24,10 @@ export interface SearchOptions {
   until?: Date;
   /** Chunks the knowledge graph points at, best first; fused in as a third ranking. */
   graphChunkIds?: string[];
+  /** The entities the question is about (the graph's matched seeds), most relevant first; chunks that mention them rank higher. */
+  entityIds?: string[];
+  /** The moment recency is measured from when the question has no time window (defaults to the current time). */
+  now?: Date;
 }
 
 /** Reciprocal rank fusion constant (Cormack et al.); 60 is the usual default. */
@@ -31,9 +35,71 @@ const RRF_K = 60;
 const CANDIDATES = 50;
 
 /**
+ * Re-ranking, applied to the fused candidates. No model call: five signals, each 0 to 1,
+ * weighted (the five weights add up to 1):
+ *   fused     its fusion score (rank by meaning, keywords and graph links), relative to the best candidate's
+ *   meaning   how close it is to the question in meaning, relative to the closest candidate. Fusion only
+ *             knows ranks, so this is what tells a real match from the best of a bad lot
+ *   entities  how much it is about the things the question names (the graph's matched seed entities; the first counts most)
+ *   recency   how close it is to the end of the question's time window, or to now
+ *   source    where it was said (sourceWeight)
+ * Fusion scores are nearly flat between neighbouring ranks, so the last three decide between
+ * close matches and can't lift a chunk that barely matched over one that matched in every list.
+ * Facts are ordered in graph-search.ts by distance from the question, using the last two numbers.
+ */
+export const RANKING = {
+  fused: 0.45,
+  meaning: 0.15,
+  entities: 0.16,
+  recency: 0.12,
+  source: 0.12,
+  /** Without a time window, a chunk this many days old counts half as recent as one from today. */
+  halfLifeDays: 90,
+  /** Decisions and detail are in documents, meeting notes and email more than in chat; an unknown kind counts as chat. */
+  sourceWeight: { doc: 1, meeting: 0.9, email: 0.85, crm_timeline: 0.7, upload: 0.6, channel: 0.5, group_dm: 0.45, dm: 0.45, whatsapp: 0.45 } as Record<string, number>,
+  /** Fused candidates considered per result asked for (at least 30). */
+  pool: 3,
+  /** Facts: added to a historical fact's distance from the question, so a current one of similar relevance comes first. */
+  historicalPenalty: 0.15,
+  /** Facts: how far confidence above or below the usual 0.7 moves a fact (a verified one by -0.06, a guess by about +0.05). */
+  confidence: 0.2,
+};
+
+const DAY = 86_400_000;
+
+export interface RankSignals {
+  /** Fusion score. */
+  fused: number;
+  /** Cosine similarity to the question (0 when the chunk has no embedding). */
+  similarity: number;
+  /** 0 to 1: share of the question's entities (weighted) this chunk mentions. */
+  entities: number;
+  threadKind: string;
+  endAt: Date;
+}
+
+/** The re-ranked score of each candidate, in the order given. Pure, so the weights can be tested without a database. */
+export function rerankScores(candidates: RankSignals[], opts: Pick<SearchOptions, "since" | "until" | "now"> = {}): number[] {
+  const now = opts.now ?? new Date();
+  const end = opts.until && opts.until < now ? opts.until : now;
+  const halfLife = opts.since ? Math.max(DAY, (end.getTime() - opts.since.getTime()) / 2) : RANKING.halfLifeDays * DAY;
+  const best = Math.max(...candidates.map((c) => c.fused), Number.EPSILON);
+  const closest = Math.max(...candidates.map((c) => c.similarity), Number.EPSILON);
+  return candidates.map(
+    (c) =>
+      RANKING.fused * (c.fused / best) +
+      RANKING.meaning * (Math.max(0, c.similarity) / closest) +
+      RANKING.entities * Math.min(1, c.entities) +
+      RANKING.recency * 0.5 ** (Math.max(0, end.getTime() - c.endAt.getTime()) / halfLife) +
+      RANKING.source * (RANKING.sourceWeight[c.threadKind] ?? RANKING.sourceWeight.channel),
+  );
+}
+
+/**
  * Hybrid search over chunks: vector similarity, keyword match and (when given)
- * graph-linked chunks, merged by reciprocal rank fusion. Call it with the transaction from withScope(), so
- * row-level security drops anything the asker couldn't see in the source.
+ * graph-linked chunks, merged by reciprocal rank fusion, then re-ranked (see RANKING). Call it with
+ * the transaction from withScope(): row-level security drops anything the asker couldn't see in the
+ * source inside the query, before any ranking happens here.
  */
 export async function searchChunks(
   tx: Db,
@@ -44,6 +110,11 @@ export async function searchChunks(
   const since = opts.since?.toISOString() ?? null;
   const until = opts.until?.toISOString() ?? null;
   const graphIds = `{${(opts.graphChunkIds ?? []).join(",")}}`;
+  const limit = opts.limit ?? 10;
+  // The question's entities, the first weighing most; a chunk's share of the total is its entity signal.
+  const seeds = opts.entityIds ?? [];
+  const seedWeights = seeds.map((_, i) => 1 / (i + 1));
+  const totalWeight = seedWeights.reduce((a, b) => a + b, 0) || 1;
   const timeFilter = sql`(${since}::timestamptz is null or c.end_at >= ${since}::timestamptz)
     and (${until}::timestamptz is null or c.start_at <= ${until}::timestamptz)`;
 
@@ -79,19 +150,29 @@ export async function searchChunks(
     )
     select c.id as "chunkId", c.thread_id as "threadId", t.title as "threadTitle", t.kind as "threadKind",
            t.url as "threadUrl", c.message_ids as "messageIds", c.start_at as "startAt", c.end_at as "endAt",
-           c.text, f.score::float8 as score
+           c.text, f.score::float8 as score,
+           coalesce(1 - (c.embedding <=> ${vector}::halfvec), 0)::float8 as similarity,
+           coalesce((
+             select sum(s.weight) from entity_mentions m
+             join unnest(${`{${seeds.join(",")}}`}::uuid[], ${`{${seedWeights.map((w) => w.toFixed(4)).join(",")}}`}::float8[]) as s(id, weight) on s.id = m.entity_id
+             where m.chunk_id = c.id
+           ), 0)::float8 as "entityWeight"
     from fused f
     join chunks c on c.id = f.id
     join threads t on t.id = c.thread_id
     order by f.score desc, c.end_at desc
-    limit ${opts.limit ?? 10}
+    limit ${Math.max(30, limit * RANKING.pool)}
   `);
-  return (rowsOf(result) as Record<string, unknown>[]).map((r) => ({
-    ...(r as unknown as SearchHit),
-    messageIds: parseUuidArray(r.messageIds),
-    startAt: new Date(r.startAt as string),
-    endAt: new Date(r.endAt as string),
+  const candidates = (rowsOf(result) as Record<string, unknown>[]).map(({ entityWeight, similarity, ...r }) => ({
+    hit: { ...(r as unknown as SearchHit), messageIds: parseUuidArray(r.messageIds), startAt: new Date(r.startAt as string), endAt: new Date(r.endAt as string) },
+    similarity: Number(similarity),
+    entities: Number(entityWeight) / totalWeight,
   }));
+  const scores = rerankScores(candidates.map((c) => ({ fused: c.hit.score, similarity: c.similarity, entities: c.entities, threadKind: c.hit.threadKind, endAt: c.hit.endAt })), opts);
+  return candidates
+    .map((c, i) => ({ ...c.hit, score: scores[i] }))
+    .sort((a, b) => b.score - a.score || b.endAt.getTime() - a.endAt.getTime())
+    .slice(0, limit);
 }
 
 /** Embeds a question (with the model's query instruction, if it has one). */
@@ -113,7 +194,7 @@ export async function recall(
 ): Promise<{ hits: SearchHit[]; related: SearchHit[]; graph: GraphContext }> {
   const embedding = await embedQuery(models, text);
   const graph = await searchGraph(tx, { text, embedding });
-  const hits = await searchChunks(tx, { text, embedding }, { ...opts, graphChunkIds: graph.chunkIds });
+  const hits = await searchChunks(tx, { text, embedding }, { ...opts, graphChunkIds: graph.chunkIds, entityIds: graph.entities.filter((e) => e.matched).map((e) => e.id) });
 
   // The same things discussed in other conversations the hits didn't reach: a passing mention in
   // WhatsApp often has its detail in an email or a meeting. Always offered, best first.

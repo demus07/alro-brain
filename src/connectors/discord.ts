@@ -1,4 +1,4 @@
-import type { NormalizedMessage, NormalizedPerson, NormalizedThread } from "@/ingest/types";
+import type { CompleteWindow, NormalizedMessage, NormalizedPerson, NormalizedThread } from "@/ingest/types";
 import { httpApi, ProviderError, type Api } from "./api";
 import type { Provider } from "./provider";
 
@@ -15,6 +15,13 @@ const MAX_MEMBER_PAGES = 5;
 /** Archived threads are checked on the first sync and then once a day, a page per channel. */
 const ARCHIVED_EVERY_MS = 86_400_000;
 const ARCHIVED_PAGE = 25;
+/**
+ * Deleted messages are found by reading back from a channel's cursor: this far, and at most this many pages.
+ * A channel with new messages is re-read on every sync, a quiet one once an hour.
+ */
+const REREAD_MS = 7 * 86_400_000;
+const REREAD_PAGES = 2;
+const REREAD_QUIET_EVERY_MS = 3_600_000;
 /** Longest wait for a rate limit before giving up and letting the next sync carry on. */
 const MAX_RETRY_AFTER_MS = 60_000;
 
@@ -43,6 +50,8 @@ export interface DiscordCursor {
   after?: Record<string, string>;
   /** When archived threads were last checked (ISO). */
   archivedAt?: string;
+  /** When quiet channels were last re-read for deleted messages (ISO). */
+  rereadAt?: string;
 }
 
 interface User {
@@ -96,6 +105,8 @@ export function snowflakeAt(ms: number): string {
   return ((BigInt(Math.floor(ms)) - DISCORD_EPOCH) << BigInt(22)).toString();
 }
 const newer = (a: string, b: string) => BigInt(a) > BigInt(b);
+/** When a snowflake was made, in milliseconds. */
+const timeOf = (id: string) => Number((BigInt(id) >> BigInt(22)) + DISCORD_EPOCH);
 const refused = (e: unknown) => e instanceof ProviderError && (e.status === 403 || e.status === 404);
 
 /**
@@ -138,6 +149,11 @@ type Audience = { visibility: "org" } | { visibility: "members"; userIds: string
  * it and no role or member overwrite takes that away. Otherwise the members who can view it are computed from
  * the server's member list, which needs the Server Members intent; without it (or on servers past 5,000
  * members) those channels are skipped rather than guessed at.
+ *
+ * A channel read before is reported on every sync with its audience as it is now, even when nothing new was
+ * said, so a channel made private or a role taken away reaches ALRO; if its audience can no longer be worked
+ * out it is reported with nobody in it. The week before each cursor is read again, so a stored message that
+ * is no longer there was deleted.
  */
 export async function fetchDiscord(
   api: Api,
@@ -274,27 +290,65 @@ export async function fetchDiscord(
   const messages: NormalizedMessage[] = [];
   const skipped: { id: string; name?: string; why: string }[] = [];
   const link = (id: string, msg?: string) => `https://discord.com/channels/${guildId}/${id}${msg ? `/${msg}` : ""}`;
+  const rereadQuiet = !cursor.rereadAt || now.getTime() - Date.parse(cursor.rereadAt) >= REREAD_QUIET_EVERY_MS;
+  /** New messages read so far; re-read ones don't count against the budget. */
+  let fresh = 0;
+
+  /**
+   * Reads back from a channel's cursor and says which stretch it read to the end. Discord pages backwards
+   * from an id, so whatever was read is whole however busy the channel is; the stretch just gets shorter.
+   */
+  const reread = async (channelId: string, seen: string): Promise<{ found: Message[]; complete?: CompleteWindow }> => {
+    const floorMs = timeOf(seen) - REREAD_MS;
+    const found: Message[] = [];
+    let before = (BigInt(seen) + BigInt(1)).toString();
+    let lowestMs = 0;
+    try {
+      for (let page = 0; page < REREAD_PAGES; page++) {
+        const r = await api<Message[]>("GET", `channels/${channelId}/messages`, { query: { before, limit: PAGE } });
+        found.push(...r.filter((m) => !newer(m.id, seen)));
+        // Without Read Message History Discord answers with an empty list, not an error: that proves nothing.
+        if (!found.length) return { found };
+        // A short page is the start of the channel.
+        if (r.length < PAGE) return { found, complete: { from: new Date(floorMs), to: new Date(timeOf(seen)) } };
+        before = r.reduce((min, m) => (newer(min, m.id) ? m.id : min), before);
+        lowestMs = timeOf(before);
+        if (lowestMs < floorMs) break;
+      }
+    } catch (e) {
+      if (refused(e)) return { found: [] };
+      throw e;
+    }
+    // A second's margin above the oldest message read, so one sharing its millisecond on an unread page is never taken for deleted.
+    return { found, complete: { from: new Date(Math.max(floorMs, lowestMs + 1000)), to: new Date(timeOf(seen)) } };
+  };
 
   const readable = [
     ...channels.filter((c) => READABLE.has(c.type) && !THREADS_ONLY.has(c.type)),
     ...[...threadsFound.values()].filter((t) => [ANNOUNCEMENT_THREAD, PUBLIC_THREAD, PRIVATE_THREAD].includes(t.type) && t.parent_id && byId.has(t.parent_id)),
   ];
   for (const c of readable) {
-    if (messages.length >= MAX_MESSAGES) break;
-    const start = after[c.id] ?? floor;
-    // Nothing newer than what we have (or than the backfill floor): skip without a request.
-    if (c.last_message_id && !newer(c.last_message_id, start)) continue;
+    /** The cursor from the last sync: set when this channel was read before. */
+    const seen = cursor.after?.[c.id];
+    const start = seen ?? floor;
+    // Nothing newer than what we have (or than the backfill floor), or the budget is spent: no request for new messages.
+    const hasNew = fresh < MAX_MESSAGES && !(c.last_message_id && !newer(c.last_message_id, start));
+    if (!seen && !hasNew) continue;
     const parent = c.parent_id && c.type !== TEXT && c.type !== ANNOUNCEMENT ? byId.get(c.parent_id) : undefined;
+    const title = parent ? `#${parent.name} › ${c.name}` : `#${c.name}`;
+    const metadata = { topic: c.topic ?? undefined, parentId: parent?.id, thread: parent ? true : undefined };
     const audience = parent ? await threadAudience(c, parent) : await channelAudience(c);
     if ("skip" in audience) {
       skipped.push({ id: c.id, name: c.name, why: audience.skip });
+      // Read before, and who may see it can no longer be worked out: nobody, rather than whoever could last time.
+      if (seen) threads.push({ externalId: c.id, kind: "channel", title, url: link(c.id), visibility: "members", memberKeys: [], membersComplete: true, metadata });
       continue;
     }
 
     const found: Message[] = [];
     let from = start;
     try {
-      for (let page = 0; page < MAX_PAGES_PER_CHANNEL && messages.length + found.length < MAX_MESSAGES; page++) {
+      for (let page = 0; hasNew && page < MAX_PAGES_PER_CHANNEL && fresh + found.length < MAX_MESSAGES; page++) {
         const r = await api<Message[]>("GET", `channels/${c.id}/messages`, { query: { after: from, limit: PAGE } });
         // Discord answers newest first; the page is the 100 just after `from`.
         r.sort((a, b) => (newer(a.id, b.id) ? 1 : -1));
@@ -303,31 +357,37 @@ export async function fetchDiscord(
         if (r.length < PAGE) break;
       }
     } catch (e) {
-      // Listed but not readable by the bot (no View Channel / Read Message History there): skip it.
-      if (refused(e)) {
-        skipped.push({ id: c.id, name: c.name, why: "the bot can't read it" });
-        continue;
-      }
-      throw e;
+      // Listed but not readable by the bot (no View Channel / Read Message History there): nothing new from it.
+      if (!refused(e)) throw e;
+      skipped.push({ id: c.id, name: c.name, why: "the bot can't read it" });
+      if (!seen) continue;
     }
     if (found.length) after[c.id] = found.at(-1)!.id;
+    const again = seen && (found.length || rereadQuiet) ? await reread(c.id, seen) : { found: [] };
 
-    for (const m of found) {
+    for (const m of [...again.found, ...found]) {
       userNames.set(m.author.id, m.author.global_name || m.author.username);
       for (const u of m.mentions ?? []) userNames.set(u.id, u.global_name || u.username);
     }
-    const written = found.filter((m) => WRITTEN.has(m.type) && (m.content.trim() || m.attachments?.length));
-    if (!written.length) continue;
+    const isWritten = (m: Message) => WRITTEN.has(m.type) && (m.content.trim() || m.attachments?.length);
+    const newlyWritten = found.filter(isWritten);
+    fresh += newlyWritten.length;
+    const reSent = again.complete ? again.found.filter(isWritten).sort((a, b) => (newer(a.id, b.id) ? 1 : -1)) : [];
+    const written = [...reSent, ...newlyWritten];
+    if (!written.length && !seen) continue;
 
     const memberKeys = audience.visibility === "members" ? audience.userIds.map((id) => personKey(memberUsers.get(id) ?? { id, username: userNames.get(id) ?? id })) : [];
     threads.push({
       externalId: c.id,
       kind: "channel",
-      title: parent ? `#${parent.name} › ${c.name}` : `#${c.name}`,
+      title,
       url: link(c.id),
       visibility: audience.visibility,
       memberKeys,
-      metadata: { topic: c.topic ?? undefined, parentId: parent?.id, thread: parent ? true : undefined },
+      // Worked out from the server's whole member list, so anyone not on it has lost the channel.
+      membersComplete: audience.visibility === "members" ? true : undefined,
+      complete: again.complete,
+      metadata,
     });
     for (const m of written) {
       const human = !m.author.bot && !m.webhook_id;
@@ -354,7 +414,7 @@ export async function fetchDiscord(
     people: [...people.values()],
     threads,
     messages,
-    cursor: { after, archivedAt: checkArchived ? now.toISOString() : cursor.archivedAt },
+    cursor: { after, archivedAt: checkArchived ? now.toISOString() : cursor.archivedAt, rereadAt: rereadQuiet ? now.toISOString() : cursor.rereadAt },
     skipped,
   };
 }

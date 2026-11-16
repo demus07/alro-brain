@@ -13,7 +13,18 @@ npm run fixtures:load        # load the two-founder dataset
 npm run dev
 ```
 
-There is no sign-in yet: in development the app acts as the member in `ALRO_DEV_USER_EMAIL`, and it refuses to serve requests in production until authentication exists.
+Sign-in is always required in production. In development the app acts as the member in `ALRO_DEV_USER_EMAIL` without signing in; set `ALRO_AUTH=on` to sign in locally (`npm run auth:invite -- you@company.com owner` prints a first-sign-in link for data loaded before sign-in existed).
+
+What is built, what has only been tested against fakes and what has run against real services is tracked in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), along with how the five parts of the system fit together.
+
+## People, access and safety
+
+- **Sign-in** (`src/auth/`): email and password (scrypt), sessions in the database (the cookie holds a random token, only its hash is stored), one-time invitation and reset links, and single sign-on through any OpenID Connect provider (Okta, Entra, Google Workspace). A company is created at `/sign-up` (open only for the first company unless `ALRO_SIGNUP=open`); everyone else joins by invitation. `src/proxy.ts` turns away requests without a session; `getViewer()` checks the session on every read.
+- **Roles and departments** (`src/platform/`, `/admin`): owners and admins manage people, team sources, the agent team, data policies and usage; members connect their own accounts. A team source can be limited to a department (`d:<dept>` principal in the ACL). Admins can exclude a conversation: what was taken from it is deleted and syncs skip it. Removing a member signs them out everywhere and stops their sources and tasks.
+- **What each person sees** (`src/db/scope.ts`, `drizzle/0002`, `0010`): every user-facing read runs as the `alro_app` role with the person's principals, and row-level security hides the rest. Each sync replaces channel membership, marks deleted messages and re-derives visibility (`src/memory/revoke.ts`), so losing access in the source means losing it here.
+- **Outside text is never instructions** (`src/agent/untrusted.ts`): tool results are scanned; text aimed at instructing the assistant is flagged to the model, the proposal that follows carries a warning to its approver, and a trusted task stops acting on its own for that run.
+- **Audit and limits**: sign-ins, questions, approvals, sources and admin changes go to `audit_log` (`/admin` → Activity). Usage is metered per company per day against its plan (`src/platform/usage.ts`); questions and processing stop at the limit instead of running up a bill.
+- **Keys**: connector tokens are sealed with `ALRO_SECRET_KEY`; `npm run secrets:rotate` re-seals them under a new key.
 
 ## How data flows
 
@@ -22,7 +33,12 @@ There is no sign-in yet: in development the app acts as the member in `ALRO_DEV_
 3. **Watch** (hourly): `watcher.ts` moves deadlines to due soon / overdue and queues each reminder once. **Rollups** (hourly, per org's midnight): daily thread summaries. **Tick** (every 15 minutes): briefs for meetings about to start, and scheduled tasks that have come due.
 4. **Answer** (`/`, `src/agent/`): the agent's tools each run in `withScope()`, so answers only use what the asker could see, and cite sources. `openAgent()` adds the asker's personal brain, their scheduled tasks, procedures and trackers, live tools, actions and the agent team. The same agent answers in WhatsApp, Telegram, Slack and Teams (`src/channels/`), including voice notes, photos and PDFs.
 5. **Act** (`src/approvals/`): anything that sends or changes something (an email, a Slack post, a CRM note, a live-tool call that writes) is only proposed. It waits under Approvals until its owner approves it, in the app or by replying "yes CODE" in a messaging app; a scheduled task they mark as trusted runs its actions without asking. Writes are never retried automatically.
-6. **Team** (`src/team/`): departments (finance, sales, operations, marketing, tech) whose lead hands focused tasks to specialists that run in parallel, each with only the tools its job needs (`/team`). The agent calls a department with `askTeam`; a scheduled task can be given to one.
+6. **Team** (`src/team/`): departments (finance, sales, operations, marketing, tech) whose lead hands focused tasks to specialists that run in parallel, each with only the tools its job needs (`/team`). The agent calls a department with `askTeam`; a scheduled task can be given to one. Each run has a token budget (`ALRO_TEAM_TOKEN_BUDGET`) and a time limit, survives a failing specialist, cross-checks figures between reports and is recorded (`/team/runs`).
+7. **Notice** (`src/insights/`): after each processing pass and every hour, deterministic signals (a client waiting on a reply, a deal gone quiet, promises slipping, someone overloaded, facts in dispute) become insights visible to whoever can see their evidence. They lead the morning brief, the Updates page and `/overview`, and urgent ones are pushed to the people concerned.
+
+**Memory that stays true** (`src/memory/facts.ts`, `/memory`): each fact records who said it and how sure; a contradiction between equals becomes a dispute rather than a silent overwrite, a confirmation settles it, old unconfirmed facts are marked as possibly out of date, and people can verify or reject a fact. Search re-ranks by recency, entity match and source kind after the hybrid fusion.
+
+**When things fail** (`src/ops/`, `/connectors`): every background job run is recorded; failed bot messages, scheduled tasks and reminders are retried with growing waits and then left for an admin; incoming webhooks are stored before they are handled so a redelivery is ignored and a failure is replayed; repeated failures alert once (`ALRO_ALERT_WEBHOOK_URL`). An approved action that times out is marked "unknown" and never re-sent automatically.
 
 `/procedures` writes up how recurring work is actually done from the conversations, scored on how often it happens, how long it takes and how much judgment it needs (the work to hand over first). `/trackers` keeps running tables (a sales log, receivables, stock, truck turnaround) pulled from chats, email and photos, each row linked to its message.
 

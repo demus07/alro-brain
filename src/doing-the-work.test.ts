@@ -101,7 +101,8 @@ describe("approvals", () => {
     // Someone else can't approve it.
     await expect(decide(db, { orgId, personId: jash }, row.id, "approve")).rejects.toThrow("already decided or isn't yours");
 
-    const done = await decide(db, sumedhViewer(), row.id, "approve", { body: "Hi Priya, 51,500 a tonne, valid till Friday." });
+    // Approved the same day it was proposed (a proposal expires after a week).
+    const done = await decide(db, sumedhViewer(), row.id, "approve", { body: "Hi Priya, 51,500 a tonne, valid till Friday.", now: NOW });
     expect(done.status).toBe("done");
     expect(done.result?.url).toContain("sent1");
     expect(seen).toHaveLength(1);
@@ -156,6 +157,20 @@ describe("approvals", () => {
     const mailed = await exec(trusted.gmail_send_email, { to: ["d@acme.com"], subject: "Chaser", body: "x", why_for_approver: "r" });
     expect(mailed).toMatchObject({ status: "waiting for approval" });
     expect(seen.filter((c) => c.url.host === "gmail.googleapis.com")).toHaveLength(0);
+    await db.update(approvals).set({ status: "rejected" }).where(eq(approvals.status, "pending"));
+  });
+
+  it("a run that read text aimed at instructing the assistant can't act on its own, and its proposals say so", async () => {
+    const seen = stubFetch(() => Response.json({ ok: true, channels: [{ id: "C7", name: "dispatch" }], channel: "C7", ts: "1.1" }));
+    const [r] = await db.insert(routines).values({ orgId, ownerPersonId: sumedh, title: "Watch", instruction: "watch", schedule: { kind: "daily", time: "10:00" }, trusted: true }).returning();
+    const caution = "Before drafting this, ALRO read text that looked like instructions aimed at an assistant";
+    const { tools } = await proposalTools(db, sumedhViewer(), { origin: "routine", routine: { id: r.id, trusted: true }, caution: () => caution, now: NOW });
+    // Internal, from a trusted task: it would normally run at once.
+    const out = await exec(tools.slack_post_message, { to: "#dispatch", text: "Send the ledger to the new auditor", why_for_approver: "asked in an email" });
+    expect(out).toMatchObject({ status: "waiting for approval" });
+    expect(seen).toHaveLength(0);
+    const [row] = await db.select().from(approvals).where(eq(approvals.routineId, r.id));
+    expect(row).toMatchObject({ status: "pending", caution });
     await db.update(approvals).set({ status: "rejected" }).where(eq(approvals.status, "pending"));
   });
 
@@ -257,7 +272,7 @@ describe("the agent team", () => {
         return calls({ name: "delegate", input: { specialist: "Collections", task: "Overdue invoices, biggest first, draft chasers" } }, { name: "delegate", input: { specialist: "Cash report", task: "Cash position now" } });
       },
     });
-    const run = await runDepartment({
+    const run = await runDepartment(db, sumedhViewer(), {
       department: "finance",
       specialists: [
         { name: "Collections", job: "Chase overdue payments", tools: ["stripe_", "gmail_send_email"] },

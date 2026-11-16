@@ -9,17 +9,19 @@
  *   4. Agent tools         (queries over the tables above, no tables of their own)
  *   5. Consolidation       rollups
  *   6. Working day         events, meeting_notes, profiles, routines, live tools, messaging channels
- *   7. Doing the work      approvals, team_agents, procedures, trackers, tracker_rows
- *   +  Ops                 sync_runs, llm_runs
+ *   7. Doing the work      approvals, team_agents, team_runs, procedures, trackers, tracker_rows, insights
+ *   8. Platform            credentials, sessions, invitations, rate_limits, audit_log, usage_daily
+ *   +  Ops                 sync_runs, llm_runs, job_runs, dead_letters, webhook_events
  *
  * Access control
  * --------------
  * Every row that carries content has an `acl` text[] of principals:
  *   'org'          everyone in the org (public channels, CRM data)
+ *   'd:<dept>'     everyone in one department (a team source limited to that department)
  *   't:<threadId>' members of that thread (private channels, DMs, a mailbox)
  *   'p:<personId>' one specific person
- * A user's principals are 'org', their own 'p:<id>' and a 't:<id>' for every
- * thread they belong to. A row is visible when the two arrays overlap.
+ * A user's principals are 'org', their department's 'd:<dept>', their own 'p:<id>'
+ * and a 't:<id>' for every thread they belong to. A row is visible when the two arrays overlap.
  * Derived rows (entities, edges, commitments, rollups) carry the union of the
  * ACLs of their evidence, so they are visible if any supporting source is.
  * Row-level security enforces this for the `alro_app` role (see the
@@ -76,10 +78,25 @@ const updatedAt = () =>
 // 0. Tenancy & identity
 // ---------------------------------------------------------------------------
 
+/** Per-company choices an admin makes. Everything is optional; defaults live in src/platform. */
+export interface OrgSettings {
+  /** Messages older than this many days are deleted, with what was derived only from them. Unset keeps everything. */
+  retentionDays?: number;
+  /** A proposal nobody decides is dropped after this many days (default 7). */
+  approvalExpiryDays?: number;
+  /** Setup steps finished or skipped in the welcome flow. */
+  onboarding?: { done?: string[]; finishedAt?: string };
+  /** Per-plan limits an operator raised or lowered for this company. */
+  limits?: Partial<Record<string, number>>;
+}
+
 export const orgs = pgTable("orgs", {
   id: id(),
   name: text("name").notNull(),
   timezone: text("timezone").notNull().default("UTC"),
+  /** pilot | team | business: decides usage limits (src/platform/usage.ts). */
+  plan: text("plan").notNull().default("pilot"),
+  settings: jsonb("settings").$type<OrgSettings>().notNull().default(sql`'{}'::jsonb`),
   createdAt: createdAt(),
 });
 
@@ -94,6 +111,12 @@ export const people = pgTable(
     timezone: text("timezone"),
     /** True for people who sign in to ALRO, false for customers, vendors, etc. */
     isMember: boolean("is_member").notNull().default(false),
+    /** owner | admin | member. Admins manage people, team sources, the agent team and company settings. */
+    role: text("role").notNull().default("member"),
+    /** A lowercase slug ("finance"). Gives access to team sources limited to that department. */
+    department: text("department"),
+    /** Set when an admin removes a member: they can no longer sign in or be answered in messaging apps. */
+    deactivatedAt: timestamp("deactivated_at", { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [index("people_org_idx").on(t.orgId)],
@@ -115,6 +138,8 @@ export const identities = pgTable(
     displayName: text("display_name"),
     email: text("email"),
     phone: text("phone"),
+    /** The source app says this account was deactivated or deleted (someone left). */
+    deactivatedAt: timestamp("deactivated_at", { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [
@@ -155,6 +180,8 @@ export const connections = pgTable(
     label: text("label"),
     /** Data region where the provider has one (Zoho .com/.in/.eu, Salesforce instance). */
     region: text("region"),
+    /** A team source limited to one department: what would be visible to the whole org is visible to it only. */
+    department: text("department"),
     status: connectionStatus("status").notNull().default("active"),
     /** Per-connector sync cursors, e.g. Gmail historyId or Slack channel cursors. */
     cursor: jsonb("cursor").$type<Record<string, unknown>>(),
@@ -219,6 +246,8 @@ export const threads = pgTable(
     visibility: threadVisibility("visibility").notNull(),
     acl: acl(),
     metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    /** An admin told ALRO not to read this conversation: its content was deleted and syncs skip it. The row stays as the marker. */
+    excludedAt: timestamp("excluded_at", { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -507,11 +536,22 @@ export const edges = pgTable(
     sourceMessageIds: uuid("source_message_ids").array().notNull(),
     /** The chunk the graph stage read this fact from (null for facts from commitment extraction). */
     sourceChunkId: uuid("source_chunk_id").references(() => chunks.id, { onDelete: "set null" }),
+    /** 0 to 1. Starts from how it was said and who said it; rises when repeated or confirmed, 1 when a person verified it. */
     confidence: real("confidence"),
+    /** Who stated it, when the extraction could tell. A client's word about their own budget outweighs a colleague's guess. */
+    assertedByPersonId: uuid("asserted_by_person_id").references(() => people.id, { onDelete: "set null" }),
+    /** Current facts that contradict each other share a group until one is confirmed or a person picks. */
+    disputeGroup: uuid("dispute_group"),
+    /** A member checked this fact. */
+    verifiedBy: uuid("verified_by").references(() => people.id, { onDelete: "set null" }),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    /** The last time a message restated or confirmed it; old, never-confirmed facts are shown as possibly stale. */
+    lastConfirmedAt: timestamp("last_confirmed_at", { withTimezone: true }),
     acl: acl(),
   },
   (t) => [
     index("edges_source_idx").on(t.sourceEntityId, t.relation),
+    index("edges_dispute_idx").on(t.disputeGroup).where(sql`${t.disputeGroup} is not null`),
     index("edges_target_idx").on(t.targetEntityId, t.relation),
     index("edges_current_idx")
       .on(t.orgId, t.relation)
@@ -961,8 +1001,17 @@ export const approvals = pgTable(
     routineId: uuid("routine_id").references(() => routines.id, { onDelete: "set null" }),
     /** Short code to approve from a messaging app: "yes K7QM". */
     code: text("code").notNull(),
-    /** pending | running | done | rejected | failed */
+    /**
+     * pending → running → done | failed | unknown; or rejected | expired.
+     * "unknown": the app didn't answer in time, so it may or may not have gone through; never retried automatically.
+     */
     status: text("status").notNull().default("pending"),
+    /** Goes up each time the text is edited; approving an older revision than the current one is refused. */
+    revision: integer("revision").notNull().default(0),
+    /** A pending proposal is dropped after this. */
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    /** Set when the run that drafted this had read text that looked like instructions aimed at an assistant. Shown to the approver. */
+    caution: text("caution"),
     result: jsonb("result").$type<{ url?: string; detail?: string }>(),
     error: text("error"),
     /** Approved by a person, or by trust in the routine. */
@@ -996,6 +1045,67 @@ export const teamAgents = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [index("team_agents_org_idx").on(t.orgId, t.department)],
+);
+
+/** One piece of work a department did: the task, each specialist's report and the combined answer. */
+export const teamRuns = pgTable(
+  "team_runs",
+  {
+    id: id(),
+    orgId: orgId(),
+    /** Whose access it ran with. */
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    department: text("department").notNull(),
+    task: text("task").notNull(),
+    /** running | ok | error | over_budget */
+    status: text("status").notNull().default("running"),
+    answer: text("answer"),
+    reports: jsonb("reports").$type<{ specialist: string; task: string; report: string; status: "ok" | "failed"; tokens?: number }[]>().notNull().default(sql`'[]'::jsonb`),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    routineId: uuid("routine_id").references(() => routines.id, { onDelete: "set null" }),
+    error: text("error"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+  },
+  (t) => [index("team_runs_person_idx").on(t.personId, t.startedAt)],
+);
+
+/**
+ * Something worth a person's attention that nobody asked about: a client waiting on a reply,
+ * a deal gone quiet, someone carrying too many overdue promises. Computed from memory, visible
+ * to whoever can see the evidence.
+ */
+export const insights = pgTable(
+  "insights",
+  {
+    id: id(),
+    orgId: orgId(),
+    /** waiting_on_us | gone_quiet | overloaded | at_risk | disputed_fact | automate | ... */
+    kind: text("kind").notNull(),
+    /** Stable per subject, so a recomputed insight updates its row instead of adding one. */
+    key: text("key").notNull(),
+    title: text("title").notNull(),
+    detail: text("detail").notNull(),
+    /** What to do about it, when there's an obvious next step. */
+    suggestion: text("suggestion"),
+    /** 1 (worth knowing) to 3 (act today). */
+    severity: integer("severity").notNull().default(1),
+    subjectEntityId: uuid("subject_entity_id").references(() => entities.id, { onDelete: "cascade" }),
+    subjectPersonId: uuid("subject_person_id").references(() => people.id, { onDelete: "cascade" }),
+    /** A department it mostly concerns, for the department view. */
+    department: text("department"),
+    evidenceMessageIds: uuid("evidence_message_ids").array().notNull().default(sql`'{}'::uuid[]`),
+    /** new | dismissed | resolved */
+    status: text("status").notNull().default("new"),
+    dismissedBy: uuid("dismissed_by").references(() => people.id, { onDelete: "set null" }),
+    acl: acl(),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("insights_key_uq").on(t.orgId, t.key), index("insights_open_idx").on(t.orgId, t.status, t.severity), index("insights_acl_idx").using("gin", t.acl)],
 );
 
 /** How a recurring piece of work is done, pulled out of the conversations where people actually did it. */
@@ -1080,8 +1190,166 @@ export const trackerRows = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// 8. Platform: sign-in, sessions, audit, usage. None of it is readable by the alro_app role.
+// ---------------------------------------------------------------------------
+
+/** A member's password hash, kept apart from `people` so no user-facing query can ever select it. */
+export const credentials = pgTable("credentials", {
+  personId: uuid("person_id")
+    .primaryKey()
+    .references(() => people.id, { onDelete: "cascade" }),
+  orgId: orgId(),
+  /** scrypt: "scrypt$<N>$<r>$<p>$<salt>$<hash>". */
+  passwordHash: text("password_hash").notNull(),
+  updatedAt: updatedAt(),
+});
+
+/** A signed-in browser. The cookie holds a random token; only its hash is stored. */
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: id(),
+    orgId: orgId(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    /** password | sso:<provider> | invite */
+    method: text("method").notNull(),
+    userAgent: text("user_agent"),
+    ip: text("ip"),
+    createdAt: createdAt(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [uniqueIndex("sessions_token_uq").on(t.tokenHash), index("sessions_person_idx").on(t.personId)],
+);
+
+/** A one-time link: an invitation to join a company, or a password reset. Only the token's hash is stored. */
+export const invitations = pgTable(
+  "invitations",
+  {
+    id: id(),
+    orgId: orgId(),
+    /** invite | reset */
+    kind: text("kind").notNull().default("invite"),
+    email: text("email").notNull(),
+    /** For a reset, or when inviting someone already known from a source (a Slack user). */
+    personId: uuid("person_id").references(() => people.id, { onDelete: "cascade" }),
+    role: text("role").notNull().default("member"),
+    department: text("department"),
+    tokenHash: text("token_hash").notNull(),
+    invitedBy: uuid("invited_by").references(() => people.id, { onDelete: "set null" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("invitations_token_uq").on(t.tokenHash), index("invitations_org_idx").on(t.orgId, t.createdAt)],
+);
+
+/** Fixed-window counters for rate limits: sign-in attempts per address, questions per person. */
+export const rateLimits = pgTable("rate_limits", {
+  key: text("key").primaryKey(),
+  windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+  count: integer("count").notNull().default(0),
+});
+
+/** Who did what: sign-ins, questions asked, approvals, admin changes, sources connected and removed, exports. */
+export const auditLog = pgTable(
+  "audit_log",
+  {
+    id: id(),
+    orgId: orgId(),
+    /** Null for the system (a scheduled job) or a failed sign-in. */
+    personId: uuid("person_id").references(() => people.id, { onDelete: "set null" }),
+    /** Dotted: auth.sign_in, ask, approval.approve, member.invite, source.connect, data.export ... */
+    action: text("action").notNull(),
+    /** What it was done to: an id, an email, a source name. */
+    target: text("target"),
+    detail: jsonb("detail").$type<Record<string, unknown>>(),
+    ip: text("ip"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("audit_log_org_idx").on(t.orgId, t.createdAt), index("audit_log_person_idx").on(t.personId, t.createdAt)],
+);
+
+/** What a company used each day, per metric (tokens, questions, messages synced, agent runs), for limits and billing. */
+export const usageDaily = pgTable(
+  "usage_daily",
+  {
+    orgId: orgId(),
+    /** YYYY-MM-DD in UTC. */
+    day: text("day").notNull(),
+    metric: text("metric").notNull(),
+    amount: integer("amount").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.orgId, t.day, t.metric] })],
+);
+
+// ---------------------------------------------------------------------------
 // Ops
 // ---------------------------------------------------------------------------
+
+/** Every background job run (sync, processing, deadlines, tick), so a failure is visible and its work is picked up again. */
+export const jobRuns = pgTable(
+  "job_runs",
+  {
+    id: id(),
+    /** Null for a run that covers every company. */
+    orgId: uuid("org_id").references(() => orgs.id, { onDelete: "cascade" }),
+    job: text("job").notNull(),
+    /** running | ok | error */
+    status: text("status").notNull().default("running"),
+    stats: jsonb("stats").$type<Record<string, unknown>>(),
+    error: text("error"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+  },
+  (t) => [index("job_runs_job_idx").on(t.job, t.startedAt), index("job_runs_org_idx").on(t.orgId, t.startedAt)],
+);
+
+/** Work that failed and will be tried again with growing waits, then left for a person once it has failed too often. */
+export const deadLetters = pgTable(
+  "dead_letters",
+  {
+    id: id(),
+    orgId: uuid("org_id").references(() => orgs.id, { onDelete: "cascade" }),
+    /** What kind of work: webhook | routine | sync | pipeline | notify ... */
+    kind: text("kind").notNull(),
+    /** What it was about: an id the retry handler understands. */
+    ref: text("ref").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>(),
+    error: text("error").notNull(),
+    attempts: integer("attempts").notNull().default(1),
+    /** Null once it has given up (a person retries it from the Health page) or been resolved. */
+    nextRetryAt: timestamp("next_retry_at", { withTimezone: true }),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("dead_letters_ref_uq").on(t.kind, t.ref), index("dead_letters_due_idx").on(t.nextRetryAt).where(sql`${t.resolvedAt} is null`)],
+);
+
+/** An incoming webhook (a message to the bot), stored before it's handled so a failure can be retried and a redelivery is ignored. */
+export const webhookEvents = pgTable(
+  "webhook_events",
+  {
+    id: id(),
+    /** whatsapp | telegram | slack | teams */
+    channel: text("channel").notNull(),
+    /** The app's id for the event. */
+    externalId: text("external_id").notNull(),
+    /** The parts needed to handle it again (sender, text, media ids). */
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    /** received | done | failed */
+    status: text("status").notNull().default("received"),
+    attempts: integer("attempts").notNull().default(0),
+    error: text("error"),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+    processedAt: timestamp("processed_at", { withTimezone: true }),
+  },
+  (t) => [uniqueIndex("webhook_events_external_uq").on(t.channel, t.externalId), index("webhook_events_status_idx").on(t.status, t.receivedAt)],
+);
 
 export const syncRuns = pgTable(
   "sync_runs",

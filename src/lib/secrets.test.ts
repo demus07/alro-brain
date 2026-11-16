@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { seal, sign, unseal, verify } from "./secrets";
 
 beforeAll(() => {
@@ -29,5 +29,23 @@ describe("secrets", () => {
     expect(verify(`${forged}.${mac}`, 500)).toBeUndefined();
     expect(verify(`${body}.AAAA`, 500)).toBeUndefined();
     expect(verify(undefined)).toBeUndefined();
+  });
+});
+
+describe("rotating the key", () => {
+  it("reads secrets sealed with the previous key until they're re-sealed", async () => {
+    const { seal, unseal } = await import("./secrets");
+    const oldKey = Buffer.alloc(32, 1).toString("base64");
+    const newKey = Buffer.alloc(32, 2).toString("base64");
+    vi.stubEnv("ALRO_SECRET_KEY", oldKey);
+    const sealed = seal({ token: "abc" });
+    vi.stubEnv("ALRO_SECRET_KEY", newKey);
+    expect(() => unseal(sealed)).toThrow();
+    vi.stubEnv("ALRO_SECRET_KEY_PREVIOUS", oldKey);
+    expect(unseal(sealed)).toEqual({ token: "abc" });
+    const resealed = seal(unseal(sealed));
+    vi.stubEnv("ALRO_SECRET_KEY_PREVIOUS", "");
+    expect(unseal(resealed)).toEqual({ token: "abc" });
+    vi.unstubAllEnvs();
   });
 });

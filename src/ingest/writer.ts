@@ -1,7 +1,8 @@
-import { and, eq, or, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, isNull, lte, notInArray, or, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { createHash } from "node:crypto";
 import { connections, identities, messages, people, records, syncRuns, threadMembers, threads } from "@/db/schema";
+import { recomputeDerivedAcls, retireMessages } from "@/memory/revoke";
 import type { NormalizedBatch, NormalizedPerson, NormalizedRecord } from "./types";
 
 export interface WriteResult {
@@ -10,6 +11,8 @@ export interface WriteResult {
   threads: number;
   messages: { inserted: number; skipped: number };
   records?: { upserted: number; changed: number };
+  /** What the source took away: people removed from threads, threads whose visibility changed, messages deleted. */
+  revoked: { members: number; threads: number; messages: number };
 }
 
 /** Person key for whoever uploaded or dictated a personal source; resolves to `uploaderPersonId`. */
@@ -18,6 +21,9 @@ export const UPLOADER_KEY = "alro:uploader";
 /**
  * Saves a normalized batch for one org. Idempotent: re-running the same batch
  * inserts nothing new. Runs as the table owner, so every query filters by orgId.
+ *
+ * It also takes away what the source took away: members no longer on a complete member list,
+ * derived rows' visibility when a thread's changed, and messages the source deleted.
  */
 export async function writeBatch(
   db: Db,
@@ -35,6 +41,7 @@ export async function writeBatch(
   return db.transaction(async (tx) => {
     const personIds = new Map<string, string>();
     for (const p of batch.people) personIds.set(p.key, await resolvePerson(tx as unknown as Db, orgId, p));
+    await markDeactivated(tx as unknown as Db, orgId, batch.people);
     if (uploaderPersonId && batch.connection.scope === "personal") {
       personIds.set(UPLOADER_KEY, uploaderPersonId);
       batch = {
@@ -48,6 +55,19 @@ export async function writeBatch(
     const [run] = await tx.insert(syncRuns).values({ orgId, connectionId, kind }).returning({ id: syncRuns.id });
 
     const threadIds = new Map<string, string>();
+    /** Conversations an admin excluded: the row stays as a marker, and nothing is read into them. */
+    const excluded = new Set<string>();
+    const before = new Map<string, "org" | "members">();
+    const externalIds = batch.threads.map((t) => t.externalId);
+    for (let i = 0; i < externalIds.length; i += 5000) {
+      const known = await tx
+        .select({ externalId: threads.externalId, visibility: threads.visibility })
+        .from(threads)
+        .where(and(eq(threads.connectionId, connectionId), inArray(threads.externalId, externalIds.slice(i, i + 5000))));
+      for (const k of known) before.set(k.externalId, k.visibility);
+    }
+    const reshared: string[] = [];
+    let removedMembers = 0;
     for (const t of batch.threads) {
       const [row] = await tx
         .insert(threads)
@@ -65,8 +85,13 @@ export async function writeBatch(
           target: [threads.connectionId, threads.externalId],
           set: { title: t.title, visibility: t.visibility, metadata: t.metadata, updatedAt: new Date() },
         })
-        .returning({ id: threads.id });
+        .returning({ id: threads.id, excludedAt: threads.excludedAt });
       threadIds.set(t.externalId, row.id);
+      if (row.excludedAt) {
+        excluded.add(row.id);
+        continue;
+      }
+      if (before.has(t.externalId) && before.get(t.externalId) !== t.visibility) reshared.push(row.id);
 
       const members = t.memberKeys.map((k) => personIds.get(k)).filter((id): id is string => !!id);
       if (members.length) {
@@ -75,13 +100,36 @@ export async function writeBatch(
           .values([...new Set(members)].map((personId) => ({ orgId, threadId: row.id, personId })))
           .onConflictDoNothing();
       }
+      // The source's whole member list: anyone not on it has lost the thread (and, through 't:<thread>', everything built only from it).
+      if (t.membersComplete) {
+        const removed = await tx
+          .delete(threadMembers)
+          .where(and(eq(threadMembers.threadId, row.id), members.length ? notInArray(threadMembers.personId, members) : undefined))
+          .returning({ personId: threadMembers.personId });
+        removedMembers += removed.length;
+      }
     }
+    // Threads the connection can no longer read: members-only with no members, so nobody sees them until a sync can vouch for who may.
+    for (let i = 0; i < (batch.lostThreads?.length ?? 0); i += 5000) {
+      const lost = await tx
+        .select({ id: threads.id, visibility: threads.visibility })
+        .from(threads)
+        .where(and(eq(threads.connectionId, connectionId), inArray(threads.externalId, batch.lostThreads!.slice(i, i + 5000))));
+      if (!lost.length) continue;
+      const ids = lost.map((t) => t.id);
+      await tx.update(threads).set({ visibility: "members" }).where(inArray(threads.id, ids));
+      removedMembers += (await tx.delete(threadMembers).where(inArray(threadMembers.threadId, ids)).returning({ personId: threadMembers.personId })).length;
+      reshared.push(...lost.filter((t) => t.visibility === "org").map((t) => t.id));
+    }
+    // Messages and chunks follow their thread by trigger; rows that stored a union of ACLs are rebuilt here.
+    if (reshared.length) await recomputeDerivedAcls(tx as unknown as Db, orgId, reshared);
 
     let inserted = 0;
-    const rows = batch.messages.map((m) => {
+    const rows = batch.messages.flatMap((m) => {
       const threadId = threadIds.get(m.threadExternalId);
       if (!threadId) throw new Error(`Message ${m.externalId} refers to unknown thread ${m.threadExternalId}`);
-      return {
+      if (excluded.has(threadId)) return [];
+      return [{
         orgId,
         threadId,
         connectionId,
@@ -98,7 +146,7 @@ export async function writeBatch(
         raw: m.raw,
         editedAt: m.editedAt,
         deletedAt: m.deleted ? m.sentAt : undefined,
-      };
+      }];
     });
     for (let i = 0; i < rows.length; i += 500) {
       const result = await tx
@@ -108,12 +156,14 @@ export async function writeBatch(
         .returning({ id: messages.id });
       inserted += result.length;
     }
+    const deleted = await retireDeleted(tx as unknown as Db, connectionId, batch, threadIds, kind !== "upload");
 
     const result: WriteResult = {
       connectionId,
       people: batch.people.length,
       threads: threadIds.size,
       messages: { inserted, skipped: rows.length - inserted },
+      revoked: { members: removedMembers, threads: reshared.length, messages: deleted },
     };
     if (batch.records?.length) {
       const ownerPersonId = batch.connection.ownerKey ? personIds.get(batch.connection.ownerKey) : undefined;
@@ -129,6 +179,8 @@ export async function writeBatch(
           threads: result.threads,
           inserted,
           skipped: result.messages.skipped,
+          ...(removedMembers && { membersRemoved: removedMembers }),
+          ...(deleted && { deleted }),
           ...(result.records && { records: result.records.upserted, recordChanges: result.records.changed }),
         },
       })
@@ -136,6 +188,85 @@ export async function writeBatch(
     await tx.update(connections).set({ lastSyncedAt: new Date() }).where(eq(connections.id, connectionId));
     return result;
   });
+}
+
+/**
+ * Hides what the source deleted: messages it names (or sends flagged as deleted), and, for threads read
+ * to the end over a stretch of time, stored messages from that stretch the batch doesn't hold. A live
+ * source sending a message again brings it back, so a wrong call corrects itself on the next sync; an
+ * upload never does, since an old export would resurrect what was deleted since.
+ */
+async function retireDeleted(db: Db, connectionId: string, batch: NormalizedBatch, threadIds: Map<string, string>, live: boolean): Promise<number> {
+  const flagged = new Set([...(batch.deletedMessageIds ?? []), ...batch.messages.filter((m) => m.deleted).map((m) => m.externalId)]);
+  const present = new Map<string, Set<string>>();
+  for (const m of batch.messages) {
+    if (flagged.has(m.externalId)) continue;
+    if (!present.has(m.threadExternalId)) present.set(m.threadExternalId, new Set());
+    present.get(m.threadExternalId)!.add(m.externalId);
+  }
+  if (live) {
+    const sent = [...present.values()].flatMap((ids) => [...ids]);
+    for (let i = 0; i < sent.length; i += 5000) {
+      await db
+        .update(messages)
+        .set({ deletedAt: null })
+        .where(and(eq(messages.connectionId, connectionId), inArray(messages.externalId, sent.slice(i, i + 5000)), isNotNull(messages.deletedAt)));
+    }
+  }
+
+  let gone = 0;
+  const named = [...flagged];
+  for (let i = 0; i < named.length; i += 5000) {
+    gone += (await retireMessages(db, and(eq(messages.connectionId, connectionId), inArray(messages.externalId, named.slice(i, i + 5000))))).length;
+  }
+  for (const t of batch.threads) {
+    if (!t.complete) continue;
+    const { from, to, repliesUnderParentsOnly } = t.complete;
+    const stored = await db
+      .select({ id: messages.id, externalId: messages.externalId })
+      .from(messages)
+      .where(
+        and(
+          eq(messages.threadId, threadIds.get(t.externalId)!),
+          isNull(messages.deletedAt),
+          gte(messages.sentAt, from),
+          lte(messages.sentAt, to),
+          repliesUnderParentsOnly
+            ? sql`(${messages.replyToExternalId} is null or exists (select 1 from messages p where p.connection_id = ${messages.connectionId} and p.external_id = ${messages.replyToExternalId} and p.sent_at >= ${from.toISOString()}::timestamptz))`
+            : undefined,
+        ),
+      );
+    const missing = stored.filter((m) => !present.get(t.externalId)?.has(m.externalId)).map((m) => m.id);
+    for (let i = 0; i < missing.length; i += 5000) gone += (await retireMessages(db, inArray(messages.id, missing.slice(i, i + 5000)))).length;
+  }
+  return gone;
+}
+
+/** Records what the source says about each account: closed (someone left) or active again. The ALRO member is left alone; see `departedMembers`. */
+async function markDeactivated(db: Db, orgId: string, batchPeople: NormalizedPerson[]) {
+  for (const closed of [true, false]) {
+    const byProvider = new Map<string, string[]>();
+    for (const p of batchPeople) {
+      if (p.deactivated !== closed) continue;
+      if (!byProvider.has(p.provider)) byProvider.set(p.provider, []);
+      byProvider.get(p.provider)!.push(p.externalId);
+    }
+    for (const [provider, ids] of byProvider) {
+      for (let i = 0; i < ids.length; i += 5000) {
+        await db
+          .update(identities)
+          .set({ deactivatedAt: closed ? new Date() : null })
+          .where(
+            and(
+              eq(identities.orgId, orgId),
+              eq(identities.provider, provider),
+              inArray(identities.externalId, ids.slice(i, i + 5000)),
+              closed ? isNull(identities.deactivatedAt) : isNotNull(identities.deactivatedAt),
+            ),
+          );
+      }
+    }
+  }
 }
 
 /**

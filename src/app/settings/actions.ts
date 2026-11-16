@@ -9,10 +9,13 @@ import { providerOf } from "@/connectors/registry";
 import { connectAccount, syncConnection } from "@/connectors/sync";
 import { getDb } from "@/db/client";
 import { connections } from "@/db/schema";
+import { audit } from "@/lib/audit";
 import { sourceOf } from "@/lib/sources";
 import { getViewer } from "@/lib/viewer";
 import { forgetConnection } from "@/memory/forget";
-import { runPipeline } from "@/pipeline/run";
+import { processAndRepair } from "@/ops/repair";
+import { isAdmin } from "@/platform/roles";
+import { assertWithin, LimitError } from "@/platform/usage";
 
 export interface ConnectState {
   error?: string;
@@ -26,7 +29,7 @@ function syncSoon(orgId: string, connectionId: string) {
     const [c] = await db.select().from(connections).where(eq(connections.id, connectionId));
     if (!c || !providerOf(c.provider)?.sync) return;
     const r = await syncConnection(db, c);
-    if (r.messages) await runPipeline(db, orgId, defaultModels());
+    if (r.messages) await processAndRepair(db, orgId, defaultModels());
   });
 }
 
@@ -42,9 +45,14 @@ export async function connectWithToken(_prev: ConnectState, formData: FormData):
   }
   try {
     const viewer = await getViewer();
+    // A team source feeds everyone's answers, so an admin decides what's connected.
+    if (provider.scope === "org" && !isAdmin(viewer)) return { error: "Only an admin can connect a source for the whole team." };
+    await assertWithin(getDb(), viewer.orgId, ["sources"]);
     const id = await connectAccount(getDb(), viewer, provider, { kind: "token", values });
+    await audit(getDb(), { orgId: viewer.orgId, personId: viewer.personId, action: "source.connect", target: sourceOf(provider.id).label });
     syncSoon(viewer.orgId, id);
   } catch (e) {
+    if (e instanceof LimitError) return { error: e.message };
     // Apps word a refused token in many ways; say it once, plainly.
     const refused = e instanceof ProviderError && (e.status === 401 || e.status === 403 || /auth_failed|unauthori[sz]ed/i.test(e.message));
     if (refused) return { error: `${sourceOf(provider.id).label} didn't accept that. Check it was copied in full and hasn't expired.` };
@@ -72,6 +80,8 @@ export async function deleteSource(formData: FormData) {
   const [c] = await db.select().from(connections).where(and(eq(connections.id, id), eq(connections.orgId, viewer.orgId)));
   if (!c) throw new Error("Not found");
   if (c.scope === "personal" && c.ownerPersonId !== viewer.personId) throw new Error("Only the person who connected this source can delete it");
+  if (c.scope === "org" && !isAdmin(viewer) && c.ownerPersonId !== viewer.personId) throw new Error("Only an admin can delete a team source");
   await forgetConnection(db, viewer.orgId, id);
+  await audit(db, { orgId: viewer.orgId, personId: viewer.personId, action: "source.delete", target: sourceOf(c.provider).label });
   refresh();
 }

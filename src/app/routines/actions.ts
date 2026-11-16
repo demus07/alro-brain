@@ -8,6 +8,7 @@ import { getDb } from "@/db/client";
 import { orgs, routines, type Schedule } from "@/db/schema";
 import { getViewer } from "@/lib/viewer";
 import { runRoutine } from "@/routines/run";
+import { assertWithin, LimitError } from "@/platform/usage";
 import { nextRun, scheduleSchema } from "@/routines/schedule";
 
 export interface RoutineState {
@@ -45,6 +46,12 @@ export async function createRoutine(_prev: RoutineState, formData: FormData): Pr
   const [org] = await db.select({ timezone: orgs.timezone }).from(orgs).where(eq(orgs.id, viewer.orgId));
   const nextRunAt = nextRun(schedule, org.timezone, new Date());
   if (!nextRunAt) return { error: "That time has already passed." };
+  try {
+    await assertWithin(db, viewer.orgId, ["routines"]);
+  } catch (e) {
+    if (e instanceof LimitError) return { error: e.message };
+    throw e;
+  }
   const team = String(formData.get("team") ?? "").trim() || null;
   await db.insert(routines).values({ orgId: viewer.orgId, ownerPersonId: viewer.personId, title, instruction, schedule, nextRunAt, team });
   refresh();

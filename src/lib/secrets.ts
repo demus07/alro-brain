@@ -8,12 +8,25 @@ import { secrets } from "@/db/schema";
  * The key is ALRO_SECRET_KEY: 32 random bytes, base64 (`openssl rand -base64 32`).
  * Losing the key means reconnecting every source; nothing else is lost.
  */
+function parseKey(raw: string, name: string): Buffer {
+  const buf = Buffer.from(raw, "base64");
+  if (buf.length !== 32) throw new Error(`${name} must be 32 bytes, base64-encoded (openssl rand -base64 32).`);
+  return buf;
+}
+
 function key(): Buffer {
   const raw = process.env.ALRO_SECRET_KEY;
   if (!raw) throw new Error("Set ALRO_SECRET_KEY in .env.local (openssl rand -base64 32) to connect sources.");
-  const buf = Buffer.from(raw, "base64");
-  if (buf.length !== 32) throw new Error("ALRO_SECRET_KEY must be 32 bytes, base64-encoded (openssl rand -base64 32).");
-  return buf;
+  return parseKey(raw, "ALRO_SECRET_KEY");
+}
+
+/**
+ * The key being rotated away from. To rotate: move the current key to ALRO_SECRET_KEY_PREVIOUS,
+ * set a new ALRO_SECRET_KEY, run `npm run secrets:rotate`, then remove the previous key.
+ */
+function previousKey(): Buffer | undefined {
+  const raw = process.env.ALRO_SECRET_KEY_PREVIOUS;
+  return raw ? parseKey(raw, "ALRO_SECRET_KEY_PREVIOUS") : undefined;
 }
 
 export const secretsConfigured = () => !!process.env.ALRO_SECRET_KEY;
@@ -28,12 +41,38 @@ export function seal(value: unknown): string {
   return `v1.${b64(iv)}.${b64(cipher.getAuthTag())}.${b64(body)}`;
 }
 
-export function unseal<T>(sealed: string): T {
+function open<T>(sealed: string, k: Buffer): T {
   const [version, iv, tag, body] = sealed.split(".");
   if (version !== "v1" || !iv || !tag || !body) throw new Error("Unreadable secret");
-  const decipher = createDecipheriv("aes-256-gcm", key(), Buffer.from(iv, "base64url"));
+  const decipher = createDecipheriv("aes-256-gcm", k, Buffer.from(iv, "base64url"));
   decipher.setAuthTag(Buffer.from(tag, "base64url"));
   return JSON.parse(Buffer.concat([decipher.update(Buffer.from(body, "base64url")), decipher.final()]).toString("utf8")) as T;
+}
+
+export function unseal<T>(sealed: string): T {
+  try {
+    return open<T>(sealed, key());
+  } catch (e) {
+    // Mid-rotation, some secrets are still sealed with the previous key.
+    const previous = previousKey();
+    if (!previous) throw e;
+    return open<T>(sealed, previous);
+  }
+}
+
+/** Re-seals with the current key every stored secret that still needs the previous one. */
+export async function rotateSecrets(db: Db): Promise<{ total: number; resealed: number }> {
+  const rows = await db.select({ id: secrets.id, data: secrets.data }).from(secrets);
+  let resealed = 0;
+  for (const row of rows) {
+    try {
+      open(row.data, key());
+    } catch {
+      await db.update(secrets).set({ data: seal(unseal(row.data)), updatedAt: new Date() }).where(eq(secrets.id, row.id));
+      resealed++;
+    }
+  }
+  return { total: rows.length, resealed };
 }
 
 /** A tamper-proof, expiring token for round trips through a browser (OAuth `state`). Not encrypted. */

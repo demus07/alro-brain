@@ -5,13 +5,16 @@ import { proposalTools, type Origin } from "@/approvals/approvals";
 import type { Db } from "@/db/client";
 import { orgs } from "@/db/schema";
 import type { Viewer } from "@/db/scope";
+import { insightTools } from "@/insights/tools";
 import { askTeamTool, loadTeam } from "@/team/team";
 import { liveToolsFor } from "@/tools/live";
 import { workTools } from "@/work/tools";
 import { agentInstructions } from "./agent";
+import { assertWithin } from "@/platform/usage";
 import { personalTools } from "./personal-tools";
 import { loadProfile, profileInstructions } from "./profile";
 import { agentTools } from "./tools";
+import { cautionOf, guardTools, newGuard, seedGuard, UNTRUSTED } from "./untrusted";
 
 /** Agent steps per answer: searches, reads and the final reply. */
 export const MAX_STEPS = 8;
@@ -49,6 +52,7 @@ const TEAM = `
 The agent team: askTeam hands bigger, multi-part work to a department (finance, sales, operations...) whose specialists work in parallel. Use it for reports, reviews and chasing (a cash report, overdue payments, the pipeline, what slipped). Answer simple questions yourself.`;
 
 const WORK = `
+- For "what needs my attention", "which clients are at risk", "who is waiting on us" or "who is overloaded", use listInsights and cite its sources.
 - For how a recurring job is done here, use findProcedure. For running tables pulled from chats (sales log, receivables, stock, truck times), use readTracker.`;
 
 /**
@@ -70,30 +74,39 @@ export async function openAgent(
     via?: Origin;
     /** The scheduled task this run is for; a trusted one runs its actions without asking. */
     routine?: { id: string; trusted: boolean };
+    /** Tool results from earlier turns of the same conversation, so text flagged then still marks proposals made now. */
+    earlierResults?: unknown;
   } = {},
 ) {
+  // Stops before any model call when the company is over its plan for today (throws a LimitError with a message for the person).
+  await assertWithin(db, viewer.orgId, opts.scheduled ? ["tokensPerDay"] : ["tokensPerDay", "questionsPerDay"], opts.now);
   const [org] = await db.select({ timezone: orgs.timezone }).from(orgs).where(eq(orgs.id, viewer.orgId));
   const base = await agentFor(db, viewer, models, opts.now);
+  // What this run reads that looks like an attempt to instruct the assistant (see ./untrusted).
+  const guard = newGuard();
+  if (opts.earlierResults) seedGuard(guard, opts.earlierResults);
   const live = await liveToolsFor(db, viewer, opts.origin ?? process.env.ALRO_APP_URL ?? "http://localhost:3000");
   const via = opts.via ?? (opts.scheduled ? "routine" : opts.channel ? "messaging" : "chat");
-  const proposals = await proposalTools(db, viewer, { origin: via, routine: opts.routine, notify: via === "routine" || via === "meeting", now: opts.now }, live.writes);
+  const proposals = await proposalTools(db, viewer, { origin: via, routine: opts.routine, notify: via === "routine" || via === "meeting", caution: () => cautionOf(guard), now: opts.now }, live.writes);
   const profile = await loadProfile(db, viewer);
   const liveSection = live.systems.length
     ? `\n\nLive tools: you can also query ${live.systems.join(", ")} directly, for what is true right now (numbers, records, statuses). Use them when the question is about current figures or records in those systems; use memory for what people said and decided. Say which system a figure came from; live results have no [S] refs.`
     : "";
   const channelSection = opts.channel ? `\n\nYou are replying in ${opts.channel}. Keep it short. Plain text only: no tables, no headings.` : "";
-  const instructions = `${base.instructions}${PERSONAL}${WORK}${opts.scheduled ? "" : SCHEDULING}${liveSection}${proposals.names.length ? ACTIONS : ""}${profileInstructions(profile, viewer.displayName)}${channelSection}`;
+  const instructions = `${base.instructions}${PERSONAL}${WORK}${opts.scheduled ? "" : SCHEDULING}${liveSection}${proposals.names.length ? ACTIONS : ""}${UNTRUSTED}${profileInstructions(profile, viewer.displayName)}${channelSection}`;
   const tools: ToolSet = {
-    ...base.tools,
+    // Tools that return other people's words are scanned; the asker's own tools and proposals aren't.
+    ...guardTools({ ...base.tools, ...workTools(db, viewer, org.timezone), ...insightTools(db, viewer, org.timezone), ...live.tools }, guard),
     ...personalTools(db, viewer, org.timezone, { scheduling: !opts.scheduled, now: opts.now }),
-    ...workTools(db, viewer, org.timezone),
-    ...live.tools,
     ...proposals.tools,
   };
   const askTeam = askTeamTool(await loadTeam(db, viewer.orgId), {
+    db,
+    viewer,
+    routineId: opts.routine?.id,
     tools: () => tools,
     model: models.answer,
-    instructions: `${base.instructions}${proposals.names.length ? ACTIONS : ""}`,
+    instructions: `${base.instructions}${proposals.names.length ? ACTIONS : ""}${UNTRUSTED}`,
     onUsage: (u) => void recordRun(db, { orgId: viewer.orgId, stage: "team", model: models.answer, ...u }).catch(() => undefined),
   });
   return {

@@ -1,9 +1,10 @@
-import { and, eq, like, ne, sql } from "drizzle-orm";
+import { and, eq, like, ne } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { chunks, connections, messages } from "@/db/schema";
+import { connections, messages } from "@/db/schema";
 import type { Viewer } from "@/db/scope";
 import { writeBatch } from "@/ingest/writer";
 import { readSecret, saveSecret } from "@/lib/secrets";
+import { purgeRevoked, retireMessages } from "@/memory/revoke";
 import { httpApi, ProviderError, withRetries, type Api } from "./api";
 import { writeEvents } from "./events";
 import { refreshTokens, type OAuthApp } from "./oauth";
@@ -23,6 +24,8 @@ export interface SyncOutcome {
   connectionId: string;
   messages?: number;
   events?: number;
+  /** How much the source took away in this sync: people removed from threads, threads whose visibility changed, messages deleted. */
+  revoked?: number;
   error?: string;
 }
 
@@ -93,15 +96,32 @@ export async function connectAccount(db: Db, viewer: Viewer, provider: Provider,
 export async function syncOrg(db: Db, orgId: string, now = new Date()): Promise<SyncOutcome[]> {
   const rows = await db.select().from(connections).where(and(eq(connections.orgId, orgId), ne(connections.status, "revoked")));
   const outcomes: SyncOutcome[] = [];
-  for (const c of rows) if (providerOf(c.provider)?.sync) outcomes.push(await syncConnection(db, c, now));
+  for (const c of rows) if (providerOf(c.provider)?.sync) outcomes.push(await fetchAndWrite(db, c, now));
+  if (outcomes.some((o) => o.revoked)) await purgeCopies(db, orgId);
   return outcomes;
 }
 
 /**
  * Fetches what's new, writes it like any upload (same people, threads, permissions),
  * then stores the new cursor. A failure is recorded on the connection, not thrown.
+ * When the source took something away, copies made from it (tracker rows, procedures) go too.
  */
 export async function syncConnection(db: Db, c: ConnectionRow, now = new Date()): Promise<SyncOutcome> {
+  const outcome = await fetchAndWrite(db, c, now);
+  if (outcome.revoked) await purgeCopies(db, c.orgId);
+  return outcome;
+}
+
+/** Runs once per sync that revoked something. A failure is logged, not thrown: the next such sync purges again. */
+async function purgeCopies(db: Db, orgId: string) {
+  try {
+    await purgeRevoked(db, orgId);
+  } catch (e) {
+    console.error(`purge after revocation failed for org ${orgId}`, e instanceof Error ? e.message : e);
+  }
+}
+
+async function fetchAndWrite(db: Db, c: ConnectionRow, now: Date): Promise<SyncOutcome> {
   const provider = providerOf(c.provider);
   const outcome: SyncOutcome = { provider: c.provider, connectionId: c.id };
   try {
@@ -118,14 +138,17 @@ export async function syncConnection(db: Db, c: ConnectionRow, now = new Date())
         threads: fetched.threads ?? [],
         messages: fetched.messages ?? [],
         records: fetched.records,
+        deletedMessageIds: fetched.deletedMessageIds,
+        lostThreads: fetched.lostThreads,
       },
       c.cursor ? "incremental" : "backfill",
       c.ownerPersonId ?? undefined,
     );
-    if (fetched.versions) await retireOldVersions(db, c.id, fetched.versions);
+    const retired = fetched.versions ? await retireOldVersions(db, c.id, fetched.versions) : 0;
     if (fetched.events && c.ownerPersonId) outcome.events = await writeEvents(db, c.orgId, c.id, c.ownerPersonId, fetched.events);
     await db.update(connections).set({ cursor: fetched.cursor, lastSyncedAt: now, lastError: null, status: "active", updatedAt: new Date() }).where(eq(connections.id, c.id));
     outcome.messages = written.messages.inserted;
+    outcome.revoked = written.revoked.members + written.revoked.threads + written.revoked.messages + retired;
   } catch (e) {
     outcome.error = e instanceof Error ? e.message : String(e);
     console.error(`sync failed for ${c.provider} ${c.id}`, outcome.error);
@@ -143,13 +166,10 @@ export async function syncConnection(db: Db, c: ConnectionRow, now = new Date())
  * Edited documents arrive as new versions; older versions are marked deleted and their
  * search chunks dropped, so answers only see the current text.
  */
-export async function retireOldVersions(db: Db, connectionId: string, current: Map<string, string>) {
+export async function retireOldVersions(db: Db, connectionId: string, current: Map<string, string>): Promise<number> {
+  let retired = 0;
   for (const [docId, latest] of current) {
-    const old = await db
-      .update(messages)
-      .set({ deletedAt: new Date() })
-      .where(and(eq(messages.connectionId, connectionId), like(messages.externalId, `${docId}@%`), ne(messages.externalId, latest), sql`${messages.deletedAt} is null`))
-      .returning({ id: messages.id });
-    if (old.length) await db.delete(chunks).where(sql`${chunks.messageIds} && ${`{${old.map((o) => o.id).join(",")}}`}::uuid[]`);
+    retired += (await retireMessages(db, and(eq(messages.connectionId, connectionId), like(messages.externalId, `${docId}@%`), ne(messages.externalId, latest)))).length;
   }
+  return retired;
 }
