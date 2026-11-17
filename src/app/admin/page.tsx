@@ -1,4 +1,5 @@
 import { and, count, desc, eq, inArray, isNotNull, isNull, ne } from "drizzle-orm";
+import { SourceIcon } from "../source-icon";
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { Suspense } from "react";
@@ -166,7 +167,7 @@ async function Admin({ searchParams }: { searchParams: Search }) {
             <li className="source dim">
               <span className="source-text">
                 <span className="source-name">Email delivery</span>
-                <span className="muted small">Without RESEND_API_KEY, invitations and reset links are shown here for you to pass on.</span>
+                <span className="muted small">Without SMTP (SMTP_HOST, SMTP_USER, SMTP_PASSWORD) or RESEND_API_KEY, invitations and reset links are shown here for you to pass on, and emailed sign-in links can&apos;t be sent.</span>
               </span>
               <span className="tag">not set up</span>
             </li>
@@ -329,7 +330,7 @@ async function Departments({ viewer }: { viewer: SignedInViewer }) {
       <ul className="sources">
         {sources.map((s) => (
           <li key={s.id} className="source">
-            <span className="mark">{sourceOf(s.provider).mark}</span>
+            <SourceIcon provider={s.provider} />
             <span className="source-text">
               <span className="source-name">{sourceOf(s.provider).label}</span>
               <span className="muted small truncate">{[s.label, s.department ? `only ${s.department}` : "whole company"].filter(Boolean).join(" · ")}</span>
@@ -376,7 +377,7 @@ async function Conversations({ orgId }: { orgId: string }) {
       <ul className="sources">
         {listed.slice(0, 60).map((t) => (
           <li key={t.id} className={t.excludedAt ? "source dim" : "source"}>
-            <span className="mark">{sourceOf(t.provider).mark}</span>
+            <SourceIcon provider={t.provider} />
             <span className="source-text">
               <span className="source-name">{t.title ?? "Untitled"}</span>
               <span className="muted small">

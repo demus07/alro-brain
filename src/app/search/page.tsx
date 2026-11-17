@@ -2,14 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { defaultModels } from "@/ai/models";
-import { getDb } from "@/db/client";
-import { withScope } from "@/db/scope";
 import { formatShort } from "@/lib/time";
-import { getViewer } from "@/lib/viewer";
-import { recall, type SearchHit } from "@/memory/search";
-import { orgs } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import type { SearchHit } from "@/memory/search";
+import { excerpt, runSearch as run } from "./run";
 
 export const metadata: Metadata = { title: "Search · ALRO" };
 
@@ -25,20 +20,6 @@ export default function SearchPage({ searchParams }: PageProps<"/search">) {
     </div>
   );
 }
-
-async function run(q: string) {
-  const viewer = await getViewer();
-  const db = getDb();
-  const [org] = await db.select({ timezone: orgs.timezone }).from(orgs).where(eq(orgs.id, viewer.orgId));
-  const found = await withScope(db, viewer, (tx) => recall(tx as unknown as typeof db, defaultModels(), q, { limit: 20 }));
-  return { ...found, timeZone: org.timezone };
-}
-
-const excerpt = (hit: SearchHit) => {
-  // Lines start with their own timestamp; the hit already shows when it was.
-  const body = hit.text.split("\n").slice(1).join("\n").replace(/^\[[^\]]+\]\s*/gm, "");
-  return body.length > 320 ? `${body.slice(0, 320)}…` : body;
-};
 
 async function Search({ q }: { q: string }) {
   await connection();

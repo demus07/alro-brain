@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { after } from "next/server";
-import { AccountError, acceptInvitation, checkSignUp, createReset, memberByEmail, readSignUpToken, resetPassword, signIn, signUp, signUpNeedsEmailProof, signUpToken } from "@/auth/accounts";
+import { AccountError, acceptInvitation, checkSignUp, createReset, createSignInLink, memberByEmail, readSignUpToken, resetPassword, SIGN_IN_LINK_MINUTES, signIn, signUp, signUpNeedsEmailProof, signUpToken, redeemSignInLink } from "@/auth/accounts";
 import { clientIp, endBrowserSession, startBrowserSession } from "@/auth/browser";
 import { safeNext } from "@/auth/sso";
 import { getDb } from "@/db/client";
@@ -151,6 +151,54 @@ export async function resetPasswordAction(_prev: AuthState, form: FormData): Pro
   await audit(db, { orgId: member.orgId, personId: member.personId, action: "auth.password_reset", ip: await clientIp() });
   await startBrowserSession(member, "password");
   redirect("/");
+}
+
+/**
+ * Emails a one-time sign-in link to a member, or to someone with a live invitation (who joins on
+ * first use). Always answers the same way and in the same time, so it can't be used to find out who
+ * has an account.
+ */
+export async function requestSignInLinkAction(_prev: AuthState, form: FormData): Promise<AuthState> {
+  const db = getDb();
+  const email = field(form, "email").trim().toLowerCase();
+  const next = safeNext(field(form, "next"));
+  const ip = await clientIp();
+  const done = { done: `If ${email || "that address"} can sign in to ALRO, a sign-in link is on its way. It works for ${SIGN_IN_LINK_MINUTES} minutes. No email? Ask your admin.` };
+  if (!email) return { error: "Enter your work email." };
+  if (!(await rateLimit(db, limitKey("signin-link", email), 5, 3600)).ok || !(await rateLimit(db, limitKey("signin-link-ip", ip), 20, 3600)).ok) return done;
+  const origin = await appOrigin();
+  // The lookup and the email happen after the reply has gone.
+  after(async () => {
+    const link = await createSignInLink(db, email);
+    if (!link) return;
+    const url = `${origin}/sign-in/link?token=${encodeURIComponent(link.token)}${next !== "/" ? `&next=${encodeURIComponent(next)}` : ""}`;
+    const sent = await sendEmail({
+      to: link.email,
+      subject: "Your ALRO sign-in link",
+      text: `Sign in to ALRO with this link (it works once, for ${SIGN_IN_LINK_MINUTES} minutes):\n${url}\n\nIf it wasn't you, ignore this email.`,
+      html: `<p><a href="${escapeHtml(url)}">Sign in to ALRO</a></p><p>The link works once, for ${SIGN_IN_LINK_MINUTES} minutes. If it wasn't you, ignore this email.</p>`,
+    }).catch((e) => (console.error("sign-in link email failed", e instanceof Error ? e.message : e), false));
+    // Never shown on the page (anyone could ask for anyone's link): on a developer's machine with no
+    // way to send email, it goes to the server log instead.
+    if (!sent && process.env.NODE_ENV !== "production") console.log(`[dev] sign-in link for ${link.email}: ${url}`);
+    await audit(db, { orgId: link.orgId, personId: link.personId, action: "auth.sign_in_link_requested", ip });
+  });
+  return done;
+}
+
+/** The emailed link's page posts here: only now is the link used, so mail scanners that open links can't use it up. */
+export async function redeemSignInLinkAction(_prev: AuthState, form: FormData): Promise<AuthState> {
+  const db = getDb();
+  if (!(await rateLimit(db, limitKey("signin-link-use", await clientIp()), 30, WINDOW)).ok) return { error: "Too many attempts. Try again in a few minutes." };
+  let member;
+  try {
+    member = await redeemSignInLink(db, field(form, "token"));
+  } catch (e) {
+    return { error: problem(e) };
+  }
+  if (member.joined) await audit(db, { orgId: member.orgId, personId: member.personId, action: "member.join", detail: { method: "email-link" }, ip: await clientIp() });
+  await startBrowserSession(member, "email-link");
+  redirect(member.joined ? "/welcome" : safeNext(field(form, "next")));
 }
 
 export async function signOutAction() {

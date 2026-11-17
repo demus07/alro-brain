@@ -1,4 +1,5 @@
 import { aliasedTable, and, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
+import { SourceIcon } from "../source-icon";
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import Link from "next/link";
@@ -143,7 +144,7 @@ async function Updates() {
             <article key={m.id} className="card">
               <header className="card-head">
                 <span className="chip">
-                  <b>{source.mark}</b> {source.label}
+                  <SourceIcon provider={m.provider} size="sm" /> {source.label}
                 </span>
                 <span className="muted small truncate">
                   {[m.author ?? "Unknown", m.thread !== m.author && m.thread].filter(Boolean).join(" · ")}

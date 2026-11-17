@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { sql, type SQL } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { RANKING, rowsOf } from "./search";
 
@@ -52,18 +52,24 @@ const MATCHED_DISTANCE = 0.5;
  * historical or shaky one of similar relevance (see RANKING in search.ts).
  * Run it inside withScope(): row-level security hides entities, facts and chunks the asker can't see.
  */
-export async function searchGraph(tx: Db, query: { text: string; embedding: number[] }): Promise<GraphContext> {
-  const vector = `[${query.embedding.join(",")}]`;
+export async function searchGraph(tx: Db, query: { text: string; embedding: number[] | null }): Promise<GraphContext> {
+  // Without an embedding, entities are found by name only and facts by their link to those entities.
+  const vector = query.embedding ? `[${query.embedding.join(",")}]` : null;
+  const distance = (column: SQL) => (vector ? sql`(${column} <=> ${vector}::halfvec)` : sql`null::float8`);
   await tx.execute(sql`select set_config('hnsw.iterative_scan', 'relaxed_order', true)`);
 
   const entityRows = rowsOf(
     await tx.execute(sql`
       with vec as (
-        select e.id, row_number() over (order by e.name_embedding <=> ${vector}::halfvec) as rank
+        ${
+          vector
+            ? sql`select e.id, row_number() over (order by e.name_embedding <=> ${vector}::halfvec) as rank
         from entities e
         where e.name_embedding is not null
         order by e.name_embedding <=> ${vector}::halfvec
-        limit 20
+        limit 20`
+            : sql`select null::uuid as id, null::bigint as rank where false`
+        }
       ),
       named as (
         select id, row_number() over (order by sim desc) as rank
@@ -80,7 +86,7 @@ export async function searchGraph(tx: Db, query: { text: string; embedding: numb
         select id, sum(1.0 / (${RRF_K} + rank)) as score from (select * from vec union all select * from named) r group by id
       )
       select e.id, e.name, e.type, e.summary,
-             (e.id in (select id from named) or coalesce((e.name_embedding <=> ${vector}::halfvec) < ${MATCHED_DISTANCE}, false)) as matched
+             (e.id in (select id from named) or coalesce(${distance(sql`e.name_embedding`)} < ${MATCHED_DISTANCE}, false)) as matched
       from fused f join entities e on e.id = f.id
       order by f.score desc limit ${SEED_ENTITIES}
     `),
@@ -92,17 +98,21 @@ export async function searchGraph(tx: Db, query: { text: string; embedding: numb
   const factRows = rowsOf(
     await tx.execute(sql`
       with seed_facts as (
-        select g.id, 1 as tier, g.fact_embedding <=> ${vector}::halfvec as distance
+        ${
+          vector
+            ? sql`select g.id, 1 as tier, g.fact_embedding <=> ${vector}::halfvec as distance
         from edges g
         where g.fact_embedding is not null and g.expired_at is null
         order by g.fact_embedding <=> ${vector}::halfvec
-        limit ${SEED_FACTS}
+        limit ${SEED_FACTS}`
+            : sql`select null::uuid as id, 1 as tier, null::float8 as distance where false`
+        }
       ),
       neighbours as (
-        select g.id, 2 as tier, coalesce(g.fact_embedding <=> ${vector}::halfvec, 1) as distance
+        select g.id, 2 as tier, coalesce(${distance(sql`g.fact_embedding`)}, 1) as distance
         from edges g
         where (g.source_entity_id = any(${seedArray}) or g.target_entity_id = any(${seedArray}))
-        order by g.expired_at is null desc, coalesce(g.fact_embedding <=> ${vector}::halfvec, 1)
+        order by g.expired_at is null desc, coalesce(${distance(sql`g.fact_embedding`)}, 1)
         limit ${NEIGHBOUR_FACTS}
       ),
       picked as (

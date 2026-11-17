@@ -1,13 +1,14 @@
 import { tool } from "ai";
 import { aliasedTable, and, asc, desc, eq, gte, ilike, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
+import { listOf } from "@/lib/tool-input";
 import type { Models } from "@/ai/models";
 import type { Db } from "@/db/client";
 import { commitmentEvents, commitments, edges, entities, entityAliases, messages, people, rollups, threads } from "@/db/schema";
 import { withScope, type Viewer } from "@/db/scope";
 import { formatShort } from "@/lib/time";
 import { factCards, type FactCard } from "@/memory/facts";
-import { embedQuery, recall } from "@/memory/search";
+import { recall, tryEmbedQuery } from "@/memory/search";
 
 /** Something an answer can cite as [S1], [S2], ... The UI renders these as links. */
 export interface Source {
@@ -161,7 +162,7 @@ export function agentTools(db: Db, viewer: Viewer, models: Models, timeZone: str
       inputSchema: z.object({
         person: z.string().nullish().describe("Name of the owner or counterparty; 'me' for the asker"),
         role: z.enum(["owner", "counterparty", "either"]).nullish().describe("How `person` is involved; default either"),
-        status: z.array(z.enum(STATUSES)).nullish().describe("Default: open, due_soon, overdue"),
+        status: listOf(STATUSES).nullish().describe("Default: open, due_soon, overdue"),
         dueBefore: z.string().nullish(),
         dueAfter: z.string().nullish(),
         about: z.string().nullish().describe("Words in the title or quote"),
@@ -329,7 +330,8 @@ export function agentTools(db: Db, viewer: Viewer, models: Models, timeZone: str
             .orderBy(sql`similarity(${entities.name}, ${name}) desc`)
             .limit(1);
           // Not by name: the closest entity by meaning, if it's close ("the naming exercise" → a topic entity).
-          const vector = entity ? undefined : `[${(await embedQuery(models, name)).join(",")}]`;
+          const embedding = entity ? null : await tryEmbedQuery(models, name);
+          const vector = embedding ? `[${embedding.join(",")}]` : undefined;
           const [nearest] = vector
             ? await tx
                 .select({ id: entities.id, name: entities.name, type: entities.type, summary: entities.summary })

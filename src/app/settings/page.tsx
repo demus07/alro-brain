@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { defaultModels, modelId } from "@/ai/models";
 import { AboutYou, LiveTools, Messaging } from "./sections";
 import { Sources } from "./sources";
+import { UploadForm } from "./upload-form";
 
 export const metadata: Metadata = { title: "Settings · ALRO" };
 
@@ -45,6 +46,20 @@ export default function SettingsPage({ searchParams }: { searchParams: Promise<{
         <Suspense fallback={<p className="muted small">Loading sources…</p>}>
           <Sources />
         </Suspense>
+      </section>
+
+      <section className="settings-section" id="upload">
+        <div>
+          <h2>Upload files</h2>
+          <p className="muted small">
+            For sources without a live connector yet: a Slack export (.zip), WhatsApp chat exports (.txt, or the .zip an iPhone makes), emails (.eml or .mbox), meeting transcripts (.vtt) or a CRM export (.csv).
+            Uploading the same file again adds nothing new. Your WhatsApp chats and emails stay visible only to the people in them. Photos, PDFs and Office files (a weighment slip, an
+            invoice, a price list) are read and saved to your private notes, where trackers pick them up.
+          </p>
+        </div>
+        <div>
+          <UploadForm />
+        </div>
       </section>
 
       <section className="settings-section">

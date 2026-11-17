@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import { eq, inArray } from "drizzle-orm";
 import { z } from "zod";
+import { listOf } from "@/lib/tool-input";
 import type { Source } from "@/agent/tools";
 import type { Db } from "@/db/client";
 import { messages, people, threads } from "@/db/schema";
@@ -30,7 +31,7 @@ export function insightTools(db: Db, viewer: Viewer, timeZone: string, opts: { c
       description:
         "What needs attention right now, worked out ahead of time from everything the asker can see: outside people waiting on a reply from us, clients or deals at risk or gone quiet, people carrying too many overdue promises, outside people late on what they promised us, facts that contradict each other, payments past due, and work worth automating. Each comes with its evidence to cite and a suggested next step. Use for 'what needs my attention', 'which clients are at risk', 'who is waiting on us', 'who is overloaded', 'anything I should worry about'.",
       inputSchema: z.object({
-        kind: z.array(z.enum(INSIGHT_KINDS)).nullish().describe("Only these kinds; default all"),
+        kind: listOf(INSIGHT_KINDS).nullish().describe("Only these kinds; default all"),
         about: z.string().nullish().describe("Name of a person or company, to list only what concerns them"),
         department: z.string().nullish().describe("Only one department, e.g. finance"),
         limit: z.number().int().min(1).max(30).nullish(),

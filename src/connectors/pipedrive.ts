@@ -1,5 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
+import { listOf } from "@/lib/tool-input";
 import type { NormalizedMessage, NormalizedPerson, NormalizedThread } from "@/ingest/types";
 import { httpApi, ProviderError, type Api } from "./api";
 import type { ActionDef, Fetched, Provider, ToolContext } from "./provider";
@@ -421,7 +422,7 @@ function tools(api: Api, ctx: ToolContext) {
         "Search the company's Pipedrive CRM, live, for deals, people (contacts) or organizations by name, email, phone or deal title. Returns ids to open with pipedrive_deal. Say the answer came from Pipedrive.",
       inputSchema: z.object({
         term: z.string().min(2).describe("Words to match: a name, email, phone or deal title."),
-        types: z.array(z.enum(["deal", "person", "organization"])).nullish().describe("Limit to these kinds. Leave empty for all three."),
+        types: listOf(["deal", "person", "organization"]).nullish().describe("Limit to these kinds. Leave empty for all three."),
         limit: z.number().int().min(1).max(MAX_RESULTS).nullish(),
       }),
       execute: async ({ term, types, limit }) => {

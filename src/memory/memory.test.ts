@@ -1,4 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
+import { MockEmbeddingModelV4 } from "ai/test";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { testModels } from "@/ai/test-models";
 import type { Db } from "@/db/client";
@@ -91,6 +92,18 @@ describe("chunking and search", () => {
     expect(hits[0].text).toContain("Submitted the CASA application");
     expect(hits[0].threadTitle).toBe("#eng");
     expect(hits[0].messageIds.length).toBeGreaterThan(0);
+  });
+
+  it("still finds it by keyword when the embedding provider fails", async () => {
+    const down = testModels({
+      embed: new MockEmbeddingModelV4({
+        doEmbed: async () => {
+          throw new Error("upstream timed out");
+        },
+      }),
+    });
+    const hits = await withScope(db, rohan, (tx) => search(tx, down, "CASA application submitted", { limit: 3 }));
+    expect(hits.some((h) => h.text.includes("Submitted the CASA application"))).toBe(true);
   });
 
   it("never returns chunks from threads the asker can't see", async () => {

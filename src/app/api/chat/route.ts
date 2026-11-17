@@ -1,4 +1,4 @@
-import { convertToModelMessages, createUIMessageStreamResponse, streamText, toUIMessageStream, type UIMessage } from "ai";
+import { convertToModelMessages, createUIMessageStreamResponse, RetryError, streamText, toUIMessageStream, type UIMessage } from "ai";
 import { openAgent } from "@/agent/answer";
 import { defaultModels, recordRun } from "@/ai/models";
 import { getDb } from "@/db/client";
@@ -54,8 +54,10 @@ export async function POST(request: Request) {
       // Model provider errors (no credit, bad key, rate limit) are safe and useful to show; anything else stays in the logs.
       onError: (error) => {
         console.error(error);
-        const providerError = error instanceof Error && "statusCode" in error;
-        return providerError ? `The model provider refused the request: ${error.message}` : "Something failed while answering. Check the server logs.";
+        // After retries the provider's error is wrapped in a RetryError; show the one underneath.
+        const cause = RetryError.isInstance(error) ? error.lastError : error;
+        const providerError = cause instanceof Error && "statusCode" in cause;
+        return providerError ? `The model provider refused the request: ${cause.message}` : "Something failed while answering. Check the server logs.";
       },
     }),
   });

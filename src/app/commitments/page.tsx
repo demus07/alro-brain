@@ -88,9 +88,9 @@ async function CommitmentList({ searchParams }: { searchParams: PageProps<"/comm
 
   return (
     <>
-      <nav className="row" style={{ flex: "none" }}>
+      <nav className="tabs" aria-label="Whose promises">
         {(Object.keys(VIEWS) as View[]).map((v) => (
-          <Link key={v} href={`/commitments?view=${v}`} style={{ flex: "none", fontWeight: v === view ? 700 : 400 }}>
+          <Link key={v} href={`/commitments?view=${v}`} aria-current={v === view ? "page" : undefined}>
             {VIEWS[v]}
           </Link>
         ))}
@@ -101,7 +101,7 @@ async function CommitmentList({ searchParams }: { searchParams: PageProps<"/comm
         if (!items.length) return null;
         return (
           <section key={group.title}>
-            <h2 style={{ fontSize: 17, margin: "8px 0" }}>
+            <h2 className="section-title">
               {group.title} <span className="muted">({items.length})</span>
             </h2>
             <div className="scroll">
@@ -116,7 +116,7 @@ async function CommitmentList({ searchParams }: { searchParams: PageProps<"/comm
                           <div>
                             <strong>{c.title}</strong>
                           </div>
-                          <div className="muted" style={{ fontSize: 13 }}>
+                          <div className="muted small">
                             {c.owner ?? "Someone"} → {c.counterparty ?? c.counterpartyText ?? "?"} · “{c.quote}” ·{" "}
                             {c.url ? (
                               <a className="link" href={c.url} target="_blank" rel="noreferrer">
@@ -128,28 +128,28 @@ async function CommitmentList({ searchParams }: { searchParams: PageProps<"/comm
                             , {formatShort(c.sentAt, org.timezone)}
                           </div>
                         </td>
-                        <td style={{ whiteSpace: "nowrap" }}>
+                        <td className="nowrap small">
                           {open
                             ? c.dueAt
                               ? `Due ${formatShort(c.dueAt, org.timezone)}`
                               : (c.dueText ?? "No deadline")
                             : `${c.status === "done" ? "Done" : c.status === "cancelled" ? "Cancelled" : "Dismissed"}${c.closedAt ? ` ${formatShort(c.closedAt, org.timezone)}` : ""}`}
                         </td>
-                        <td style={{ whiteSpace: "nowrap" }}>
+                        <td className="nowrap">
                           {party && (
-                            <form action={setVerdict} style={{ flexDirection: "row", gap: 6 }}>
+                            <form action={setVerdict} className="actions">
                               <input type="hidden" name="id" value={c.id} />
                               {open ? (
                                 <>
                                   <button name="verdict" value="done">
                                     Mark done
                                   </button>
-                                  <button name="verdict" value="not_a_promise" style={{ background: "transparent", color: "inherit" }}>
+                                  <button name="verdict" value="not_a_promise" className="ghost">
                                     Not a promise
                                   </button>
                                 </>
                               ) : (
-                                <button name="verdict" value="reopen" style={{ background: "transparent", color: "inherit" }}>
+                                <button name="verdict" value="reopen" className="ghost">
                                   Reopen
                                 </button>
                               )}

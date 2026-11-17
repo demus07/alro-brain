@@ -3,6 +3,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { findInvitation } from "@/auth/accounts";
+import { ssoProviders } from "@/auth/sso";
 import { getDb } from "@/db/client";
 import { InviteForm } from "../../sign-in/forms";
 
@@ -38,7 +39,14 @@ async function Invite({ params }: { params: PageProps<"/invite/[token]">["params
   return (
     <>
       <h1>Join {invite.company}</h1>
-      <p className="muted small">Choose a password to finish. You&apos;ll only see what you can already see in the apps your company connects.</p>
+      <p className="muted small">You&apos;ll only see what you can already see in the apps your company connects.</p>
+      {/* Joining with a provider works for the invited address only: the callback matches it to this invitation. */}
+      {ssoProviders().map((p) => (
+        <a key={p.id} className="button-link" href={`/api/auth/sso/start?provider=${p.id}&next=/welcome`}>
+          Continue with {p.label} as {invite.email}
+        </a>
+      ))}
+      {ssoProviders().length > 0 && <p className="muted small center">or choose a password</p>}
       <InviteForm token={token} email={invite.email} />
     </>
   );

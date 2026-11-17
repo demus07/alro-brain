@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { AccountError, acceptInvitation, changePassword, createInvitation, createReset, findInvitation, memberByEmail, readSignUpToken, resetPassword, signIn, signUp, signUpAllowed, signUpNeedsEmailProof, signUpToken } from "@/auth/accounts";
+import { AccountError, acceptInvitation, acceptInvitationProven, changePassword, createInvitation, createReset, createSignInLink, findInvitation, memberByEmail, pendingInvitations, readSignUpToken, redeemSignInLink, resetPassword, signIn, signUp, signUpAllowed, signUpNeedsEmailProof, signUpToken } from "@/auth/accounts";
 import { hashPassword, passwordProblem, verifyPassword } from "@/auth/passwords";
 import { createSession, endSession, sessionViewer } from "@/auth/sessions";
 import { safeNext, ssoProviders } from "@/auth/sso";
@@ -87,6 +87,54 @@ describe("companies and members", () => {
   it("expires invitations", async () => {
     const { token } = await createInvitation(db, acme, { email: "late@acme.example" }, NOW);
     expect(await findInvitation(db, token, new Date(NOW.getTime() + 8 * 86_400_000))).toBeUndefined();
+  });
+
+  it("signs a member in with a one-time emailed link that expires", async () => {
+    const link = await createSignInLink(db, "ASHA@acme.example", NOW);
+    expect(link).toMatchObject({ email: "asha@acme.example", orgId: acme.orgId, personId: acme.personId });
+    // Not an invitation: it never shows up as one.
+    expect((await pendingInvitations(db, acme.orgId, NOW)).map((i) => i.email)).not.toContain("asha@acme.example");
+    expect(await redeemSignInLink(db, link!.token, NOW)).toEqual({ ...acme, joined: false });
+    await expect(redeemSignInLink(db, link!.token, NOW)).rejects.toThrow("expired or was already used");
+    const late = await createSignInLink(db, "asha@acme.example", NOW);
+    await expect(redeemSignInLink(db, late!.token, new Date(NOW.getTime() + 16 * 60_000))).rejects.toThrow(AccountError);
+    // Asking again replaces the earlier link.
+    const first = await createSignInLink(db, "asha@acme.example", NOW);
+    await createSignInLink(db, "asha@acme.example", NOW);
+    await expect(redeemSignInLink(db, first!.token, NOW)).rejects.toThrow(AccountError);
+  });
+
+  it("sends no sign-in link to an address that is neither a member nor invited", async () => {
+    expect(await createSignInLink(db, "stranger@acme.example", NOW)).toBeUndefined();
+    expect(await createSignInLink(db, "not an email", NOW)).toBeUndefined();
+  });
+
+  it("lets an invitee join through an emailed link, without a password, as invited", async () => {
+    const { token } = await createInvitation(db, acme, { email: "nina@acme.example", role: "admin", department: "sales", invitedBy: acme.personId }, NOW);
+    const link = await createSignInLink(db, "nina@acme.example", NOW);
+    expect(link?.personId).toBeUndefined();
+    const nina = await redeemSignInLink(db, link!.token, NOW);
+    expect(nina).toMatchObject({ orgId: acme.orgId, joined: true });
+    const [row] = await db.select().from(people).where(eq(people.id, nina.personId));
+    expect(row).toMatchObject({ isMember: true, role: "admin", department: "sales", displayName: "nina", primaryEmail: "nina@acme.example" });
+    expect(await db.select().from(credentials).where(eq(credentials.personId, nina.personId))).toHaveLength(0);
+    // The invitation is used up, and next time the link just signs her in.
+    expect(await findInvitation(db, token, NOW)).toBeUndefined();
+    const again = await createSignInLink(db, "nina@acme.example", NOW);
+    expect(await redeemSignInLink(db, again!.token, NOW)).toEqual({ orgId: acme.orgId, personId: nina.personId, joined: false });
+    // She can choose a password later from her account page.
+    await changePassword(db, { orgId: acme.orgId, personId: nina.personId }, "", "nina's long password");
+    expect(await signIn(db, "nina@acme.example", "nina's long password")).toEqual({ orgId: acme.orgId, personId: nina.personId });
+  });
+
+  it("lets an invitee join with Google or Microsoft, and nobody without an invitation", async () => {
+    await expect(acceptInvitationProven(db, "uninvited@acme.example", "Someone", NOW)).rejects.toThrow("Ask your admin for an invitation");
+    await createInvitation(db, acme, { email: "omar@acme.example", department: "finance" }, NOW);
+    const omar = await acceptInvitationProven(db, "Omar@acme.example", "Omar Farooq", NOW);
+    const [row] = await db.select().from(people).where(eq(people.id, omar.personId));
+    expect(row).toMatchObject({ isMember: true, role: "member", department: "finance", displayName: "Omar Farooq" });
+    expect(await memberByEmail(db, "omar@acme.example")).toEqual(omar);
+    await expect(acceptInvitationProven(db, "omar@acme.example", "Omar", NOW)).rejects.toThrow(AccountError);
   });
 
   it("resets a password with a short-lived link and signs out every browser", async () => {
@@ -227,6 +275,13 @@ describe("companies and members", () => {
     expect(readSignUpToken("nonsense")).toBeUndefined();
     const created = await signUp(db, { ...readSignUpToken(token)!, password: "a long enough password", emailProven: true });
     expect(await signIn(db, "pat@proven.example", "a long enough password")).toEqual(created);
+    // Proven by Google or Microsoft instead: no password needed, and none is set.
+    const viaGoogle = await signUp(db, { company: "Google Co", name: "Gita", email: "gita@google-co.example", emailProven: true });
+    expect(await db.select().from(credentials).where(eq(credentials.personId, viaGoogle.personId))).toHaveLength(0);
+    expect(await memberByEmail(db, "gita@google-co.example")).toEqual(viaGoogle);
+    vi.stubEnv("ALRO_SIGNUP", "");
+    // Without proof, a password is still required (and here sign-up is closed anyway).
+    await expect(signUp(db, { company: "No Proof", name: "N", email: "n@noproof.example" })).rejects.toThrow(AccountError);
     vi.stubEnv("ALRO_SIGNUP", "closed");
     expect(ssoProviders().map((p) => p.id)).toEqual(["oidc"]);
   });

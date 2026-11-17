@@ -103,10 +103,11 @@ export function rerankScores(candidates: RankSignals[], opts: Pick<SearchOptions
  */
 export async function searchChunks(
   tx: Db,
-  query: { text: string; embedding: number[] },
+  query: { text: string; embedding: number[] | null },
   opts: SearchOptions = {},
 ): Promise<SearchHit[]> {
-  const vector = `[${query.embedding.join(",")}]`;
+  // Without an embedding (the embedding provider failed), search runs on keywords and graph links alone.
+  const vector = query.embedding ? `[${query.embedding.join(",")}]` : null;
   const since = opts.since?.toISOString() ?? null;
   const until = opts.until?.toISOString() ?? null;
   const graphIds = `{${(opts.graphChunkIds ?? []).join(",")}}`;
@@ -124,11 +125,15 @@ export async function searchChunks(
 
   const result = await tx.execute(sql`
     with vec as (
-      select c.id, row_number() over (order by c.embedding <=> ${vector}::halfvec) as rank
+      ${
+        vector
+          ? sql`select c.id, row_number() over (order by c.embedding <=> ${vector}::halfvec) as rank
       from chunks c
       where c.embedding is not null and ${timeFilter}
       order by c.embedding <=> ${vector}::halfvec
-      limit ${CANDIDATES}
+      limit ${CANDIDATES}`
+          : sql`select null::uuid as id, null::bigint as rank where false`
+      }
     ),
     kw as (
       select c.id, row_number() over (order by ts_rank_cd(c.tsv, q) desc) as rank
@@ -151,7 +156,7 @@ export async function searchChunks(
     select c.id as "chunkId", c.thread_id as "threadId", t.title as "threadTitle", t.kind as "threadKind",
            t.url as "threadUrl", c.message_ids as "messageIds", c.start_at as "startAt", c.end_at as "endAt",
            c.text, f.score::float8 as score,
-           coalesce(1 - (c.embedding <=> ${vector}::halfvec), 0)::float8 as similarity,
+           ${vector ? sql`coalesce(1 - (c.embedding <=> ${vector}::halfvec), 0)` : sql`0`}::float8 as similarity,
            coalesce((
              select sum(s.weight) from entity_mentions m
              join unnest(${`{${seeds.join(",")}}`}::uuid[], ${`{${seedWeights.map((w) => w.toFixed(4)).join(",")}}`}::float8[]) as s(id, weight) on s.id = m.entity_id
@@ -175,10 +180,34 @@ export async function searchChunks(
     .slice(0, limit);
 }
 
+/**
+ * Embedding a question is on the path of every answer, so it gives up quickly: one retry and a
+ * time limit, instead of the default three tries with no limit (a stalled provider used to hold
+ * an answer for minutes).
+ */
+const QUERY_EMBED_TIMEOUT_MS = 10_000;
+const QUERY_EMBED_RETRIES = 1;
+
 /** Embeds a question (with the model's query instruction, if it has one). */
 export async function embedQuery(models: Models, text: string): Promise<number[]> {
-  const { embedding } = await embed({ model: models.embed, value: `${models.queryPrefix ?? ""}${text}`, dimensions: models.embedDimensions });
+  const { embedding } = await embed({
+    model: models.embed,
+    value: `${models.queryPrefix ?? ""}${text}`,
+    dimensions: models.embedDimensions,
+    maxRetries: QUERY_EMBED_RETRIES,
+    abortSignal: AbortSignal.timeout(QUERY_EMBED_TIMEOUT_MS),
+  });
   return embedding;
+}
+
+/** embedQuery, or null when the embedding provider fails, so search can carry on without meaning. */
+export async function tryEmbedQuery(models: Models, text: string): Promise<number[] | null> {
+  try {
+    return await embedQuery(models, text);
+  } catch (e) {
+    console.warn("question embedding failed; searching by keywords and graph only:", e instanceof Error ? e.message : e);
+    return null;
+  }
 }
 
 /**
@@ -192,7 +221,7 @@ export async function recall(
   text: string,
   opts: SearchOptions = {},
 ): Promise<{ hits: SearchHit[]; related: SearchHit[]; graph: GraphContext }> {
-  const embedding = await embedQuery(models, text);
+  const embedding = await tryEmbedQuery(models, text);
   const graph = await searchGraph(tx, { text, embedding });
   const hits = await searchChunks(tx, { text, embedding }, { ...opts, graphChunkIds: graph.chunkIds, entityIds: graph.entities.filter((e) => e.matched).map((e) => e.id) });
 

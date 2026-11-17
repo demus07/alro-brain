@@ -52,7 +52,7 @@ async function Overview() {
           Settings
         </Link>
         , or{" "}
-        <Link className="link" href="/upload">
+        <Link className="link" href="/settings#upload">
           upload an export
         </Link>
         , and this page fills in as ALRO reads it.

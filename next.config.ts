@@ -4,6 +4,10 @@ const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
   partialPrefetching: true,
+  // The Upload page moved into Settings; old links and bookmarks land there.
+  async redirects() {
+    return [{ source: "/upload", destination: "/settings#upload", permanent: true }];
+  },
   // Sent with every response: no framing by other sites, no content sniffing, and https only once deployed.
   async headers() {
     return [

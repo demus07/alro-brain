@@ -3,11 +3,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { signUpAllowed } from "@/auth/accounts";
+import { isFirstRun, signUpAllowed } from "@/auth/accounts";
 import { safeNext, ssoProviders } from "@/auth/sso";
 import { getDb } from "@/db/client";
 import { currentViewer } from "@/lib/viewer";
-import { SignInForm } from "./forms";
+import { SignInForm, SignInLinkForm } from "./forms";
 
 export const metadata: Metadata = { title: "Sign in · ALRO" };
 
@@ -27,6 +27,8 @@ async function SignIn({ searchParams }: { searchParams: PageProps<"/sign-in">["s
   const query = await searchParams;
   const next = safeNext(typeof query.next === "string" ? query.next : undefined);
   if (await currentViewer().catch(() => undefined)) redirect(next);
+  // A fresh install has no one to sign in as: go straight to setting up the company.
+  if (process.env.ALRO_SIGNUP !== "closed" && (await isFirstRun(getDb()))) redirect("/sign-up");
   const error = typeof query.error === "string" ? query.error : undefined;
   const providers = ssoProviders();
   const canSignUp = await signUpAllowed(getDb());
@@ -44,6 +46,8 @@ async function SignIn({ searchParams }: { searchParams: PageProps<"/sign-in">["s
       ))}
       {providers.length > 0 && <p className="muted small center">or with a password</p>}
       <SignInForm next={next} />
+      <p className="muted small center">or without a password</p>
+      <SignInLinkForm next={next} />
       {canSignUp && (
         <p className="small muted">
           New here?{" "}

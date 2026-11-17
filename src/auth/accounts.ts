@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, isNull, ne, sql } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, ne, type SQL, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { credentials, invitations, orgs, people } from "@/db/schema";
 import { DEPARTMENT } from "@/db/scope";
@@ -8,6 +8,7 @@ import { asRole, endAllSessions, hashToken, newToken, type Role } from "./sessio
 
 export const INVITE_DAYS = 7;
 export const RESET_HOURS = 2;
+export const SIGN_IN_LINK_MINUTES = 15;
 
 const normalEmail = (email: string) => email.trim().toLowerCase();
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -19,6 +20,11 @@ export class AccountError extends Error {}
 export async function signUpAllowed(db: Db): Promise<boolean> {
   if (process.env.ALRO_SIGNUP === "open") return true;
   if (process.env.ALRO_SIGNUP === "closed") return false;
+  return isFirstRun(db);
+}
+
+/** No company exists yet, so nobody can sign in: the first visitor sets one up. */
+export async function isFirstRun(db: Db): Promise<boolean> {
   const [any] = await db.select({ id: orgs.id }).from(orgs).limit(1);
   return !any;
 }
@@ -47,7 +53,16 @@ async function setPassword(db: Db, orgId: string, personId: string, password: st
 /** Creates a company and its owner. */
 export async function signUp(
   db: Db,
-  input: { company: string; name: string; email: string; password: string; timezone?: string; /** The address was proven by a signed link (open sign-up). */ emailProven?: boolean },
+  input: {
+    company: string;
+    name: string;
+    email: string;
+    /** May be left out only when the address is proven: the owner then signs in with that provider or an emailed link. */
+    password?: string;
+    timezone?: string;
+    /** The address was proven by a signed link (open sign-up) or by Google / Microsoft / single sign-on. */
+    emailProven?: boolean;
+  },
 ): Promise<{ orgId: string; personId: string }> {
   if (!(await signUpAllowed(db))) throw new AccountError("New companies can't be created here. Ask your admin for an invitation.");
   if (signUpNeedsEmailProof() && !input.emailProven) throw new AccountError("Confirm your email address first: use the link we sent you.");
@@ -56,7 +71,8 @@ export async function signUp(
   const name = input.name.trim();
   if (!company || !name) throw new AccountError("Enter your name and your company's name.");
   if (!EMAIL.test(email)) throw new AccountError("Enter a valid email address.");
-  const problem = passwordProblem(input.password);
+  const password = input.password ?? (input.emailProven ? undefined : "");
+  const problem = password === undefined ? undefined : passwordProblem(password);
   if (problem) throw new AccountError(problem);
   const timezone = validTimeZone(input.timezone) ?? "UTC";
   return db.transaction(async (txRaw) => {
@@ -65,7 +81,7 @@ export async function signUp(
     await assertEmailFree(tx, email);
     const [org] = await tx.insert(orgs).values({ name: company.slice(0, 120), timezone }).returning({ id: orgs.id });
     const [person] = await tx.insert(people).values({ orgId: org.id, displayName: name.slice(0, 120), primaryEmail: email, isMember: true, role: "owner" }).returning({ id: people.id });
-    await setPassword(tx, org.id, person.id, input.password);
+    if (password !== undefined) await setPassword(tx, org.id, person.id, password);
     return { orgId: org.id, personId: person.id };
   });
 }
@@ -174,13 +190,27 @@ export async function createInvitation(
   return { token, email };
 }
 
-/** The live invitation or reset a token belongs to, with the company's name for the page. */
-export async function findInvitation(db: Db, token: string, now = new Date()) {
-  const [row] = await db
+/** Live (unused, unexpired) invitations, resets and sign-in links matching `where`, newest first, with the company's name. */
+const liveInvitations = (db: Db, where: SQL | undefined, now: Date) =>
+  db
     .select({ id: invitations.id, orgId: invitations.orgId, kind: invitations.kind, email: invitations.email, personId: invitations.personId, role: invitations.role, department: invitations.department, company: orgs.name })
     .from(invitations)
     .innerJoin(orgs, eq(orgs.id, invitations.orgId))
-    .where(and(eq(invitations.tokenHash, hashToken(token)), isNull(invitations.usedAt), gt(invitations.expiresAt, now)));
+    .where(and(where, isNull(invitations.usedAt), gt(invitations.expiresAt, now)))
+    .orderBy(desc(invitations.createdAt))
+    .limit(1);
+
+type Invitation = NonNullable<Awaited<ReturnType<typeof findInvitation>>>;
+
+/** The live invitation, reset or sign-in link a token belongs to, with the company's name for the page. */
+export async function findInvitation(db: Db, token: string, now = new Date()) {
+  const [row] = await liveInvitations(db, eq(invitations.tokenHash, hashToken(token)), now);
+  return row;
+}
+
+/** The live invitation to join a company for this address, if there is one. */
+async function invitationFor(db: Db, email: string, now: Date): Promise<Invitation | undefined> {
+  const [row] = await liveInvitations(db, and(eq(invitations.kind, "invite"), eq(invitations.email, normalEmail(email))), now);
   return row;
 }
 
@@ -192,6 +222,22 @@ export async function acceptInvitation(db: Db, token: string, input: { name: str
   if (!name) throw new AccountError("Enter your name.");
   const problem = passwordProblem(input.password);
   if (problem) throw new AccountError(problem);
+  return join(db, invite, name, input.password, now);
+}
+
+/**
+ * Joins the company from an invitation whose address was proven another way (Google, Microsoft,
+ * single sign-on or an emailed sign-in link), without a password: they keep signing in that way,
+ * and can choose a password later on their account page. Without a live invitation, nobody joins.
+ */
+export async function acceptInvitationProven(db: Db, email: string, name: string, now = new Date()): Promise<{ orgId: string; personId: string }> {
+  const invite = await invitationFor(db, email, now);
+  if (!invite) throw new AccountError(`${normalEmail(email)} isn't a member of a company on ALRO yet. Ask your admin for an invitation.`);
+  return join(db, invite, name.trim() || normalEmail(email).split("@")[0], undefined, now);
+}
+
+/** Creates (or switches on) the member, uses up the invitation and, when given, sets their password. */
+function join(db: Db, invite: Invitation, name: string, password: string | undefined, now: Date): Promise<{ orgId: string; personId: string }> {
   return db.transaction(async (txRaw) => {
     const tx = txRaw as unknown as Db;
     await lockEmail(tx, invite.email);
@@ -204,7 +250,7 @@ export async function acceptInvitation(db: Db, token: string, input: { name: str
       const [person] = await tx.select({ isMember: people.isMember, deactivatedAt: people.deactivatedAt }).from(people).where(and(eq(people.id, personId), eq(people.orgId, invite.orgId)));
       const [has] = await tx.select({ id: credentials.personId }).from(credentials).where(eq(credentials.personId, personId));
       if (!person || person.deactivatedAt || has) throw new AccountError("That invitation isn't valid any more. Ask for a new one.");
-      // Someone who was already a member keeps their role, department and name: the link only gives them a password.
+      // Someone who was already a member keeps their role, department and name: the link only lets them sign in.
       if (!person.isMember) await tx.update(people).set({ isMember: true, role: asRole(invite.role), department: invite.department, displayName: name.slice(0, 120) }).where(eq(people.id, personId));
       await endAllSessions(tx, personId);
     } else {
@@ -213,9 +259,39 @@ export async function acceptInvitation(db: Db, token: string, input: { name: str
         .values({ orgId: invite.orgId, primaryEmail: invite.email, isMember: true, role: asRole(invite.role), department: invite.department, displayName: name.slice(0, 120) })
         .returning({ id: people.id });
     }
-    await setPassword(tx, invite.orgId, personId, input.password);
+    if (password !== undefined) await setPassword(tx, invite.orgId, personId, password);
     return { orgId: invite.orgId, personId };
   });
+}
+
+/**
+ * A one-time link that signs in whoever can open this mailbox: a member, or someone with a live
+ * invitation (who joins on first use). Undefined for anyone else; the caller must not reveal which.
+ */
+export async function createSignInLink(db: Db, emailInput: string, now = new Date()): Promise<{ token: string; email: string; orgId: string; personId?: string } | undefined> {
+  const email = normalEmail(emailInput);
+  const member = await memberByEmail(db, email);
+  const orgId = member?.orgId ?? (await invitationFor(db, email, now))?.orgId;
+  if (!orgId) return undefined;
+  // Asking again replaces the earlier link.
+  await db.delete(invitations).where(and(eq(invitations.kind, "signin"), eq(invitations.email, email), isNull(invitations.usedAt)));
+  const token = newToken();
+  await db.insert(invitations).values({ orgId, kind: "signin", email, personId: member?.personId, tokenHash: hashToken(token), expiresAt: new Date(now.getTime() + SIGN_IN_LINK_MINUTES * 60_000) });
+  return { token, email, orgId, personId: member?.personId };
+}
+
+/** Uses up a sign-in link: the member it belongs to, or, for an invitee, the member they just became. */
+export async function redeemSignInLink(db: Db, token: string, now = new Date()): Promise<{ orgId: string; personId: string; joined: boolean }> {
+  const link = await findInvitation(db, token, now);
+  if (!link || link.kind !== "signin") throw new AccountError("That sign-in link has expired or was already used. Ask for a new one.");
+  const [claimed] = await db.update(invitations).set({ usedAt: now }).where(and(eq(invitations.id, link.id), isNull(invitations.usedAt))).returning({ id: invitations.id });
+  if (!claimed) throw new AccountError("That sign-in link was already used. Ask for a new one.");
+  const member = await memberByEmail(db, link.email);
+  if (member) {
+    if (member.orgId !== link.orgId) throw new AccountError("That sign-in link isn't valid any more. Ask for a new one.");
+    return { ...member, joined: false };
+  }
+  return { ...(await acceptInvitationProven(db, link.email, "", now)), joined: true };
 }
 
 /** A one-time link to choose a new password. Undefined when no such member exists (the caller must not reveal which). */

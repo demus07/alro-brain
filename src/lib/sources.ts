@@ -16,6 +16,7 @@ const SOURCES: Record<string, Omit<SourceInfo, "key">> = {
   teams: { label: "Teams", mark: "Te" },
   "teams-channels": { label: "Teams channels", mark: "Tc" },
   discord: { label: "Discord", mark: "Di" },
+  telegram: { label: "Telegram", mark: "Tg" },
   email: { label: "Email", mark: "@" },
   imap: { label: "Email (IMAP)", mark: "@" },
   gmail: { label: "Gmail", mark: "G" },

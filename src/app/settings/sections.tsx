@@ -1,4 +1,5 @@
 import { and, eq } from "drizzle-orm";
+import { SourceIcon } from "../source-icon";
 import Link from "next/link";
 import { connection } from "next/server";
 import { loadProfile } from "@/agent/profile";
@@ -147,7 +148,7 @@ export async function Messaging() {
           const link = links.find((l) => l.channel === c.id);
           return (
             <li key={c.id} className={c.configured() ? "source" : "source dim"}>
-              <span className="mark">{c.label.slice(0, 2)}</span>
+              <SourceIcon provider={c.id} />
               <span className="source-text">
                 <span className="source-name">{c.label}</span>
                 <span className="muted small truncate">{!c.configured() ? "Not set up on this server" : link ? (c.id === "teams" ? "Linked" : `Linked: ${link.externalUserId}`) : `Message ${c.where()} with your code`}</span>

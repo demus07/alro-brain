@@ -23,7 +23,7 @@ export default function ConnectorsPage() {
       <h1>Health</h1>
       <p className="muted">
         Where ALRO&apos;s memory comes from, whether it&apos;s up to date, and what is failing behind the scenes. Connect sources in{" "}
-        <Link className="link" href="/settings">Settings</Link> or <Link className="link" href="/upload">upload exports</Link>.
+        <Link className="link" href="/settings">Settings</Link> or <Link className="link" href="/settings#upload">upload exports</Link>.
       </p>
       <Suspense fallback={<p className="muted">Loading…</p>}>
         <Pipeline />
@@ -113,7 +113,7 @@ async function Health() {
   return (
     <>
       <section>
-        <h2 style={{ fontSize: 17, margin: "8px 0" }}>Sources</h2>
+        <h2 className="section-title">Sources</h2>
         {sources.length === 0 ? (
           <p className="muted">No sources yet.</p>
         ) : (
@@ -147,20 +147,20 @@ async function Health() {
                     <tr key={s.id}>
                       <td>
                         <strong>{sourceOf(s.provider).label}</strong>
-                        <div className="muted" style={{ fontSize: 13 }}>
+                        <div className="muted small">
                           {s.account ?? ""} · {s.scope === "personal" ? `personal (${s.owner ?? "?"})` : "whole org"}
                         </div>
                       </td>
                       <td className={health.cls}>
                         <span className={`dot ${health.dot}`} /> {health.text}
                         {(s.lastError || run?.error) && (
-                          <div style={{ fontSize: 13 }}>{s.lastError ?? run?.error}</div>
+                          <div className="small">{s.lastError ?? run?.error}</div>
                         )}
                         {health.hint && <div className="muted small">{health.hint}</div>}
                       </td>
                       <td>{when(s.lastSyncedAt)}</td>
                       <td>{messageCount.get(s.id) ?? 0}</td>
-                      <td className="muted" style={{ fontSize: 13 }}>
+                      <td className="muted small">
                         {run ? `${run.kind}, ${when(run.startedAt)}: ${Object.entries(run.counts ?? {}).map(([k, v]) => `${k} ${v}`).join(", ")}` : "—"}
                       </td>
                     </tr>
@@ -173,18 +173,18 @@ async function Health() {
       </section>
 
       <section>
-        <h2 style={{ fontSize: 17, margin: "8px 0" }}>Processing</h2>
+        <h2 className="section-title">Processing</h2>
         <p>
           {backlog.total} messages · {unchunked} waiting to be searchable · {backlog.unscreened} waiting to be screened ·{" "}
           {backlog.unextracted} waiting for extraction
         </p>
-        <p className="muted" style={{ fontSize: 13 }}>
+        <p className="muted small">
           New messages are processed every 10 minutes, and right after an upload.
         </p>
       </section>
 
       <section>
-        <h2 style={{ fontSize: 17, margin: "8px 0" }}>Model use, last 7 days</h2>
+        <h2 className="section-title">Model use, last 7 days</h2>
         {usage.length === 0 ? (
           <p className="muted">No model calls yet.</p>
         ) : (

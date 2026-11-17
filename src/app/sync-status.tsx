@@ -13,7 +13,7 @@ export async function SyncStatus() {
   const backlog = await countBacklog(viewer.orgId).catch(() => undefined);
   const [state, text] = backlog === undefined ? ["bad", "Database unreachable"] : backlog ? ["stale", `${backlog} to process`] : ["ok", "Memory up to date"];
   return (
-    <span className="small">
+    <span className="sync-status">
       <span className={`dot ${state}`} /> {text}
     </span>
   );

@@ -3,9 +3,11 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import Link from "next/link";
+import { BorderBeam } from "border-beam";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { Source } from "@/agent/tools";
+import { useResolvedTheme } from "./theme-toggle";
 
 const TOOL_LABELS: Record<string, string> = {
   searchMemory: "Searching",
@@ -246,6 +248,9 @@ function Mic({ onText, disabled }: { onText: (text: string) => void; disabled: b
       aria-label={state === "recording" ? "Stop recording" : "Record a voice note"}
       onClick={() => (state === "recording" ? recorder.current?.stop() : start())}
     >
+      <svg viewBox="0 0 24 24" aria-hidden>
+        {state === "recording" ? <rect x="7" y="7" width="10" height="10" rx="2" /> : <path d="M12 4a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V7a3 3 0 0 0-3-3zM6 11a6 6 0 0 0 12 0M12 17v3" />}
+      </svg>
       {state === "working" ? "…" : state === "recording" ? "Stop" : problem ? "Mic off" : "Speak"}
     </button>
   );
@@ -255,6 +260,7 @@ export function Chat() {
   const { messages, sendMessage, status, error } = useChat({ transport: new DefaultChatTransport({ api: "/api/chat" }) });
   const [input, setInput] = useState("");
   const busy = status === "submitted" || status === "streaming";
+  const theme = useResolvedTheme();
   const ask = (text: string) => {
     if (!text.trim() || busy) return;
     sendMessage({ text });
@@ -315,30 +321,50 @@ export function Chat() {
         {error && <p className="error">Something went wrong: {error.message}</p>}
       </div>
 
-      <form
-        className="composer"
-        onSubmit={(e) => {
-          e.preventDefault();
-          ask(input);
-        }}
-      >
-        <textarea
-          rows={2}
-          value={input}
-          placeholder="Ask about anything your team has said"
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
+      {/* The composer stays pinned to the bottom while the conversation scrolls behind it. Its border
+          carries an animated beam (border-beam, libraries.dev/beam): a slow welcome on a new, empty
+          chat that fades out once the first question is asked. */}
+      <div className="composer-dock">
+        <BorderBeam className="composer-beam" size="md" colorVariant="colorful" strength={0.7} duration={4} active={messages.length === 0} theme={theme}>
+          <form
+            className="composer"
+            onSubmit={(e) => {
               e.preventDefault();
               ask(input);
-            }
-          }}
-        />
-        <Mic disabled={busy} onText={(text) => setInput((current) => (current ? `${current} ${text}` : text))} />
-        <button type="submit" disabled={busy || !input.trim()}>
-          {busy ? "Thinking…" : "Ask"}
-        </button>
-      </form>
+            }}
+          >
+            <textarea
+              rows={2}
+              value={input}
+              placeholder="Ask about anything your team has said"
+              aria-label="Ask ALRO"
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  ask(input);
+                }
+              }}
+            />
+            <div className="composer-bar">
+              <Mic disabled={busy} onText={(text) => setInput((current) => (current ? `${current} ${text}` : text))} />
+              <span className="composer-hint">
+                <kbd className="kbd">↵</kbd> to ask · <kbd className="kbd">⇧</kbd>
+                <kbd className="kbd">↵</kbd> new line
+              </span>
+              <button type="submit" className="composer-send" disabled={busy || !input.trim()} aria-label={busy ? "Thinking" : "Ask"} title={busy ? "Thinking…" : "Ask"}>
+                {busy ? (
+                  <span className="composer-spinner" aria-hidden />
+                ) : (
+                  <svg viewBox="0 0 24 24" aria-hidden>
+                    <path d="M12 19V5M6 11l6-6 6 6" />
+                  </svg>
+                )}
+              </button>
+            </div>
+          </form>
+        </BorderBeam>
+      </div>
     </div>
   );
 }

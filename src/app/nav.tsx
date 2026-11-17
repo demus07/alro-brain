@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { CommandPalette, type PalettePage } from "./command-palette";
 
 const path = (d: string) => <path d={d} />;
 
@@ -20,7 +21,6 @@ const ICONS: Record<string, ReactNode> = {
   Team: path("M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM3 21v-1a6 6 0 0 1 12 0v1M16 3.1a4 4 0 0 1 0 7.8M21 21v-1a6 6 0 0 0-4-5.6"),
   Procedures: path("M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"),
   Trackers: path("M4 5h16v14H4zM4 10h16M4 15h16M10 5v14"),
-  Upload: path("M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"),
   Settings: path("M4 7h10M18 7h2M4 17h2M10 17h10M14 4.5v5h4v-5h-4zM6 14.5v5h4v-5H6z"),
   Health: path("M3 12h4l3-7 4 14 3-7h4"),
 };
@@ -39,7 +39,6 @@ const GROUPS = [
   {
     label: "Memory",
     items: [
-      { href: "/search", label: "Search" },
       { href: "/memory", label: "Check facts" },
       { href: "/graph", label: "Graph" },
       { href: "/procedures", label: "Procedures" },
@@ -56,7 +55,6 @@ const GROUPS = [
 ];
 
 const SECONDARY = [
-  { href: "/upload", label: "Upload" },
   { href: "/settings", label: "Settings" },
   { href: "/connectors", label: "Health" },
 ];
@@ -82,6 +80,43 @@ export function Nav() {
       <nav className="side-nav secondary" aria-label="Settings">
         {SECONDARY.map(link)}
       </nav>
+    </>
+  );
+}
+
+/** Every page the ⌘K search can jump to, with its sidebar icon. */
+const PAGES: PalettePage[] = [...GROUPS.flatMap((g) => g.items), ...SECONDARY, { href: "/account", label: "Account" }, { href: "/search", label: "Search" }].map((p) => ({
+  ...p,
+  icon: (
+    <svg viewBox="0 0 24 24" aria-hidden>
+      {ICONS[p.label] ?? ICONS.Search}
+    </svg>
+  ),
+}));
+
+/** The sidebar's search field: opens the ⌘K search over the current page (also with ⌘K / Ctrl+K anywhere). */
+export function SearchLink() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setOpen((o) => !o);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+  return (
+    <>
+      <button type="button" className="side-search" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
+        <svg viewBox="0 0 24 24" aria-hidden>
+          {ICONS.Search}
+        </svg>
+        <span>Search</span>
+        <kbd className="kbd">⌘K</kbd>
+      </button>
+      <CommandPalette open={open} onClose={() => setOpen(false)} pages={PAGES} />
     </>
   );
 }
