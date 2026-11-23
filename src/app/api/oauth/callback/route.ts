@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { after } from "next/server";
 import { defaultModels } from "@/ai/models";
 import { callbackParams, exchangeCode, redirectUri } from "@/connectors/oauth";
+import { registerPush } from "@/connectors/push";
 import { providerOf } from "@/connectors/registry";
 import { connectAccount, syncConnection } from "@/connectors/sync";
 import { getDb } from "@/db/client";
@@ -37,7 +38,9 @@ export async function GET(request: Request) {
     await audit(db, { orgId: viewer.orgId, personId: viewer.personId, action: "source.connect", target: sourceOf(provider.id).label });
     after(async () => {
       const [c] = await db.select().from(connections).where(eq(connections.id, id));
-      if (!c || !provider.sync) return;
+      if (!c) return;
+      await registerPush(db, c);
+      if (!provider.sync) return;
       const r = await syncConnection(db, c);
       if (r.messages) await processAndRepair(db, viewer.orgId, defaultModels());
     });

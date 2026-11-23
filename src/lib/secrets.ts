@@ -109,3 +109,21 @@ export async function readSecret<T>(db: Db, kind: SecretKind, refId: string): Pr
 export async function deleteSecret(db: Db, kind: SecretKind, refId: string) {
   await db.delete(secrets).where(and(eq(secrets.kind, kind), eq(secrets.refId, refId)));
 }
+
+const derive = (k: Buffer, purpose: string, subject: string) => createHmac("sha256", k).update(`alro:${purpose}:${subject}`).digest();
+
+/**
+ * A stable, unguessable token for a public address (a source's push URL, a company's lead form), worked out
+ * from the key so nothing is stored. Rotating ALRO_SECRET_KEY changes it; the old one keeps working until
+ * ALRO_SECRET_KEY_PREVIOUS is removed.
+ */
+export const derivedToken = (purpose: string, subject: string): string => b64(derive(key(), purpose, subject));
+
+export function matchesDerivedToken(purpose: string, subject: string, given: string | null | undefined): boolean {
+  const candidate = Buffer.from(given ?? "", "base64url");
+  const previous = previousKey();
+  return [key(), ...(previous ? [previous] : [])].some((k) => {
+    const expected = derive(k, purpose, subject);
+    return candidate.length === expected.length && timingSafeEqual(candidate, expected);
+  });
+}

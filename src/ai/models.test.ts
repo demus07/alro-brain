@@ -15,6 +15,19 @@ describe("free models only", () => {
     expect(modelId(defaultModels().answer)).toBe("nvidia/nemotron-3.5-super-vl:free");
   });
 
+  it("lets an indexing stage run on a local endpoint, and only a local one", () => {
+    openRouter("nvidia/nemotron-3.5-super-vl:free");
+    vi.stubEnv("ALRO_SCREEN_MODEL", "gemma2:2b");
+    vi.stubEnv("ALRO_SCREEN_BASE_URL", "http://127.0.0.1:11434/v1");
+    const models = defaultModels();
+    expect(modelId(models.screen)).toBe("gemma2:2b");
+    expect(modelId(models.answer)).toBe("nvidia/nemotron-3.5-super-vl:free");
+    vi.stubEnv("ALRO_SCREEN_BASE_URL", "https://api.example.com/v1");
+    expect(() => defaultModels()).toThrow("isn't on this machine");
+    vi.stubEnv("ALRO_SCREEN_BASE_URL", "http://localhost.evil.com/v1");
+    expect(() => defaultModels()).toThrow("isn't on this machine");
+  });
+
   it("refuses to start with a model that could be billed, including a fallback", () => {
     openRouter("openai/gpt-6-luna");
     expect(() => defaultModels()).toThrow("isn't a free model");

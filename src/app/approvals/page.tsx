@@ -13,7 +13,7 @@ import { WaitingForm } from "./waiting-card";
 export const metadata: Metadata = { title: "Approvals · ALRO" };
 
 const STATUS: Record<string, string> = { done: "Done", failed: "Failed", running: "Sending", unknown: "Not confirmed", rejected: "Dropped", expired: "Expired" };
-const ORIGIN: Record<string, string> = { chat: "you asked", messaging: "you asked by message", routine: "scheduled task", meeting: "after a call", team: "agent team" };
+const ORIGIN: Record<string, string> = { chat: "you asked", messaging: "you asked by message", routine: "scheduled task", meeting: "after a call", team: "agent team", desk: "raised by ALRO" };
 
 /** Sending reaches people; a live-tool call changes data in that app. */
 const sends = (a: Approval) => !a.mcpServerId && a.audience === "external";

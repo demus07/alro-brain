@@ -2,7 +2,7 @@ import { emailsToBatch } from "@/ingest/parsers/email";
 import type { NormalizedBatch } from "@/ingest/types";
 import { ProviderError, type Api } from "./api";
 import { emailAction, rfc822 } from "./email-actions";
-import type { Provider } from "./provider";
+import { PushNotConfigured, type Provider } from "./provider";
 
 const BACKFILL_DAYS = 90;
 const MAX_MESSAGES = 500;
@@ -112,6 +112,15 @@ export const gmail: Provider = {
   async sync(api, cursor) {
     const { batch, cursor: next } = await fetchGmail(api, cursor as GmailCursor | undefined);
     return { ...batch, cursor: next as Record<string, unknown> };
+  },
+  push: {
+    // One Pub/Sub topic for the deployment (GMAIL_PUBSUB_TOPIC) carries every mailbox's changes to /api/hooks/gmail; a watch lasts seven days.
+    async register(api) {
+      const topicName = process.env.GMAIL_PUBSUB_TOPIC;
+      if (!topicName) throw new PushNotConfigured("Set GMAIL_PUBSUB_TOPIC to a Google Pub/Sub topic that gmail-api-push@system.gserviceaccount.com may publish to.");
+      const watch = await api<{ expiration: string }>("POST", "gmail/v1/users/me/watch", { body: { topicName, labelIds: ["INBOX"], labelFilterBehavior: "INCLUDE" } });
+      return { expiresAt: new Date(Number(watch.expiration)) };
+    },
   },
   actions: {
     gmail_send_email: emailAction("Gmail", async (api, input) => {

@@ -198,6 +198,22 @@ export const quickbooks: Provider = {
     const r = await qbClient(api, realm).get<{ CompanyInfo?: { CompanyName?: string; LegalName?: string } }>(`companyinfo/${realm}`);
     return { accountId: realm, label: r.CompanyInfo?.CompanyName || r.CompanyInfo?.LegalName || "QuickBooks company" };
   },
+  async receivables(api, ctx) {
+    const qb = qbClient(api, realmOf(ctx.credentials, ctx.accountId));
+    const open = (await qb.query<QbInvoice>("Invoice", "Balance > '0'", "orderby DueDate", MAX_PAGES)).filter((i) => (i.Balance ?? 0) > 0);
+    const home = open.some((i) => !i.CurrencyRef?.value) ? await qb.home() : "";
+    // The invoice's own billing email is who to chase; otherwise the customer's main email, read in batches.
+    const customerIds = [...new Set(open.map((i) => i.CustomerRef?.value ?? "").filter(Boolean))];
+    const customers = new Map<string, QbCustomer>();
+    for (let n = 0; n < customerIds.length; n += 100) {
+      const ids = qbIds(customerIds.slice(n, n + 100));
+      if (ids) for (const c of await qb.query<QbCustomer>("Customer", `Id in (${ids})`)) customers.set(c.Id, c);
+    }
+    return open.map((i) => {
+      const customer = customers.get(i.CustomerRef?.value ?? "");
+      return { externalId: i.Id, number: i.DocNumber || undefined, customer: i.CustomerRef?.name, email: i.BillEmail?.Address || customer?.PrimaryEmailAddr?.Address || undefined, phone: customer?.PrimaryPhone?.FreeFormNumber || undefined, currency: i.CurrencyRef?.value || home, amountDue: round(i.Balance ?? 0), dueOn: i.DueDate };
+    });
+  },
   tools(api, ctx) {
     const qb = qbClient(api, realmOf(ctx.credentials, ctx.accountId));
     return {

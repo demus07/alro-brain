@@ -1,8 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { API_CALL_HEADER, SESSION_COOKIE } from "@/auth/sessions";
 
-/** Reached without a session: the sign-in pages, incoming webhooks (signed by their sender) and cron (its own secret). */
-const PUBLIC = /^\/(sign-in(\/|$)|sign-up(\/|$)|invite\/|reset(\/|$)|api\/auth\/|api\/channels\/|api\/cron\/)/;
+/**
+ * Reached without a session: the sign-in pages, incoming webhooks (signed by their sender), cron (its own secret),
+ * and addresses protected by an unguessable token in the link: a source's push address, a company's lead form,
+ * and a quote or invoice shared with a customer.
+ */
+const PUBLIC = /^\/(sign-in(\/|$)|sign-up(\/|$)|invite\/|reset(\/|$)|api\/auth\/|api\/channels\/|api\/cron\/|api\/hooks\/|api\/leads\/|api\/docs\/)/;
 
 /**
  * A first, cheap check before any page runs: no session cookie means sign in first. The real

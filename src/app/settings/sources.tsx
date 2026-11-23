@@ -1,6 +1,7 @@
 import { and, count, eq, isNull, sql } from "drizzle-orm";
 import { connection } from "next/server";
 import { oauthConfigured, oauthConsole, oauthEnvNames, oauthLabel } from "@/connectors/oauth";
+import { gmailPushUrl, pushBase, pushSetup, pushUrl } from "@/connectors/push";
 import { PROVIDERS, providerOf } from "@/connectors/registry";
 import { getDb } from "@/db/client";
 import { connections, events, messages, people } from "@/db/schema";
@@ -9,6 +10,7 @@ import { appOrigin } from "@/lib/origin";
 import { secretsConfigured } from "@/lib/secrets";
 import { COMING, isUpload, sourceOf, UPLOAD_ONLY } from "@/lib/sources";
 import { getViewer } from "@/lib/viewer";
+import { isAdmin } from "@/platform/roles";
 import { syncNow } from "./actions";
 import { SourceIcon } from "../source-icon";
 import { ConnectForm } from "./connect-form";
@@ -44,7 +46,7 @@ export async function Sources() {
   } catch (e) {
     return <p className="muted small">Can&apos;t reach the database: {(e as Error).message}</p>;
   }
-  const { sources } = data;
+  const { sources, admin } = data;
   const origin = await appOrigin();
   // Personal sources (a mailbox, a calendar) can be connected by each person; team ones once.
   const taken = new Set(sources.filter((s) => !isUpload(s.provider) && (s.scope === "org" || s.mine)).map((s) => s.provider));
@@ -76,6 +78,7 @@ export async function Sources() {
                 <span className={`dot ${s.lastError ? "bad" : health}`} title={s.lastError ?? (health === "upload" ? "Imported from an export" : health)} />
               </div>
               {s.lastError && <span className="error small clamp-2">{s.lastError}</span>}
+              {provider && (s.mine || (s.scope === "org" && admin)) && !isUpload(s.provider) && <InstantUpdates source={s} origin={origin} />}
               {(provider?.sync || s.scope !== "personal" || s.mine) && (
                 <div className="source-tile-actions">
                   {provider?.sync && (
@@ -184,6 +187,7 @@ async function load() {
         label: connections.label,
         stale: sql<boolean>`coalesce(${connections.lastSyncedAt} < now() - make_interval(secs => ${STALE_MS / 1000}), true)`,
         lastError: connections.lastError,
+        pushExpiresAt: connections.pushExpiresAt,
         owner: people.displayName,
         mine: sql<boolean>`${connections.ownerPersonId} = ${viewer.personId}`,
       })
@@ -197,5 +201,31 @@ async function load() {
   const eventCounts = await db.select({ id: events.connectionId, n: count() }).from(events).where(eq(events.orgId, viewer.orgId)).groupBy(events.connectionId);
   const byId = new Map(counts.map((c) => [c.id, c.n]));
   const eventsById = new Map(eventCounts.map((c) => [c.id, c.n]));
-  return { sources: rows.map((r) => ({ ...r, messages: byId.get(r.id) ?? 0, events: eventsById.get(r.id) ?? 0 })) };
+  return { admin: isAdmin(viewer), sources: rows.map((r) => ({ ...r, messages: byId.get(r.id) ?? 0, events: eventsById.get(r.id) ?? 0 })) };
+}
+
+/** Whether a source tells ALRO about changes at once, and where to paste ALRO's address when it can't be set up automatically. */
+function InstantUpdates({ source, origin }: { source: { id: string; provider: string; pushExpiresAt: Date | null }; origin: string }) {
+  const setup = pushSetup(source);
+  const base = pushBase();
+  const note =
+    setup.mode === "paste"
+      ? undefined
+      : source.pushExpiresAt
+        ? "On: this app tells ALRO the moment something changes, and ALRO renews the subscription itself."
+        : !base
+          ? "Set ALRO_APP_URL to this server's public address to turn this on. Until then it's checked every 15 minutes."
+          : setup.mode === "gmail"
+            ? "Needs GMAIL_PUBSUB_TOPIC (a Google Pub/Sub topic) and a push subscription to the address below. Until then it's checked every 15 minutes."
+            : "Not on yet. ALRO tries again every 15 minutes; until then it's checked on the usual schedule.";
+  const address = setup.mode === "gmail" ? gmailPushUrl(base ?? origin) : pushUrl(base ?? origin, source.id);
+  return (
+    <details className="small">
+      <summary className="muted">Instant updates{source.pushExpiresAt ? " · on" : ""}</summary>
+      {note && <p className="muted">{note}</p>}
+      {setup.mode === "paste" && <p className="muted">Paste this address into the app so it calls ALRO when something changes. {setup.hint} Until then it&apos;s checked every 15 minutes.</p>}
+      {(setup.mode === "paste" || (setup.mode === "gmail" && !source.pushExpiresAt)) && <code className="copyable">{address}</code>}
+      {!base && setup.mode === "paste" && <p className="warn">This address only works from this machine. Set ALRO_APP_URL to a public address first.</p>}
+    </details>
+  );
 }

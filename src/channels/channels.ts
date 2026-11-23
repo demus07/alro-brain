@@ -39,6 +39,22 @@ export const whatsapp: Channel = {
   },
 };
 
+/** What a business-initiated WhatsApp message can be: free text (only within 24 hours of the customer's last message) or an approved template. */
+export type WhatsAppMessage = { text: string } | { template: { name: string; language: string; params: string[] } };
+
+/** Sends a WhatsApp message to any number (a customer, not a linked member). `to` is digits with the country code. */
+export async function sendWhatsApp(to: string, message: WhatsAppMessage): Promise<void> {
+  if (!whatsapp.configured()) throw new Error("WhatsApp isn't set up on this server (WHATSAPP_TOKEN and WHATSAPP_PHONE_NUMBER_ID).");
+  const auth = { authorization: `Bearer ${process.env.WHATSAPP_TOKEN}` };
+  const url = `${graph()}/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
+  if ("template" in message) {
+    const { name, language, params } = message.template;
+    await post(url, auth, { messaging_product: "whatsapp", to, type: "template", template: { name, language: { code: language }, components: [{ type: "body", parameters: params.map((text) => ({ type: "text", text })) }] } });
+    return;
+  }
+  await whatsapp.send(to, message.text);
+}
+
 /** Downloads a WhatsApp voice note, photo or document: the media id resolves to a short-lived URL. */
 export async function whatsappMedia(mediaId: string): Promise<Uint8Array> {
   const auth = { authorization: `Bearer ${process.env.WHATSAPP_TOKEN}` };

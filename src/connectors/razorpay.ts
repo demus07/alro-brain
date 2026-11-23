@@ -151,6 +151,22 @@ export const razorpay: Provider = {
     });
     return { accountId: `razorpay:${mode}:${suffix}`, label: `Razorpay ${mode === "test" ? "test " : ""}key …${suffix.slice(-4)}` };
   },
+  async receivables(api) {
+    const { items } = await listAll<Invoice>(api, "invoices", { type: "invoice" });
+    return items
+      .filter((i) => (i.status === "issued" || i.status === "partially_paid") && (i.amount_due ?? 0) > 0)
+      .map((i) => ({
+        externalId: i.id,
+        number: i.invoice_number || i.receipt || undefined,
+        customer: i.customer_details?.name || i.customer_details?.customer_name || undefined,
+        email: (i.customer_details?.email || i.customer_details?.customer_email || undefined)?.toLowerCase(),
+        phone: i.customer_details?.contact || undefined,
+        currency: i.currency ?? "INR",
+        amountDue: fromMinor(i.amount_due, i.currency),
+        dueOn: day(i.expire_by),
+        url: i.short_url || undefined,
+      }));
+  },
   tools(api) {
     return {
       razorpay_payments: tool({

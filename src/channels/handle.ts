@@ -8,6 +8,7 @@ import type { Transcriber } from "@/ai/transcribe";
 import { decideFromReply } from "@/approvals/approvals";
 import type { Db } from "@/db/client";
 import { channelMessages, people } from "@/db/schema";
+import { handleCustomer } from "@/business/assistant";
 import { saveNote } from "@/memory/notes";
 import { LimitError } from "@/platform/usage";
 import { errorText, log } from "@/ops/log";
@@ -62,6 +63,11 @@ export async function handleInbound(db: Db, msg: Inbound, deps: InboundDeps): Pr
     const code = msg.text?.replace(/\D/g, "");
     viewer = code?.length === 8 ? await redeemLinkCode(db, msg.channel, msg.from, code, now, msg.address) : undefined;
     if (!viewer) {
+      // A customer (not a member) writing to the company's WhatsApp number: the assistant answers from approved answers, if the company turned it on.
+      if (msg.channel === "whatsapp" && msg.text?.trim() && !msg.file) {
+        const customer = await handleCustomer(db, deps.models, { from: msg.from, text: msg.text, id: msg.id, name: msg.address?.name }, deps.send, now);
+        if (customer) return "answered";
+      }
       await deps.send(`I don't know this ${label} account yet. In ALRO, open Settings → Messaging, get a code and send it here.`);
       return "unlinked";
     }
@@ -116,7 +122,7 @@ export async function handleInbound(db: Db, msg: Inbound, deps: InboundDeps): Pr
       if (!stored.text.startsWith(`(${what})`)) {
         await saveNote(db, viewer, `${text ? `${text}\n\n` : ""}[${what}${msg.file.name ? `: ${msg.file.name}` : ""}]\n${contents}`, { title: text ? text.slice(0, 80) : `A ${what} sent on ${label}`, now });
       }
-      text = `(sent a ${what}${text ? ` with the message "${text}"` : ""}; it has been saved to my notes) What it shows:\n${contents}\n\nAcknowledge it in a sentence or two: what it is and the key figures. If it relates to something open (a delivery, a payment, a promise), say so.`;
+      text = `(sent a ${what}${text ? ` with the message "${text}"` : ""}; it has been saved to my notes) What it shows:\n${contents}\n\nAcknowledge it in a sentence or two: what it is and the key figures. If it relates to something open (a delivery, a payment, a promise), say so. If it is a receipt or a bill for something they paid, also record it with logExpense (vendor, date, total, GST included, the vendor's GSTIN and bill number if shown) and say you did.`;
       await db.update(channelMessages).set({ text: `(${what}) ${msg.text?.trim() ?? ""} ${contents.slice(0, 500)}`.trim() }).where(eq(channelMessages.id, stored.id));
     }
     if (!text && msg.audio) {

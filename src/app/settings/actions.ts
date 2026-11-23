@@ -5,6 +5,7 @@ import { refresh } from "next/cache";
 import { after } from "next/server";
 import { defaultModels } from "@/ai/models";
 import { ProviderError } from "@/connectors/api";
+import { registerPush } from "@/connectors/push";
 import { providerOf } from "@/connectors/registry";
 import { connectAccount, syncConnection } from "@/connectors/sync";
 import { getDb } from "@/db/client";
@@ -22,12 +23,14 @@ export interface ConnectState {
   ok?: boolean;
 }
 
-/** First sync in the background (it can take minutes), then process what arrived. */
+/** First sync in the background (it can take minutes), then process what arrived. Asks the app for instant updates first, where that can be done from here. */
 function syncSoon(orgId: string, connectionId: string) {
   after(async () => {
     const db = getDb();
     const [c] = await db.select().from(connections).where(eq(connections.id, connectionId));
-    if (!c || !providerOf(c.provider)?.sync) return;
+    if (!c) return;
+    await registerPush(db, c);
+    if (!providerOf(c.provider)?.sync) return;
     const r = await syncConnection(db, c);
     if (r.messages) await processAndRepair(db, orgId, defaultModels());
   });

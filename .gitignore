@@ -43,6 +43,7 @@ next-env.d.ts
 
 # eval output
 eval-report.json
+bench-*.json
 
 # Answer evals over your own data stay local
 /evals/*.local.json

@@ -11,6 +11,7 @@
  *   6. Working day         events, meeting_notes, profiles, routines, live tools, messaging channels
  *   7. Doing the work      approvals, team_agents, team_runs, procedures, trackers, tracker_rows, insights
  *   8. Platform            credentials, sessions, invitations, rate_limits, audit_log, usage_daily
+ *   9. Business desk       receivables, leads, faq_entries, customer_chats, customer_messages, documents, expenses, deadlines
  *   +  Ops                 sync_runs, llm_runs, job_runs, dead_letters, webhook_events
  *
  * Access control
@@ -29,8 +30,10 @@
  */
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   customType,
+  date,
   halfvec,
   index,
   integer,
@@ -88,6 +91,23 @@ export interface OrgSettings {
   onboarding?: { done?: string[]; finishedAt?: string };
   /** Per-plan limits an operator raised or lowered for this company. */
   limits?: Partial<Record<string, number>>;
+  /** The business desk: how chasing, follow-ups and the customer assistant behave. Defaults live in src/business/settings.ts. */
+  desk?: DeskSettings;
+}
+
+export interface DeskSettings {
+  /** Answer customers who message the WhatsApp/Telegram number, from the approved answers only. Off until an admin turns it on. */
+  customerAssistant?: boolean;
+  /** Opening hours, address, how to reach us: facts the assistant may state. */
+  businessInfo?: string;
+  /** Payment reminders: first one this many days after the due date, then every so many days, at most `max`. */
+  reminders?: { firstDays?: number; everyDays?: number; max?: number };
+  /** A lead nobody answered is followed up this many days after the last message. */
+  leadFollowUpDays?: number[];
+  /** Messages stored before this have been read for dates (renewals, filings). */
+  deadlinesScannedUntil?: string;
+  /** The company's prefix for numbering quotes and invoices, and its tax ID printed on them. */
+  documents?: { quotePrefix?: string; invoicePrefix?: string; taxId?: string; address?: string; terms?: string };
 }
 
 export const orgs = pgTable("orgs", {
@@ -187,6 +207,11 @@ export const connections = pgTable(
     cursor: jsonb("cursor").$type<Record<string, unknown>>(),
     lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
     lastError: text("last_error"),
+    /** The source told ALRO something changed (see src/connectors/push.ts); updates are synced at once instead of waiting for the poll. */
+    lastPushAt: timestamp("last_push_at", { withTimezone: true }),
+    /** When a registered push subscription (Gmail watch, Outlook subscription) stops sending, so it is renewed first. */
+    pushExpiresAt: timestamp("push_expires_at", { withTimezone: true }),
+    pushState: jsonb("push_state").$type<Record<string, unknown>>(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -1418,4 +1443,233 @@ export const evalRuns = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("eval_runs_org_idx").on(t.orgId, t.createdAt)],
+);
+
+// ---------------------------------------------------------------------------
+// 9. Business desk
+// ---------------------------------------------------------------------------
+// Read only by code that checks the person's role (src/business); the alro_app role has no grant on these.
+
+const money = (name: string) => numeric(name, { precision: 14, scale: 2, mode: "number" });
+
+/** An invoice a customer still owes, copied from the accounting app so it can be chased and its recovery measured. */
+export const receivables = pgTable(
+  "receivables",
+  {
+    id: id(),
+    orgId: orgId(),
+    connectionId: uuid("connection_id")
+      .notNull()
+      .references(() => connections.id, { onDelete: "cascade" }),
+    /** The accounting app's id for the invoice. */
+    externalId: text("external_id").notNull(),
+    number: text("number"),
+    customer: text("customer"),
+    email: text("email"),
+    phone: text("phone"),
+    currency: text("currency").notNull(),
+    amountDue: money("amount_due").notNull(),
+    dueOn: date("due_on", { mode: "string" }),
+    /** Where the customer can see and pay it, when the app has such a page. */
+    url: text("url"),
+    /** open | paid: paid once the app no longer lists it as owed. */
+    status: text("status").notNull().default("open"),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    remindersSent: integer("reminders_sent").notNull().default(0),
+    lastRemindedAt: timestamp("last_reminded_at", { withTimezone: true }),
+    snoozedUntil: timestamp("snoozed_until", { withTimezone: true }),
+    /** The reminder last proposed for this invoice: while it is still waiting, no second one is made. */
+    lastApprovalId: uuid("last_approval_id").references(() => approvals.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("receivables_external_uq").on(t.connectionId, t.externalId), index("receivables_org_status_idx").on(t.orgId, t.status, t.dueOn)],
+);
+
+/** Someone who asked about buying: from a website form, WhatsApp or by hand, with how far the reply and follow-ups have got. */
+export const leads = pgTable(
+  "leads",
+  {
+    id: id(),
+    orgId: orgId(),
+    source: text("source").notNull(),
+    /** The sender's own id for it (a form submission id), so a redelivery isn't a second lead. */
+    externalId: text("external_id"),
+    name: text("name"),
+    email: text("email"),
+    phone: text("phone"),
+    message: text("message").notNull(),
+    /** new | replied | following | won | lost */
+    status: text("status").notNull().default("new"),
+    ownerPersonId: uuid("owner_person_id").references(() => people.id, { onDelete: "set null" }),
+    firstRepliedAt: timestamp("first_replied_at", { withTimezone: true }),
+    customerRepliedAt: timestamp("customer_replied_at", { withTimezone: true }),
+    followUpsSent: integer("follow_ups_sent").notNull().default(0),
+    nextFollowUpAt: timestamp("next_follow_up_at", { withTimezone: true }),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+    /** The reply or follow-up last proposed for this lead. */
+    lastApprovalId: uuid("last_approval_id").references(() => approvals.id, { onDelete: "set null" }),
+    note: text("note"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("leads_external_uq").on(t.orgId, t.source, t.externalId).where(sql`${t.externalId} is not null`), index("leads_org_status_idx").on(t.orgId, t.status, t.createdAt)],
+);
+
+/** An answer the owner approved for customers to be given. The customer assistant says nothing else. */
+export const faqEntries = pgTable(
+  "faq_entries",
+  {
+    id: id(),
+    orgId: orgId(),
+    question: text("question").notNull(),
+    answer: text("answer").notNull(),
+    active: boolean("active").notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("faq_entries_org_idx").on(t.orgId)],
+);
+
+/** A customer's conversation with the assistant, on one messaging app. */
+export const customerChats = pgTable(
+  "customer_chats",
+  {
+    id: id(),
+    orgId: orgId(),
+    channel: text("channel").notNull(),
+    /** Phone number or chat id. */
+    externalUser: text("external_user").notNull(),
+    name: text("name"),
+    /** bot | waiting (a person must answer) | human (a person is handling it) | closed */
+    status: text("status").notNull().default("bot"),
+    handoffReason: text("handoff_reason"),
+    /** WhatsApp only lets free-form replies within 24 hours of the customer's last message. */
+    lastCustomerMessageAt: timestamp("last_customer_message_at", { withTimezone: true }),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("customer_chats_user_uq").on(t.orgId, t.channel, t.externalUser), index("customer_chats_status_idx").on(t.orgId, t.status, t.lastMessageAt)],
+);
+
+export const customerMessages = pgTable(
+  "customer_messages",
+  {
+    id: id(),
+    orgId: orgId(),
+    chatId: uuid("chat_id")
+      .notNull()
+      .references(() => customerChats.id, { onDelete: "cascade" }),
+    /** customer | bot | staff */
+    sender: text("sender").notNull(),
+    text: text("text").notNull(),
+    /** The app's id for an incoming message, so a redelivered webhook is answered once. */
+    externalId: text("external_id"),
+    personId: uuid("person_id").references(() => people.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("customer_messages_chat_idx").on(t.chatId, t.createdAt), uniqueIndex("customer_messages_external_uq").on(t.chatId, t.externalId).where(sql`${t.externalId} is not null`)],
+);
+
+export interface DocumentLine {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  /** Tax rate in percent (GST 18). */
+  taxRate: number;
+}
+
+/** A quote or invoice, numbered per company and shared with the customer through an unguessable link. */
+export const documents = pgTable(
+  "documents",
+  {
+    id: id(),
+    orgId: orgId(),
+    /** quote | invoice */
+    kind: text("kind").notNull(),
+    number: text("number").notNull(),
+    customerName: text("customer_name").notNull(),
+    customerEmail: text("customer_email"),
+    customerPhone: text("customer_phone"),
+    customerTaxId: text("customer_tax_id"),
+    customerAddress: text("customer_address"),
+    items: jsonb("items").$type<DocumentLine[]>().notNull(),
+    currency: text("currency").notNull().default("INR"),
+    subtotal: money("subtotal").notNull(),
+    tax: money("tax").notNull(),
+    total: money("total").notNull(),
+    issuedOn: date("issued_on", { mode: "string" }).notNull(),
+    dueOn: date("due_on", { mode: "string" }),
+    notes: text("notes"),
+    /** draft | sent | accepted | paid | void */
+    status: text("status").notNull().default("draft"),
+    shareToken: text("share_token").notNull(),
+    /** The quote an invoice was made from. */
+    fromDocumentId: uuid("from_document_id").references((): AnyPgColumn => documents.id, { onDelete: "set null" }),
+    createdBy: uuid("created_by").references(() => people.id, { onDelete: "set null" }),
+    /** The email or message last proposed to send it to the customer. */
+    lastApprovalId: uuid("last_approval_id").references(() => approvals.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("documents_number_uq").on(t.orgId, t.kind, t.number), uniqueIndex("documents_token_uq").on(t.shareToken), index("documents_org_idx").on(t.orgId, t.createdAt)],
+);
+
+/** A receipt or bill someone spent money on, read from a photo or typed. */
+export const expenses = pgTable(
+  "expenses",
+  {
+    id: id(),
+    orgId: orgId(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => people.id, { onDelete: "cascade" }),
+    vendor: text("vendor").notNull(),
+    spentOn: date("spent_on", { mode: "string" }).notNull(),
+    amount: money("amount").notNull(),
+    /** The tax inside the amount (GST), when the receipt shows it. */
+    taxAmount: money("tax_amount"),
+    currency: text("currency").notNull().default("INR"),
+    category: text("category"),
+    /** The vendor's GSTIN or tax number. */
+    taxId: text("tax_id"),
+    /** company | personal (to be reimbursed) */
+    paidBy: text("paid_by").notNull().default("company"),
+    invoiceNumber: text("invoice_number"),
+    note: text("note"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("expenses_org_idx").on(t.orgId, t.spentOn), index("expenses_person_idx").on(t.personId, t.spentOn)],
+);
+
+/** A date that can't be missed: a licence, contract or registration expiring, a filing due. Reminded ahead of time. */
+export const deadlines = pgTable(
+  "deadlines",
+  {
+    id: id(),
+    orgId: orgId(),
+    title: text("title").notNull(),
+    /** licence | contract | filing | renewal | payment | other */
+    kind: text("kind").notNull().default("other"),
+    dueOn: date("due_on", { mode: "string" }).notNull(),
+    /** none | monthly | quarterly | yearly: after it's done the next date is set. */
+    repeat: text("repeat").notNull().default("none"),
+    /** Remind this many days before. */
+    remindDays: integer("remind_days").array().notNull().default(sql`'{30,7,1}'::integer[]`),
+    ownerPersonId: uuid("owner_person_id").references(() => people.id, { onDelete: "set null" }),
+    sourceMessageId: uuid("source_message_id").references(() => messages.id, { onDelete: "set null" }),
+    /** Set for the ready-made compliance dates, so switching one on twice does nothing. */
+    preset: text("preset"),
+    notes: text("notes"),
+    /** suggested (found in a message, waiting to be confirmed) | open | done | dismissed */
+    status: text("status").notNull().default("open"),
+    /** The smallest "days before" already reminded for this due date. */
+    lastRemindedDay: integer("last_reminded_day"),
+    doneAt: timestamp("done_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("deadlines_org_idx").on(t.orgId, t.status, t.dueOn), uniqueIndex("deadlines_preset_uq").on(t.orgId, t.preset).where(sql`${t.preset} is not null`)],
 );

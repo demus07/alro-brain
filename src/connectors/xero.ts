@@ -218,6 +218,18 @@ export const xero: Provider = {
     if (!orgs.length) throw new Error("Xero didn't share any organisation. Connect again and pick your organisation when Xero asks.");
     return { accountId: orgs[0].tenantId, label: orgs[0].tenantName || "Xero organisation" };
   },
+  async receivables(api, ctx) {
+    const xc = xeroClient(api, ctx.accountId);
+    const open = await xc.openInvoices("ACCREC");
+    const ids = [...new Set(open.flatMap((i) => (i.Contact?.ContactID ? [i.Contact.ContactID] : [])))];
+    const contacts = new Map<string, XeroContact>();
+    for (let n = 0; n < ids.length; n += 40) for (const [id, c] of await xc.contacts(ids.slice(n, n + 40))) contacts.set(id, c);
+    const home = open.some((i) => !i.CurrencyCode) ? (await xc.organisation()).currency : "";
+    return open.map((i) => {
+      const contact = contacts.get(i.Contact?.ContactID ?? "");
+      return { externalId: i.InvoiceID, number: i.InvoiceNumber || undefined, customer: i.Contact?.Name, email: emailOf(contact), phone: phoneOf(contact), currency: i.CurrencyCode || home, amountDue: round(i.AmountDue ?? 0), dueOn: xeroDate(i.DueDateString, i.DueDate) };
+    });
+  },
   tools(api, ctx) {
     const xc = xeroClient(api, ctx.accountId);
     return {

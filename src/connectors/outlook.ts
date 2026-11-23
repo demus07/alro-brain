@@ -5,6 +5,8 @@ import { emailAction } from "./email-actions";
 import type { Provider } from "./provider";
 
 const BACKFILL_DAYS = 90;
+/** Microsoft keeps a mail subscription for under three days at most, so it is renewed well before. */
+const SUBSCRIPTION_MS = 2.5 * 24 * 60 * 60_000;
 /** Each sync re-reads this much before its cursor, in case a message surfaced late. */
 const OVERLAP_MS = 5 * 60_000;
 const MAX_MESSAGES = 500;
@@ -85,6 +87,25 @@ export const outlook: Provider = {
   async sync(api, cursor, ctx) {
     const { batch, cursor: next } = await fetchOutlook(api, ctx.accountId, cursor as OutlookCursor | undefined, ctx.now);
     return { ...batch, cursor: next as Record<string, unknown> };
+  },
+  push: {
+    // A Graph subscription tells ALRO's address when mail arrives in the inbox; renewing extends the one that exists.
+    async register(api, ctx) {
+      const expiresAt = new Date(ctx.now.getTime() + SUBSCRIPTION_MS);
+      const existing = typeof ctx.state?.subscriptionId === "string" ? ctx.state.subscriptionId : undefined;
+      if (existing) {
+        try {
+          await api("PATCH", `subscriptions/${existing}`, { body: { expirationDateTime: expiresAt.toISOString() } });
+          return { expiresAt, state: { subscriptionId: existing } };
+        } catch (e) {
+          if (!(e instanceof ProviderError && e.status === 404)) throw e;
+        }
+      }
+      const created = await api<{ id: string }>("POST", "subscriptions", {
+        body: { changeType: "created", notificationUrl: ctx.url, resource: "me/mailFolders('inbox')/messages", expirationDateTime: expiresAt.toISOString() },
+      });
+      return { expiresAt, state: { subscriptionId: created.id } };
+    },
   },
   actions: {
     outlook_send_email: emailAction("Outlook", async (api, input) => {

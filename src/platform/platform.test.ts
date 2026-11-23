@@ -286,6 +286,25 @@ describe("companies and members", () => {
     expect(ssoProviders().map((p) => p.id)).toEqual(["oidc"]);
   });
 
+  it("one email belongs to one company even when its member has no password (signs in by link or single sign-on)", async () => {
+    // A member who joined without a password: no credentials row at all.
+    const [alone] = await db.insert(orgs).values({ name: "Passwordless Co" }).returning();
+    await db.insert(people).values({ orgId: alone.id, displayName: "Zed", primaryEmail: "zed@shared.example", isMember: true, role: "owner" });
+    // Another company can't claim the address by inviting it (the link would hand its admin a second identity for Zed),
+    // and a new company can't be created on it.
+    await expect(createInvitation(db, acme, { email: "zed@shared.example", actorRole: "owner" }, NOW)).rejects.toThrow("already has an ALRO account");
+    vi.stubEnv("ALRO_SIGNUP", "open");
+    await expect(signUp(db, { company: "Squat", name: "Zed", email: "zed@shared.example", password: "a long enough password", emailProven: true })).rejects.toThrow("already has an ALRO account");
+    vi.unstubAllEnvs();
+    // Their own company can still send them a way in.
+    const own = await createInvitation(db, { orgId: alone.id }, { email: "zed@shared.example", actorRole: "owner" }, NOW);
+    expect(own.token).toBeTruthy();
+    // A removed member's address is free again.
+    const [gone] = await db.insert(people).values({ orgId: alone.id, displayName: "Gone", primaryEmail: "gone@shared.example", isMember: false, deactivatedAt: NOW }).returning();
+    expect((await createInvitation(db, acme, { email: "gone@shared.example", actorRole: "owner" }, NOW)).email).toBe("gone@shared.example");
+    expect(gone.id).toBeTruthy();
+  });
+
   it("only redirects to paths on this site after sign-in", () => {
     expect(safeNext("/approvals?x=1")).toBe("/approvals?x=1");
     for (const bad of ["//evil.example", "https://evil.example", "/api/export", "javascript:alert(1)", "/..//evil.example", "/a//b", undefined, ""]) expect(safeNext(bad)).toBe("/");

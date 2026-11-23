@@ -70,16 +70,26 @@ function chatModels(): Models {
       // OpenRouter tries `models` in order (up to 3) when one is busy or down; free models are often rate-limited.
       fetch: fallbacks.length ? withFallbacks(fallbacks) : undefined,
     });
-    const chat = (id: string | undefined) => {
+    // An indexing stage can run on its own endpoint (a local Ollama) while answers stay on the main one.
+    // With free-only on, that endpoint must be on this machine, so nothing can be billed through it.
+    const stageProvider = (stage: "SCREEN" | "EXTRACT" | "GRAPH") => {
+      const url = process.env[`ALRO_${stage}_BASE_URL`];
+      if (!url) return undefined;
+      if (freeOnly && !isLocalUrl(url)) throw new Error(`ALRO_FREE_MODELS_ONLY is on, and ALRO_${stage}_BASE_URL (${new URL(url).host}) isn't on this machine.`);
+      return createOpenAICompatible({ name: `local-${stage.toLowerCase()}`, baseURL: url, apiKey: process.env[`ALRO_${stage}_API_KEY`], supportsStructuredOutputs: true, includeUsage: true });
+    };
+    const chat = (id: string | undefined, stage?: "SCREEN" | "EXTRACT" | "GRAPH") => {
       if (!id) throw new Error("With ALRO_LLM_BASE_URL set, also set ALRO_SCREEN_MODEL (and optionally the other model ids).");
+      const own = stage && stageProvider(stage);
+      if (own) return own.chatModel(id);
       checkFree(id);
       return provider.chatModel(id);
     };
     const screen = process.env.ALRO_SCREEN_MODEL;
     return {
-      screen: chat(screen),
-      extract: chat(process.env.ALRO_EXTRACT_MODEL ?? screen),
-      graph: chat(process.env.ALRO_GRAPH_MODEL ?? process.env.ALRO_EXTRACT_MODEL ?? screen),
+      screen: chat(screen, "SCREEN"),
+      extract: chat(process.env.ALRO_EXTRACT_MODEL ?? screen, "EXTRACT"),
+      graph: chat(process.env.ALRO_GRAPH_MODEL ?? process.env.ALRO_EXTRACT_MODEL ?? screen, "GRAPH"),
       answer: chat(process.env.ALRO_ANSWER_MODEL ?? screen),
       embed: provider.embeddingModel(process.env.ALRO_EMBEDDING_MODEL ?? "text-embedding-3-small"),
       embedDimensions: EMBEDDING_DIMS,
@@ -108,6 +118,14 @@ function chatModels(): Models {
     embed: process.env.ALRO_EMBEDDING_MODEL ?? "voyage/voyage-3.5",
     embedDimensions: EMBEDDING_DIMS,
   };
+}
+
+function isLocalUrl(url: string) {
+  try {
+    return ["localhost", "127.0.0.1", "[::1]"].includes(new URL(url).hostname);
+  } catch {
+    return false;
+  }
 }
 
 /** Adds OpenRouter's `models` fallback list to each chat request, after the requested model. */

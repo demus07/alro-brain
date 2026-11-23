@@ -28,6 +28,22 @@ export interface NormalizedEvent {
   cancelled?: boolean;
 }
 
+/** One invoice a customer still owes, in the same shape whichever app it comes from. */
+export interface OpenInvoice {
+  /** The app's own id, stable between reads. */
+  externalId: string;
+  number?: string;
+  customer?: string;
+  email?: string;
+  phone?: string;
+  currency: string;
+  amountDue: number;
+  /** YYYY-MM-DD */
+  dueOn?: string;
+  /** A page where the customer can see and pay it. */
+  url?: string;
+}
+
 /** What one sync found. Everything is optional except the cursor to resume from. */
 export interface Fetched {
   people?: NormalizedPerson[];
@@ -76,6 +92,9 @@ export type Auth =
       hosts?: string[];
     };
 
+/** A source whose own change notifications can't be set up from here (an environment variable is missing). It falls back to pasting the address in by hand. */
+export class PushNotConfigured extends Error {}
+
 /** What live tools and actions know about the connection they run for. */
 export interface ToolContext {
   /** The account id `identify` returned (a workspace, mailbox, company or tenant id). */
@@ -123,7 +142,17 @@ export interface Provider {
   identify(api: Api, credentials: Record<string, string>): Promise<{ accountId: string; label?: string }>;
   sync?(api: Api, cursor: Record<string, unknown> | undefined, ctx: SyncContext): Promise<Fetched>;
   tools?(api: Api, ctx: ToolContext): ToolSet;
+  /** Accounting and payment apps: every invoice still owed, so overdue ones can be chased (src/business/receivables.ts). Read only. */
+  receivables?(api: Api, ctx: ToolContext): Promise<OpenInvoice[]>;
   /** Keyed by tool name, `<id>_<verb>` (e.g. "gmail_send_email"). Only ever run after approval. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   actions?: Record<string, ActionDef<any>>;
+  /**
+   * Instant updates. Without `register`, the person pastes ALRO's address for the source into the app's own
+   * webhook settings (src/connectors/push.ts); with it, ALRO asks the app to send changes there, and again
+   * before `expiresAt` (Gmail and Outlook only keep a subscription for a few days).
+   */
+  push?: {
+    register(api: Api, ctx: ToolContext & { url: string; state?: Record<string, unknown>; now: Date }): Promise<{ expiresAt: Date; state?: Record<string, unknown> }>;
+  };
 }

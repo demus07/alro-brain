@@ -49,7 +49,7 @@ text aimed at instructing the assistant. Nothing that reaches a client runs with
 ## Status
 
 **Built**: the code exists and is wired in. **Tested with fakes**: automated tests against an
-in-memory Postgres with mock models and fake APIs (`npm test`, 722 tests). **Run for real**: exercised
+in-memory Postgres with mock models and fake APIs (`npm test`, 803 tests). **Run for real**: exercised
 on a real database with real models or a real browser on a developer machine. Nothing has run in
 production or with more than one real company.
 
@@ -78,6 +78,13 @@ production or with more than one real company.
 | Audit log, usage metering and plan limits, retention, company deletion | Yes | Yes | Audit and usage seen in the browser test |
 | Job history, retries, stored webhooks, alerts, Health page | Yes | Yes | Health page loads; nothing has failed for real yet |
 | Email delivery (briefs, invitations, resets) | Yes | Yes | No (needs a Resend key; links are shown instead) |
+| Instant updates from sources (Gmail Pub/Sub, Outlook subscriptions, pasted addresses; polling stays as fallback) | Yes | Yes (fake APIs) | No (needs a public `ALRO_APP_URL`, and for Gmail a Pub/Sub topic) |
+| Money owed: overdue invoices from Xero, QuickBooks, Stripe, Razorpay; reminders drafted on a cadence for approval; recovery measured | Yes | Yes (Razorpay faked end to end) | No |
+| Leads: intake address (web form, IndiaMART, Meta, Zapier), reply drafted for approval, follow-ups at 2, 5, 10 days | Yes | Yes | Intake address and duplicate handling on the dev server; no real send |
+| Customer assistant on WhatsApp: answers only from approved answers, hands off, STOP, staff reply | Yes | Yes | No (needs WhatsApp credentials and a public URL) |
+| Quotes and invoices as numbered PDFs, sent as a link after approval | Yes | Yes | No |
+| Expenses from receipt photos, GST fields, CSV export | Yes | Yes | CSV export on the dev server; photo reading not run on a real receipt |
+| Deadlines with reminders, Indian filing presets, rollover | Yes | Yes | No |
 
 ## Not built
 

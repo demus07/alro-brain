@@ -1,5 +1,7 @@
 import { defaultModels } from "@/ai/models";
 import { sweepApprovals } from "@/approvals/approvals";
+import { runDesk } from "@/business/desk";
+import { renewPushes } from "@/connectors/push";
 import { getDb } from "@/db/client";
 import { cronUnauthorized } from "@/lib/cron";
 import { queueFailedRoutines, retryHandlers } from "@/ops/handlers";
@@ -37,12 +39,14 @@ export async function GET(request: Request) {
         }),
       ),
       approvals: outcomeOf(await runJob(db, { job: "approvals", orgId }, () => sweepApprovals(db, orgId))),
+      desk: outcomeOf(await runJob(db, { job: "desk", orgId }, () => runDesk(db, orgId))),
     };
   }
   const retries = await runJob(db, { job: "retries" }, async () => {
     const stuck = await sweepStuckWebhooks(db);
     return { stuck, ...(await retryDue(db, retryHandlers(db, models, liveWebhookDeps()))) };
   });
+  const pushes = await runJob(db, { job: "push-renew" }, () => renewPushes(db));
   const tidy = await runJob(db, { job: "housekeeping" }, async () => ({ jobs: await tidyJobRuns(db), webhooks: await pruneWebhooks(db), letters: await pruneLetters(db), rateLimits: await pruneRateLimits(db) }));
-  return Response.json({ ...results, retries: outcomeOf(retries), housekeeping: outcomeOf(tidy) });
+  return Response.json({ ...results, retries: outcomeOf(retries), pushes: outcomeOf(pushes), housekeeping: outcomeOf(tidy) });
 }

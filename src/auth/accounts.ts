@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, isNull, ne, type SQL, sql } from "drizzle-orm";
+import { and, desc, eq, gt, isNotNull, isNull, ne, or, type SQL, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { credentials, invitations, orgs, people } from "@/db/schema";
 import { DEPARTMENT } from "@/db/scope";
@@ -32,13 +32,23 @@ export async function isFirstRun(db: Db): Promise<boolean> {
 /** Serialises everything that gives an email address a password, so two requests at once can't both pass the check below. */
 const lockEmail = (tx: Db, email: string) => tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`alro-login:${email}`}))`);
 
-/** An address can sign in to one company only, so sign-in by email is never ambiguous. */
+/**
+ * An address belongs to one company only, so signing in by email (or by an emailed link, or single
+ * sign-on) is never ambiguous. Taken means an active member has it, with or without a password,
+ * or someone still holds a password for it. A removed member's address is free again.
+ */
 async function assertEmailFree(db: Db, email: string, exceptPersonId?: string) {
   const [taken] = await db
-    .select({ id: credentials.personId })
-    .from(credentials)
-    .innerJoin(people, eq(people.id, credentials.personId))
-    .where(and(sql`lower(${people.primaryEmail}) = ${email}`, exceptPersonId ? ne(people.id, exceptPersonId) : undefined))
+    .select({ id: people.id })
+    .from(people)
+    .leftJoin(credentials, eq(credentials.personId, people.id))
+    .where(
+      and(
+        sql`lower(${people.primaryEmail}) = ${email}`,
+        exceptPersonId ? ne(people.id, exceptPersonId) : undefined,
+        or(and(eq(people.isMember, true), isNull(people.deactivatedAt)), isNotNull(credentials.personId)),
+      ),
+    )
     .limit(1);
   if (taken) throw new AccountError("That email already has an ALRO account. Sign in instead.");
 }

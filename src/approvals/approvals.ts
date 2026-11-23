@@ -15,9 +15,10 @@ import { audit } from "@/lib/audit";
 import { sourceOf } from "@/lib/sources";
 import { errorText, log } from "@/ops/log";
 import { callMcpTool, type WriteTool } from "@/tools/mcp";
+import { BUILTIN_ACTIONS, BUILTIN_PREFIX } from "./builtin";
 
 export type Approval = typeof approvals.$inferSelect;
-export type Origin = "chat" | "messaging" | "routine" | "meeting" | "team";
+export type Origin = "chat" | "messaging" | "routine" | "meeting" | "team" | "desk";
 /**
  * pending → running → done | failed | unknown; or rejected; or expired.
  * "unknown": the app didn't answer, so it may or may not have gone through. It is never sent
@@ -41,7 +42,8 @@ export class ApprovalError extends Error {
 }
 
 /** "gmail_send_email" → Gmail; a live-tool server's proposals start with its name ("Test CRM: create_note"). */
-export const appOf = (a: Pick<Approval, "mcpServerId" | "summary" | "tool">) => (a.mcpServerId ? a.summary.split(":")[0] : sourceOf(a.tool.split("_")[0]).label);
+export const appOf = (a: Pick<Approval, "mcpServerId" | "summary" | "tool">) =>
+  a.mcpServerId ? a.summary.split(":")[0] : BUILTIN_ACTIONS[a.tool] ? BUILTIN_ACTIONS[a.tool].label : sourceOf(a.tool.split("_")[0]).label;
 
 /** When a proposal made now stops waiting: the company's setting, or a week. */
 async function expiryFor(db: Db, orgId: string, now: Date): Promise<Date> {
@@ -127,10 +129,25 @@ async function propose(db: Db, viewer: Viewer, target: Target, input: Record<str
   }
   return {
     status: "waiting for approval",
+    approvalId: row.id,
     code: row.code,
     summary,
     note: `Nothing has happened yet. It runs once approved under Approvals in ALRO, or with the reply "yes ${row.code}" in a linked messaging app.`,
   };
+}
+
+/**
+ * Proposes an action for someone to approve, from code rather than from the agent: an action of one of their
+ * connected apps (`connectionId`), or one ALRO takes itself (`alro_…`). Used by the desk for payment reminders
+ * and replies to leads. Throws when the action doesn't exist or the input is wrong.
+ */
+export async function proposeAction(db: Db, viewer: Viewer, target: { tool: string; connectionId?: string }, input: Record<string, unknown>, reason: string, ctx: ProposeContext) {
+  const builtin = BUILTIN_ACTIONS[target.tool];
+  if (builtin) return propose(db, viewer, { tool: target.tool, def: builtin.def as ActionDef }, builtin.def.input.parse(input) as Record<string, unknown>, reason, ctx);
+  const [c] = target.connectionId ? await db.select().from(connections).where(and(eq(connections.id, target.connectionId), eq(connections.orgId, viewer.orgId), eq(connections.status, "active"))) : [];
+  const def = c ? providerOf(c.provider)?.actions?.[target.tool] : undefined;
+  if (!c || !def) throw new Error(`${target.tool} isn't available`);
+  return propose(db, viewer, { connectionId: c.id, tool: target.tool, def }, def.input.parse(input) as Record<string, unknown>, reason, ctx);
 }
 
 /**
@@ -236,6 +253,12 @@ async function perform(db: Db, a: Approval): Promise<{ url?: string; detail?: st
     }
     const out = await callMcpTool(db, server, a.tool, input);
     return { detail: out };
+  }
+  if (a.tool.startsWith(BUILTIN_PREFIX)) {
+    const builtin = BUILTIN_ACTIONS[a.tool];
+    if (!builtin) throw new Error(`ALRO can't do ${a.tool} any more`);
+    const input = a.body !== null && builtin.def.withBody ? builtin.def.withBody(builtin.def.input.parse(a.input), a.body) : builtin.def.input.parse(a.input);
+    return builtin.def.run(undefined as never, input, { accountId: "", credentials: {}, idempotencyKey: a.id });
   }
   const [c] = a.connectionId ? await db.select().from(connections).where(eq(connections.id, a.connectionId)) : [];
   if (!c || c.status === "revoked") throw new Error("That source is no longer connected");

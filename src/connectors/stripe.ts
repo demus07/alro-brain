@@ -242,6 +242,21 @@ export const stripe: Provider = {
     const mode = keyOf(credentials).startsWith("rk_test_") ? " (test mode)" : "";
     return { accountId: `stripe:${account.id}`, label: `${name}${mode}` };
   },
+  async receivables(api) {
+    const { items } = await listAll<Invoice>(api, "v1/invoices", { status: "open" });
+    return items
+      .filter((i) => i.amount_remaining > 0)
+      .map((i) => ({
+        externalId: i.id,
+        number: i.number ?? undefined,
+        customer: i.customer_name ?? undefined,
+        email: i.customer_email?.toLowerCase() ?? undefined,
+        currency: CUR(i.currency),
+        amountDue: fromMinor(i.amount_remaining, i.currency),
+        dueOn: day(i.due_date),
+        url: i.hosted_invoice_url ?? undefined,
+      }));
+  },
   tools(api) {
     return {
       stripe_balance: tool({

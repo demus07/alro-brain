@@ -11,6 +11,7 @@ import { liveToolsFor } from "@/tools/live";
 import { workTools } from "@/work/tools";
 import { agentInstructions } from "./agent";
 import { assertWithin } from "@/platform/usage";
+import { deskTools } from "@/business/tools";
 import { personalTools } from "./personal-tools";
 import { loadProfile, profileInstructions } from "./profile";
 import { agentTools } from "./tools";
@@ -98,6 +99,7 @@ export async function openAgent(
     // Tools that return other people's words are scanned; the asker's own tools and proposals aren't.
     ...guardTools({ ...base.tools, ...workTools(db, viewer, org.timezone), ...insightTools(db, viewer, org.timezone), ...live.tools }, guard),
     ...personalTools(db, viewer, org.timezone, { scheduling: !opts.scheduled, now: opts.now }),
+    ...(await deskTools(db, viewer, opts.now)),
     ...proposals.tools,
   };
   const askTeam = askTeamTool(await loadTeam(db, viewer.orgId), {

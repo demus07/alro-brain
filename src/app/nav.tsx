@@ -22,6 +22,12 @@ const ICONS: Record<string, ReactNode> = {
   Procedures: path("M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"),
   Trackers: path("M4 5h16v14H4zM4 10h16M4 15h16M10 5v14"),
   Settings: path("M4 7h10M18 7h2M4 17h2M10 17h10M14 4.5v5h4v-5h-4zM6 14.5v5h4v-5H6z"),
+  "Money owed": path("M12 3v18M17 7.5c0-2-2.2-3.5-5-3.5s-5 1.500-5 3.500 2.200 3 5 3.500 5 1.500 5 3.500-2.200 3.500-5 3.500-5-1.500-5-3.500"),
+  Leads: path("M4 5h16l-6 8v6l-4-2v-4L4 5z"),
+  Customers: path("M21 12a8 8 0 0 1-11.800 7L4 20l1.200-4.600A8 8 0 1 1 21 12z"),
+  Documents: path("M7 3h8l4 4v14H7V3zM15 3v4h4M10 12h6M10 16h6"),
+  Expenses: path("M5 4h14v17l-3-2-2 2-2-2-2 2-2-2-3 2V4zM9 9h6M9 13h6"),
+  Deadlines: path("M5 5h14v15H5zM5 10h14M9 3v4M15 3v4"),
   Health: path("M3 12h4l3-7 4 14 3-7h4"),
 };
 
@@ -43,6 +49,17 @@ const GROUPS = [
       { href: "/graph", label: "Graph" },
       { href: "/procedures", label: "Procedures" },
       { href: "/trackers", label: "Trackers" },
+    ],
+  },
+  {
+    label: "Business",
+    items: [
+      { href: "/money", label: "Money owed" },
+      { href: "/leads", label: "Leads" },
+      { href: "/customers", label: "Customers" },
+      { href: "/documents", label: "Documents" },
+      { href: "/expenses", label: "Expenses" },
+      { href: "/deadlines", label: "Deadlines" },
     ],
   },
   {
