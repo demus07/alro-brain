@@ -44,13 +44,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <AppFrame
             sidebar={
               <>
-                <div className="brand">
-                  <span className="brand-mark" aria-hidden>
-                    a
-                  </span>
-                  <span className="brand-name">ALRO</span>
+                <div className="sidebar-head">
+                  <div className="brand">
+                    <span className="brand-mark" aria-hidden>
+                      a
+                    </span>
+                    <span className="brand-name">ALRO</span>
+                  </div>
+                  <SearchLink />
                 </div>
-                <SearchLink />
                 <Suspense fallback={null}>
                   <Nav />
                 </Suspense>

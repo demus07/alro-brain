@@ -169,6 +169,8 @@
 html,
 body {
   height: 100%;
+  /* The app frame fills the window; no rubber-band bounce of the whole page. */
+  overscroll-behavior: none;
 }
 
 body {
@@ -228,7 +230,7 @@ svg {
   background: var(--background);
 }
 
-/* The sidebar never scrolls: it is sized to fit, and tightens on short windows (below). */
+/* The sidebar is sized to fit and tightens on short windows (below); if it still doesn't fit, it scrolls. */
 .sidebar {
   --nav-row: 34px;
   --nav-gap: var(--space-4);
@@ -237,7 +239,11 @@ svg {
   flex-direction: column;
   gap: var(--nav-gap);
   padding: var(--space-2) var(--space-1) var(--space-1);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  /* Hard stop at both ends: no rubber-band bounce dragging the pinned top and bottom along. */
+  overscroll-behavior: none;
+  scrollbar-width: thin;
 }
 
 .brand {
@@ -375,10 +381,30 @@ kbd {
   margin-top: auto;
 }
 
+/* The logo and search stay pinned at the top; the nav scrolls under them. */
+.sidebar-head {
+  position: sticky;
+  top: calc(-1 * var(--space-2));
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--nav-gap);
+  margin-top: calc(-1 * var(--space-2));
+  padding: var(--space-2) 0 var(--space-1);
+  background: var(--background);
+}
+
+/* Admin, the profile and the theme switch stay pinned at the bottom; only the nav above scrolls under them. */
 .sidebar-foot {
+  position: sticky;
+  bottom: calc(-1 * var(--space-1));
+  z-index: 1;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  margin-bottom: calc(-1 * var(--space-1));
+  padding: var(--space-2) 0 var(--space-1);
+  background: var(--background);
 }
 
 .sync-status {
@@ -1986,6 +2012,16 @@ details.card > summary::-webkit-details-marker {
   letter-spacing: var(--tracking-display);
 }
 
+/* The greeting is picked in the browser (random, by the visitor's clock), so it fades in once chosen. */
+.greeting {
+  max-width: 22ch;
+  text-wrap: balance;
+  transition: opacity 240ms var(--ease-enter, ease-out);
+}
+.greeting[data-ready="false"] {
+  opacity: 0;
+}
+
 .suggestions {
   display: flex;
   flex-wrap: wrap;
@@ -2775,6 +2811,10 @@ details.card > summary::-webkit-details-marker {
   .side-nav svg,
   .sidebar-foot {
     display: none;
+  }
+  /* In the top bar the logo and search sit inline with the nav, as before. */
+  .sidebar-head {
+    display: contents;
   }
   .side-search {
     width: 36px;

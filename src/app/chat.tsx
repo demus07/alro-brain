@@ -256,7 +256,48 @@ function Mic({ onText, disabled }: { onText: (text: string) => void; disabled: b
   );
 }
 
-export function Chat() {
+/**
+ * Headings for a new chat, one picked per visit. "{name}" becomes the first name when someone is
+ * signed in; without one, the ", {name}" (or " {name}") around it drops out.
+ */
+const GREETINGS = [
+  "I remember so you don't have to, {name}",
+  "Who said what, and when? Ask away, {name}",
+  "Every thread, every meeting. What's the question, {name}?",
+  "Somebody promised something. Let's find out who, {name}",
+  "Lost in a 200-message thread, {name}? I've read it",
+  "What did we decide, {name}? I was listening",
+  "Your company's memory, at your service, {name}",
+  "Name the meeting, {name}. I'll tell you what was said",
+  "The inbox forgets. I don't, {name}",
+  "Ask me what everyone else forgot, {name}",
+  "Receipts on request, {name}",
+  "Let's dig something up, {name}",
+];
+const MORNING = ["Morning, {name}. Here's what slipped overnight, if you ask", "Coffee first, {name}? I've already read everything"];
+const EVENING = ["Still at it, {name}? I never clocked out", "Late one, {name}? I remember the whole day"];
+
+function pickGreeting(firstName: string | undefined): string {
+  const hour = new Date().getHours();
+  const pool = [...GREETINGS, ...(hour >= 5 && hour < 11 ? MORNING : []), ...(hour >= 21 || hour < 5 ? EVENING : [])];
+  const line = pool[Math.floor(Math.random() * pool.length)]!;
+  return firstName ? line.replace("{name}", firstName) : line.replace(/,? \{name\}/, "");
+}
+
+/** The new-chat heading: a line about what ALRO does, with the first name when someone is signed in. */
+function Greeting({ firstName }: { firstName?: string }) {
+  // Random and clock-based, so chosen in the browser after hydration (the server's pick would differ).
+  const [line, setLine] = useState<string | null>(null);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- picked once in the browser, after hydration
+  useEffect(() => setLine(pickGreeting(firstName)), [firstName]);
+  return (
+    <h1 className="chat-title center greeting" data-ready={line !== null}>
+      {line ?? "\u00a0"}
+    </h1>
+  );
+}
+
+export function Chat({ firstName }: { firstName?: string }) {
   const { messages, sendMessage, status, error } = useChat({ transport: new DefaultChatTransport({ api: "/api/chat" }) });
   const [input, setInput] = useState("");
   const busy = status === "submitted" || status === "streaming";
@@ -281,8 +322,8 @@ export function Chat() {
       <div className="chat-log">
         {messages.length === 0 && (
           <div className="chat-empty">
-            <h1 className="chat-title center">What do you want to know?</h1>
-            <p className="muted center">Anything said across your chats, email and meetings, answered with sources.</p>
+            <Greeting firstName={firstName} />
+            <p className="muted center">What do you want to know? Anything said across your chats, email and meetings, answered with sources.</p>
             <div className="suggestions">
               {EXAMPLES.map((q) => (
                 <button key={q} type="button" className="ghost" onClick={() => ask(q)}>
